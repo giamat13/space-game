@@ -177,6 +177,30 @@ export function saveMaxLevel(level) {
     }
 }
 
+// Leaderboard Management
+export function getLeaderboard(skinKey = 'overall') {
+    const saved = getCookie(`leaderboard_${skinKey}`);
+    return saved ? JSON.parse(saved) : [];
+}
+
+export function saveScore(skinKey, score, level) {
+    // Save for specific skin
+    let skinLeaderboard = getLeaderboard(skinKey);
+    skinLeaderboard.push({ score, level, date: new Date().toLocaleDateString('he-IL') });
+    skinLeaderboard.sort((a, b) => b.score - a.score);
+    skinLeaderboard = skinLeaderboard.slice(0, 5); // Keep top 5
+    setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
+    
+    // Save for overall
+    let overallLeaderboard = getLeaderboard('overall');
+    overallLeaderboard.push({ score, level, skin: skinKey, date: new Date().toLocaleDateString('he-IL') });
+    overallLeaderboard.sort((a, b) => b.score - a.score);
+    overallLeaderboard = overallLeaderboard.slice(0, 5); // Keep top 5
+    setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
+    
+    console.log(`🏆 Score saved: ${score} for ${skinKey}`);
+}
+
 // Game State
 export const state = {
     active: false,
