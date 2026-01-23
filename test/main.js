@@ -48,10 +48,19 @@ window.selectSkin = function(key, element) {
 window.initGame = function() {
     console.log('🎮 GAME STARTING...');
     resetState();
+    
+    // Apply skin stats
+    const skin = SKINS[currentSkinKey];
+    state.currentSkinStats = {
+        fireRate: skin.fireRate,
+        bulletSpeed: skin.bulletSpeed,
+        bulletDamage: skin.bulletDamage
+    };
+    console.log(`🎨 Skin: ${skin.name} | Stats:`, state.currentSkinStats);
     console.log(`✅ Game initialized | HP: ${state.playerHP}/${state.playerMaxHP}`);
     
-    DOM.playerSpriteContainer.innerHTML = SKINS[currentSkinKey].svg;
-    document.documentElement.style.setProperty('--primary', SKINS[currentSkinKey].color);
+    DOM.playerSpriteContainer.innerHTML = skin.svg;
+    document.documentElement.style.setProperty('--primary', skin.color);
 
     DOM.scoreEl.innerText = '0';
     DOM.levelEl.innerText = '1';
@@ -61,9 +70,7 @@ window.initGame = function() {
     document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient')
         .forEach(e => e.remove());
     
-    // Update skin options when starting game (in case they unlocked something)
     updateSkinOptions();
-    
     updatePlayerPos();
     requestAnimationFrame(update);
 };

@@ -4,9 +4,10 @@ import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMess
 // ===== UPDATE BULLETS =====
 
 export function updateBullets() {
+    const bulletSpeed = 15 * state.currentSkinStats.bulletSpeed;
     for (let i = state.bullets.length - 1; i >= 0; i--) {
         let b = state.bullets[i];
-        b.y += 15;
+        b.y += bulletSpeed;
         b.el.style.bottom = b.y + 'px';
         if(b.y > DOM.wrapper.clientHeight) {
             b.el.remove();
@@ -80,7 +81,8 @@ export function updateBurgers() {
             let bul = state.bullets[bi];
             const bulRect = bul.el.getBoundingClientRect();
             if(!(bulRect.right < bRect.left || bulRect.left > bRect.right || bulRect.bottom < bRect.top || bulRect.top > bRect.bottom)) {
-                bgr.hp--;
+                const damage = bul.damage || 1.0;
+                bgr.hp -= damage;
                 bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
                 bul.el.remove();
                 state.bullets.splice(bi, 1);
@@ -119,7 +121,9 @@ export function updateIngredients() {
         if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
             state.score += 25;
             DOM.scoreEl.innerText = state.score;
+            const oldHP = state.playerHP;
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
+            console.log(`🍔 INGREDIENT! +5 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
             updateHPUI();
             ing.el.remove();
             state.ingredients.splice(i, 1);
@@ -197,7 +201,8 @@ export function updateEnemies(now) {
             const eRect = en.el.getBoundingClientRect();
             
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
-                en.hp--;
+                const damage = bul.damage || 1.0;
+                en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
                 createExplosion(bRect.left, bRect.top, 'white');
                 bul.el.remove();
@@ -214,18 +219,25 @@ export function updateEnemies(now) {
                     if (isElite) {
                         createExplosion(eRect.left + 25, eRect.top + 25, 'var(--elite)');
                         if (crossedHealThreshold) {
-                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + (state.playerMaxHP * 0.75));
+                            const healAmount = state.playerMaxHP * 0.75;
+                            const oldHP = state.playerHP;
+                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + healAmount);
+                            console.log(`⭐ ELITE KILL THRESHOLD! +75% HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
                             showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, "var(--elite)");
                         } else {
+                            const oldHP = state.playerHP;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 50);
+                            console.log(`⭐ ELITE KILL! +50 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             showFloatingMessage("REPAIR +25% & 150 PTS", eRect.left, eRect.top, "var(--elite)");
                         }
                         updateHPUI();
                     } else {
                         createExplosion(eRect.left + 25, eRect.top + 25, 'var(--danger)');
                         if (crossedHealThreshold) {
+                            const oldHP = state.playerHP;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 20);
+                            console.log(`🎯 ENEMY KILL THRESHOLD! +20 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
                             showFloatingMessage("REPAIR +20", eRect.left, eRect.top, "var(--health)");
                             updateHPUI();
