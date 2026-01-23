@@ -338,6 +338,11 @@ function activateSpecialAbility() {
 window.addEventListener('mousemove', (e) => {
     if(!state.active) return;
     movePlayer(e.clientX);
+    
+    // Track mouse position for Phoenix feathers
+    const rect = DOM.wrapper.getBoundingClientRect();
+    state.lastMouseX = e.clientX - rect.left;
+    state.lastMouseY = e.clientY - rect.top;
 });
 
 window.addEventListener('touchmove', (e) => {
@@ -345,12 +350,22 @@ window.addEventListener('touchmove', (e) => {
     e.preventDefault();
     movePlayer(e.touches[0].clientX);
     shoot();
+    
+    // Track touch position for Phoenix feathers
+    const rect = DOM.wrapper.getBoundingClientRect();
+    state.lastMouseX = e.touches[0].clientX - rect.left;
+    state.lastMouseY = e.touches[0].clientY - rect.top;
 }, { passive: false });
 
 window.addEventListener('touchstart', (e) => {
     if(!state.active) return;
     movePlayer(e.touches[0].clientX);
     shoot();
+    
+    // Track touch position for Phoenix feathers
+    const rect = DOM.wrapper.getBoundingClientRect();
+    state.lastMouseX = e.touches[0].clientX - rect.left;
+    state.lastMouseY = e.touches[0].clientY - rect.top;
 }, { passive: false });
 
 window.addEventListener('mousedown', shoot);

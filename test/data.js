@@ -292,6 +292,8 @@ export const state = {
     playerX: 0,
     playerHP: 200,
     playerMaxHP: 200,
+    lastMouseX: 0,
+    lastMouseY: 0,
     bullets: [],
     enemyBullets: [],
     enemies: [],

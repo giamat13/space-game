@@ -176,36 +176,12 @@ export function showFloatingMessage(text, x, y, color) {
 export function usePhoenixFeathers() {
     console.log('🔥 [PHOENIX] Activating Phoenix Feathers ability!');
     
-    // Find closest enemy
-    if (state.enemies.length === 0) {
-        console.log('⚠️ [PHOENIX] No enemies to target');
-        showFloatingMessage('NO TARGETS!', state.playerX, DOM.wrapper.clientHeight - 100, 'var(--danger)');
-        return;
-    }
-    
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Find closest enemy
-    let closestEnemy = null;
-    let closestDist = Infinity;
-    
-    state.enemies.forEach(en => {
-        const eRect = en.el.getBoundingClientRect();
-        const dx = (eRect.left + 25) - playerCenterX;
-        const dy = (eRect.top + 25) - playerY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closestEnemy = en;
-        }
-    });
-    
-    if (!closestEnemy) return;
-    
-    const targetRect = closestEnemy.el.getBoundingClientRect();
-    const targetX = targetRect.left + 25;
-    const targetY = targetRect.top + 25;
+    // Get mouse position from last known position
+    const targetX = state.lastMouseX || playerCenterX;
+    const targetY = state.lastMouseY || playerY - 100;
     
     // Shoot 3 feathers with slight spread
     for (let i = 0; i < 3; i++) {
