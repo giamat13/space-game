@@ -21,29 +21,35 @@ export function movePlayer(clientX) {
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
-    console.log(`💥 DAMAGE! -${amount} HP | Current HP: ${state.playerHP}/${state.playerMaxHP}`);
+    console.log(`💥 [DAMAGE] Player took ${amount} damage | HP: ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     const flash = document.createElement('div');
     flash.className = 'damage-flash';
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
+    
     if(state.playerHP <= 0) {
-        console.log('☠️ GAME OVER TRIGGERED! HP reached 0');
+        console.log('💀 [GAME OVER] ==================== GAME OVER ====================');
+        console.log(`💀 [GAME OVER] Final Score: ${state.score}, Level: ${state.level}`);
         state.active = false;
         
-        // Save score before showing game over
-        import('./data.js').then(async (module) => {
-            await module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log(`📊 Score saved: ${state.score} for ${module.currentSkinKey}`);
-            
-            // Show game over screen after saving
-            DOM.overlay.style.display = 'flex';
-            document.getElementById('title').innerText = "Game Over";
-            document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
-            document.getElementById('leaderboard-container').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'block';
-            console.log('🎮 GAME OVER SCREEN DISPLAYED');
+        console.log('💾 [GAME OVER] Importing data module for saving score...');
+        import('./data.js').then(module => {
+            console.log(`💾 [GAME OVER] Saving score for skin: ${module.currentSkinKey}`);
+            console.log(`💾 [GAME OVER] Score: ${state.score}, Level: ${state.level}`);
+            module.saveScore(module.currentSkinKey, state.score, state.level);
+            console.log('✅ [GAME OVER] Score saved successfully');
+        }).catch(err => {
+            console.error('❌ [GAME OVER] ERROR saving score:', err);
         });
+        
+        console.log('📺 [GAME OVER] Showing game over screen...');
+        DOM.overlay.style.display = 'flex';
+        document.getElementById('title').innerText = "Game Over";
+        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        document.getElementById('leaderboard-container').style.display = 'none';
+        document.getElementById('main-menu').style.display = 'block';
+        console.log('✅ [GAME OVER] Game over screen displayed');
     }
 }
 
@@ -51,7 +57,7 @@ export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
     const oldHP = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
-    console.log(`💚 HEAL! +${percent}% (+${Math.floor(amount)}) | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
+    console.log(`💚 [HEAL] +${percent}% (+${Math.floor(amount)}) | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
