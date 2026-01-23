@@ -69,7 +69,7 @@ export function shoot() {
     
     // Visual enhancement for powerful skins
     if (state.currentSkinStats.bulletDamage >= 3.0) {
-        // Dragon fire bullets
+        // joker fire bullets
         b.style.width = '8px';
         b.style.height = '25px';
         b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
