@@ -5,46 +5,68 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 
 // ===== INITIALIZATION =====
 
+console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
 updateSkinOptions();
+console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
 
 function showLeaderboard() {
-    console.log('🏆 Opening leaderboard...');
+    console.log('🏆 [LEADERBOARD] Opening leaderboard...');
+    console.log('🏆 [LEADERBOARD] Hiding main menu');
     document.getElementById('main-menu').style.display = 'none';
+    console.log('🏆 [LEADERBOARD] Showing leaderboard container');
     document.getElementById('leaderboard-container').style.display = 'block';
+    console.log('🏆 [LEADERBOARD] Displaying overall category');
     displayLeaderboard('overall');
     
     // Setup tab listeners
-    document.querySelectorAll('.lb-tab').forEach(tab => {
+    console.log('🏆 [LEADERBOARD] Setting up tab listeners');
+    const tabs = document.querySelectorAll('.lb-tab');
+    console.log(`🏆 [LEADERBOARD] Found ${tabs.length} tabs`);
+    tabs.forEach((tab, index) => {
+        console.log(`🏆 [LEADERBOARD] Setting up tab ${index}: ${tab.dataset.tab}`);
         tab.onclick = function() {
+            console.log(`👆 [TAB CLICK] User clicked tab: ${this.dataset.tab}`);
             document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
+            console.log(`👆 [TAB CLICK] Displaying leaderboard for: ${this.dataset.tab}`);
             displayLeaderboard(this.dataset.tab);
         };
     });
+    console.log('✅ [LEADERBOARD] Leaderboard opened successfully');
 }
 
 function closeLeaderboard() {
-    console.log('❌ Closing leaderboard...');
+    console.log('❌ [LEADERBOARD] Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
 function displayLeaderboard(category) {
-    console.log(`📊 Displaying leaderboard for: ${category}`);
+    console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
     const leaderboard = getLeaderboard(category);
-    console.log(`Found ${leaderboard.length} entries:`, leaderboard);
+    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
     const content = document.getElementById('leaderboard-content');
     
+    if (!content) {
+        console.error('❌ [DISPLAY] ERROR: leaderboard-content element not found!');
+        return;
+    }
+    
     if (leaderboard.length === 0) {
+        console.log('⚠️ [DISPLAY] No entries found, showing empty message');
         content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
         return;
     }
     
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-    content.innerHTML = leaderboard.map((entry, index) => `
+    console.log('📊 [DISPLAY] Generating HTML for entries...');
+    const html = leaderboard.map((entry, index) => {
+        console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
+        return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index]}</div>
             <div class="lb-info">
@@ -54,46 +76,69 @@ function displayLeaderboard(category) {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
+    
+    content.innerHTML = html;
+    console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
 
 // Export to window for HTML onclick
+console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
 window.closeLeaderboard = closeLeaderboard;
+console.log('✅ [EXPORT] Functions exported:', {
+    showLeaderboard: typeof window.showLeaderboard,
+    closeLeaderboard: typeof window.closeLeaderboard
+});
 
 // ===== SKIN SELECTION =====
 
 function updateSkinOptions() {
-    document.querySelectorAll('.skin-option').forEach(option => {
+    console.log('🎨 [SKINS] Updating skin options...');
+    const options = document.querySelectorAll('.skin-option');
+    console.log(`🎨 [SKINS] Found ${options.length} skin options`);
+    
+    options.forEach((option, index) => {
         const skinKey = option.dataset.skin;
         const unlockLevel = parseInt(option.dataset.unlockLevel) || 0;
         const maxLevel = getMaxLevel();
         
+        console.log(`🎨 [SKINS] Processing skin ${index}: ${skinKey} (unlock level: ${unlockLevel}, max level: ${maxLevel})`);
+        
         if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
+            console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             unlockSkin(skinKey);
             option.classList.add('newly-unlocked');
             setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
         }
         
         if (isSkinUnlocked(skinKey)) {
+            console.log(`✅ [SKINS] ${skinKey} is unlocked, making clickable`);
             option.classList.remove('locked');
-            option.onclick = () => selectSkin(skinKey, option);
+            option.onclick = () => {
+                console.log(`👆 [SKIN CLICK] User clicked skin: ${skinKey}`);
+                selectSkin(skinKey, option);
+            };
         } else {
+            console.log(`🔒 [SKINS] ${skinKey} is locked`);
             option.classList.add('locked');
             option.onclick = null;
         }
     });
+    console.log('✅ [SKINS] Skin options updated');
 }
 
 function selectSkin(key, element) {
+    console.log(`🎨 [SELECT] Selecting skin: ${key}`);
     if (!isSkinUnlocked(key)) {
-        console.log(`🔒 Skin ${key} is locked!`);
+        console.log(`🔒 [SELECT] Skin ${key} is locked! Selection blocked.`);
         return;
     }
     setCurrentSkin(key);
     document.querySelectorAll('.skin-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
-    console.log(`✨ Skin changed to: ${key}`);
+    console.log(`✅ [SELECT] Skin ${key} selected successfully`);
 }
 
 // Export to window for HTML onclick
@@ -102,18 +147,19 @@ window.selectSkin = selectSkin;
 // ===== GAME INITIALIZATION =====
 
 function initGame() {
-    console.log('🎮 GAME STARTING...');
+    console.log('🎮 [GAME] ==================== GAME STARTING ====================');
     resetState();
     
     // Apply skin stats
     const skin = SKINS[currentSkinKey];
+    console.log(`🎨 [GAME] Using skin: ${skin.name}`);
     state.currentSkinStats = {
         fireRate: skin.fireRate,
         bulletSpeed: skin.bulletSpeed,
         bulletDamage: skin.bulletDamage
     };
-    console.log(`🎨 Skin: ${skin.name} | Stats:`, state.currentSkinStats);
-    console.log(`✅ Game initialized | HP: ${state.playerHP}/${state.playerMaxHP}`);
+    console.log(`📊 [GAME] Skin stats:`, state.currentSkinStats);
+    console.log(`❤️ [GAME] HP: ${state.playerHP}/${state.playerMaxHP}`);
     
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
@@ -123,23 +169,29 @@ function initGame() {
     updateHPUI();
     DOM.overlay.style.display = 'none';
     
-    document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient')
-        .forEach(e => e.remove());
+    console.log('🧹 [GAME] Cleaning up old game elements...');
+    const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient');
+    console.log(`🧹 [GAME] Removing ${elementsToRemove.length} old elements`);
+    elementsToRemove.forEach(e => e.remove());
     
     updateSkinOptions();
     updatePlayerPos();
+    console.log('✅ [GAME] Game initialized successfully, starting update loop');
     requestAnimationFrame(update);
 }
 
 // Export to window for HTML onclick
 window.initGame = initGame;
+console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
 // ===== LEVEL UP SYSTEM =====
 
 function handleLevelUp() {
     if (state.score >= state.lastLevelScore + 1000) {
+        console.log(`⬆️ [LEVEL UP] Player leveled up! Score: ${state.score}`);
         state.lastLevelScore = Math.floor(state.score / 1000) * 1000;
         state.level++;
+        console.log(`⬆️ [LEVEL UP] New level: ${state.level}`);
         DOM.levelEl.innerText = state.level;
         state.speedMult += 0.2;
         state.spawnRate = Math.max(250, state.spawnRate - 200);
@@ -150,10 +202,12 @@ function handleLevelUp() {
         saveMaxLevel(state.level);
         
         // Check for skin unlocks
+        console.log(`🔍 [LEVEL UP] Checking for skin unlocks at level ${state.level}...`);
         let unlocked = false;
         Object.keys(SKINS).forEach(skinKey => {
             const skin = SKINS[skinKey];
             if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
+                console.log(`🎉 [LEVEL UP] Unlocking skin: ${skinKey}`);
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
                     showFloatingMessage(
@@ -221,6 +275,7 @@ window.addEventListener('keydown', (e) => {
 // ===== INITIALIZATION =====
 
 // Generate stars
+console.log('⭐ [INIT] Generating stars...');
 for(let i=0; i<40; i++) {
     const s = document.createElement('div');
     s.className = 'star';
@@ -231,5 +286,8 @@ for(let i=0; i<40; i++) {
     s.style.animationDuration = (Math.random()*4+2)+'s';
     DOM.wrapper.appendChild(s);
 }
+console.log('✅ [INIT] 40 stars generated');
 
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
+console.log('✅ [INIT] Player sprite set to classic skin');
+console.log('🎮 [INIT] All systems ready!');
