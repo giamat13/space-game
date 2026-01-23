@@ -23,6 +23,20 @@
             <h1 id="title">SPACE DEFENDER</h1>
             <p id="sub-title">בחר ספינה וצא למשימה</p>
             
+            <div id="leaderboard-container" style="display: none;">
+                <div class="leaderboard-tabs">
+                    <button class="lb-tab active" data-tab="overall">🏆 כללי</button>
+                    <button class="lb-tab" data-tab="classic">Classic</button>
+                    <button class="lb-tab" data-tab="interceptor">Interceptor</button>
+                    <button class="lb-tab" data-tab="tanker">Tanker</button>
+                    <button class="lb-tab" data-tab="phoenix">Phoenix</button>
+                    <button class="lb-tab" data-tab="vortex">Vortex</button>
+                </div>
+                <div id="leaderboard-content"></div>
+                <button onclick="closeLeaderboard()" style="margin-top: 15px;">חזרה</button>
+            </div>
+
+            <div id="main-menu">
             <div class="skin-selector">
                 <div class="skin-option selected" data-skin="classic">
                     <div class="skin-preview">
@@ -68,6 +82,8 @@
             </div>
 
             <button onclick="initGame()">Start Mission</button>
+            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
+            </div>
         </div>
     </div>
 

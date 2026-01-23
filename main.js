@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
@@ -7,6 +7,51 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 
 loadUnlockedSkins();
 updateSkinOptions();
+
+// ===== LEADERBOARD =====
+
+window.showLeaderboard = function() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('leaderboard-container').style.display = 'block';
+    displayLeaderboard('overall');
+    
+    // Setup tab listeners
+    document.querySelectorAll('.lb-tab').forEach(tab => {
+        tab.onclick = function() {
+            document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            displayLeaderboard(this.dataset.tab);
+        };
+    });
+};
+
+window.closeLeaderboard = function() {
+    document.getElementById('leaderboard-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
+};
+
+function displayLeaderboard(category) {
+    const leaderboard = getLeaderboard(category);
+    const content = document.getElementById('leaderboard-content');
+    
+    if (leaderboard.length === 0) {
+        content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
+        return;
+    }
+    
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    content.innerHTML = leaderboard.map((entry, index) => `
+        <div class="lb-entry rank-${index + 1}">
+            <div class="lb-rank">${medals[index]}</div>
+            <div class="lb-info">
+                <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
+                <div class="lb-details">
+                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
 
 // ===== SKIN SELECTION =====
 

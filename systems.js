@@ -30,9 +30,17 @@ export function damagePlayer(amount) {
     if(state.playerHP <= 0) {
         console.log('☠️ GAME OVER TRIGGERED! HP reached 0');
         state.active = false;
+        
+        // Save score to leaderboard
+        import('./data.js').then(module => {
+            module.saveScore(module.currentSkinKey, state.score, state.level);
+        });
+        
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
         document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        document.getElementById('leaderboard-container').style.display = 'none';
+        document.getElementById('main-menu').style.display = 'block';
         console.log('🎮 GAME OVER SCREEN DISPLAYED');
     }
 }
