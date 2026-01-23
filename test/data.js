@@ -99,7 +99,8 @@ export const SKINS = {
         fireRate: 1.6,        // 60% faster shooting
         bulletSpeed: 1.4,     // 40% faster bullets
         bulletDamage: 2.0,    // 100% more damage (DOUBLE!)
-        description: '⚡⚡ Ultra-fast fire | 💥 DOUBLE damage'
+        maxHP: 400,           // DOUBLE HP!
+        description: '⚡⚡ Ultra-fast fire | 💥 2X dmg | ❤️ 2X HP'
     }
 };
 
@@ -144,7 +145,7 @@ export function loadUnlockedSkins() {
     const saved = getCookie('unlockedSkins');
     if (saved) {
         unlockedSkins = JSON.parse(saved);
-        console.log('🔓 Loaded unlocked skins:', unlockedSkins);
+        console.log('📂 Loaded unlocked skins:', unlockedSkins);
     }
 }
 
@@ -210,8 +211,13 @@ export function resetState() {
     state.score = 0;
     state.level = 1;
     state.playerX = DOM.wrapper.clientWidth / 2 - 25;
-    state.playerHP = 200;
-    state.playerMaxHP = 200;
+    
+    // Set HP based on selected skin
+    const skin = SKINS[currentSkinKey];
+    const maxHP = skin.maxHP || 200;
+    state.playerHP = maxHP;
+    state.playerMaxHP = maxHP;
+    
     state.bullets = [];
     state.enemyBullets = [];
     state.enemies = [];
