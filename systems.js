@@ -19,15 +19,18 @@ export function movePlayer(clientX) {
     updatePlayerPos();
 }
 
-export function damagePlayer(amount, onGameOver) {
+export function damagePlayer(amount) {
     state.playerHP -= amount;
     updateHPUI();
     const flash = document.createElement('div');
     flash.className = 'damage-flash';
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
-    if(state.playerHP <= 0 && onGameOver) {
-        onGameOver("הספינה שלך הושמדה!");
+    if(state.playerHP <= 0) {
+        state.active = false;
+        DOM.overlay.style.display = 'flex';
+        document.getElementById('title').innerText = "Game Over";
+        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
     }
 }
 

@@ -31,14 +31,7 @@ window.initGame = function() {
     requestAnimationFrame(update);
 };
 
-// ===== GAME OVER =====
 
-function gameOver(reason) {
-    state.active = false;
-    DOM.overlay.style.display = 'flex';
-    document.getElementById('title').innerText = "Game Over";
-    document.getElementById('sub-title').innerHTML = `${reason}<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
-}
 
 // ===== LEVEL UP SYSTEM =====
 
