@@ -171,6 +171,71 @@ export function showFloatingMessage(text, x, y, color) {
     setTimeout(() => msg.remove(), 1000);
 }
 
+// ===== SPECIAL ABILITIES =====
+
+export function useVortexLaser() {
+    console.log('⚡ [VORTEX] Activating laser ability!');
+    const playerCenterX = state.playerX + 25;
+    const playerY = DOM.wrapper.clientHeight - 90;
+    
+    // Create 12 laser beams in all directions
+    const numBeams = 12;
+    for (let i = 0; i < numBeams; i++) {
+        const angle = (i / numBeams) * 360;
+        const laser = document.createElement('div');
+        laser.className = 'laser-beam';
+        laser.style.left = playerCenterX + 'px';
+        laser.style.bottom = '90px';
+        laser.style.transform = `rotate(${angle}deg)`;
+        DOM.wrapper.appendChild(laser);
+        
+        // Remove laser after animation
+        setTimeout(() => laser.remove(), 300);
+    }
+    
+    // Instant kill all enemies and asteroids on screen
+    let killCount = 0;
+    
+    // Kill all enemies
+    for (let i = state.enemies.length - 1; i >= 0; i--) {
+        const en = state.enemies[i];
+        const isElite = en.type === 'orange';
+        const points = isElite ? 150 : 50;
+        state.score += points;
+        const eRect = en.el.getBoundingClientRect();
+        createExplosion(eRect.left + 25, eRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+        en.el.remove();
+        state.enemies.splice(i, 1);
+        killCount++;
+    }
+    
+    // Destroy all asteroids
+    for (let i = state.asteroids.length - 1; i >= 0; i--) {
+        const ast = state.asteroids[i];
+        const aRect = ast.el.getBoundingClientRect();
+        createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+        ast.el.remove();
+        state.asteroids.splice(i, 1);
+        killCount++;
+    }
+    
+    // Destroy all enemy bullets
+    for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
+        const eb = state.enemyBullets[i];
+        createExplosion(eb.x, eb.y, '#ff0000');
+        eb.el.remove();
+        state.enemyBullets.splice(i, 1);
+    }
+    
+    DOM.scoreEl.innerText = state.score;
+    
+    if (killCount > 0) {
+        showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
+    }
+    
+    console.log(`✅ [VORTEX] Laser complete! Killed: ${killCount}`);
+}
+
 // ===== SPAWNING SYSTEMS =====
 
 export function spawnIngredients(x, y) {

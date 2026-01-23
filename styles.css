@@ -371,3 +371,73 @@ button:hover {
     padding: 30px;
     font-size: 0.9rem;
 }
+
+/* Special Ability Button */
+#special-ability-btn {
+    position: fixed;
+    bottom: 120px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px var(--primary);
+    transition: all 0.3s;
+}
+
+#special-ability-btn:active {
+    transform: scale(0.9);
+}
+
+#special-ability-btn.cooldown {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.ability-icon {
+    font-size: 2rem;
+    animation: pulse 2s infinite;
+}
+
+#special-ability-btn.cooldown .ability-icon {
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.ability-cooldown {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(rgba(0,0,0,0.8) var(--cooldown-percent, 0%), transparent 0%);
+}
+
+.laser-beam {
+    position: absolute;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--primary), transparent);
+    box-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary);
+    transform-origin: center bottom;
+    pointer-events: none;
+    z-index: 100;
+    animation: laserPulse 0.3s;
+}
+
+@keyframes laserPulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
