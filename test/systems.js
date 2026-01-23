@@ -28,28 +28,36 @@ export function damagePlayer(amount) {
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     
-    if(state.playerHP <= 0) {
+    if (state.playerHP <= 0) {
         console.log('💀 [GAME OVER] ==================== GAME OVER ====================');
         console.log(`💀 [GAME OVER] Final Score: ${state.score}, Level: ${state.level}`);
         state.active = false;
         
-        console.log('💾 [GAME OVER] Importing data module for saving score...');
-        import('./data.js').then(module => {
-            console.log(`💾 [GAME OVER] Saving score for skin: ${module.currentSkinKey}`);
-            console.log(`💾 [GAME OVER] Score: ${state.score}, Level: ${state.level}`);
-            module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log('✅ [GAME OVER] Score saved successfully');
+        // Submit to LootLocker
+        import('./lootlocker-manager.js').then(async (lootlocker) => {
+            const metadata = {
+                level: state.level,
+                skin: module.currentSkinKey
+            };
+            await lootlocker.submitScore(state.score, metadata);
+            console.log('✅ [LOOTLOCKER] Score submitted to global leaderboard');
         }).catch(err => {
-            console.error('❌ [GAME OVER] ERROR saving score:', err);
+            console.error('❌ [LOOTLOCKER] Error:', err);
         });
         
-        console.log('📺 [GAME OVER] Showing game over screen...');
+        // Existing save to local storage
+        import('./data.js').then(module => {
+            module.saveScore(module.currentSkinKey, state.score, state.level);
+            console.log('✅ [GAME OVER] Score saved locally');
+        });
+        
+        // Show game over screen
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
         document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
         document.getElementById('leaderboard-container').style.display = 'none';
+        document.getElementById('global-leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
-        console.log('✅ [GAME OVER] Game over screen displayed');
     }
 }
 

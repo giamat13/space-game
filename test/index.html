@@ -6,6 +6,8 @@
     <title>מגיני החלל: מערכת סקינים</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- LootLocker SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/lootlocker-js@2.2.1/dist/lootlocker.min.js"></script>
 </head>
 <body>
     <div id="game-wrapper">
@@ -28,6 +30,15 @@
             <h1 id="title">SPACE DEFENDER</h1>
             <p id="sub-title">בחר ספינה וצא למשימה</p>
             
+            <!-- Global Leaderboard Container -->
+            <div id="global-leaderboard-container" style="display: none;">
+                <h2 style="color: #ffd700; margin-bottom: 20px;">🌍 לוח מובילים עולמי</h2>
+                <div id="global-leaderboard-content">
+                    <div class="lb-loading">טוען נתונים...</div>
+                </div>
+                <button onclick="closeGlobalLeaderboard()" style="margin-top: 15px;">חזרה</button>
+            </div>
+
             <div id="leaderboard-container" style="display: none;">
                 <div class="leaderboard-tabs">
                     <button class="lb-tab active" data-tab="overall">🏆 כללי</button>
@@ -101,7 +112,8 @@
             </div>
 
             <button onclick="initGame()">Start Mission</button>
-            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
+            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים מקומי</button>
+            <button onclick="showGlobalLeaderboard()" style="margin-top: 10px; background: rgba(0,242,255,0.2); border-color: #00f2ff; color: #00f2ff;">🌍 לוח מובילים עולמי</button>
             </div>
         </div>
     </div>

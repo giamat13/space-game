@@ -455,3 +455,52 @@ button:hover {
     0%, 100% { opacity: 0.8; }
     50% { opacity: 1; }
 }
+
+/* Global Leaderboard Styles */
+#global-leaderboard-container {
+    width: 100%;
+    max-width: 450px;
+}
+
+#global-leaderboard-content {
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #00f2ff;
+    border-radius: 10px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.lb-loading {
+    text-align: center;
+    color: #00f2ff;
+    padding: 40px;
+    font-size: 1.1rem;
+    animation: pulse 1.5s infinite;
+}
+
+.lb-player-name {
+    font-size: 0.85rem;
+    color: #00f2ff;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+/* Scrollbar styling */
+#global-leaderboard-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#global-leaderboard-content::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+
+#global-leaderboard-content::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+#global-leaderboard-content::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary);
+}
