@@ -31,16 +31,19 @@ export function damagePlayer(amount) {
         console.log('☠️ GAME OVER TRIGGERED! HP reached 0');
         state.active = false;
         
-        import('./data.js').then(module => {
-            module.saveScore(module.currentSkinKey, state.score, state.level);
+        // Save score before showing game over
+        import('./data.js').then(async (module) => {
+            await module.saveScore(module.currentSkinKey, state.score, state.level);
+            console.log(`📊 Score saved: ${state.score} for ${module.currentSkinKey}`);
+            
+            // Show game over screen after saving
+            DOM.overlay.style.display = 'flex';
+            document.getElementById('title').innerText = "Game Over";
+            document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+            document.getElementById('leaderboard-container').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'block';
+            console.log('🎮 GAME OVER SCREEN DISPLAYED');
         });
-        
-        DOM.overlay.style.display = 'flex';
-        document.getElementById('title').innerText = "Game Over";
-        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
-        document.getElementById('leaderboard-container').style.display = 'none';
-        document.getElementById('main-menu').style.display = 'block';
-        console.log('🎮 GAME OVER SCREEN DISPLAYED');
     }
 }
 

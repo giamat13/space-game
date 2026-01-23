@@ -10,7 +10,8 @@ updateSkinOptions();
 
 // ===== LEADERBOARD =====
 
-window.showLeaderboard = function() {
+function showLeaderboard() {
+    console.log('🏆 Opening leaderboard...');
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('leaderboard-container').style.display = 'block';
     displayLeaderboard('overall');
@@ -23,15 +24,18 @@ window.showLeaderboard = function() {
             displayLeaderboard(this.dataset.tab);
         };
     });
-};
+}
 
-window.closeLeaderboard = function() {
+function closeLeaderboard() {
+    console.log('❌ Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
-};
+}
 
 function displayLeaderboard(category) {
+    console.log(`📊 Displaying leaderboard for: ${category}`);
     const leaderboard = getLeaderboard(category);
+    console.log(`Found ${leaderboard.length} entries:`, leaderboard);
     const content = document.getElementById('leaderboard-content');
     
     if (leaderboard.length === 0) {
@@ -52,6 +56,10 @@ function displayLeaderboard(category) {
         </div>
     `).join('');
 }
+
+// Export to window for HTML onclick
+window.showLeaderboard = showLeaderboard;
+window.closeLeaderboard = closeLeaderboard;
 
 // ===== SKIN SELECTION =====
 
@@ -77,7 +85,7 @@ function updateSkinOptions() {
     });
 }
 
-window.selectSkin = function(key, element) {
+function selectSkin(key, element) {
     if (!isSkinUnlocked(key)) {
         console.log(`🔒 Skin ${key} is locked!`);
         return;
@@ -86,11 +94,14 @@ window.selectSkin = function(key, element) {
     document.querySelectorAll('.skin-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
     console.log(`✨ Skin changed to: ${key}`);
-};
+}
+
+// Export to window for HTML onclick
+window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
-window.initGame = function() {
+function initGame() {
     console.log('🎮 GAME STARTING...');
     resetState();
     
@@ -118,9 +129,10 @@ window.initGame = function() {
     updateSkinOptions();
     updatePlayerPos();
     requestAnimationFrame(update);
-};
+}
 
-
+// Export to window for HTML onclick
+window.initGame = initGame;
 
 // ===== LEVEL UP SYSTEM =====
 
