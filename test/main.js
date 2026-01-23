@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -169,8 +169,17 @@ function initGame() {
     updateHPUI();
     DOM.overlay.style.display = 'none';
     
+    // Show/hide special ability button based on skin
+    const abilityBtn = document.getElementById('special-ability-btn');
+    if (currentSkinKey === 'vortex') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+    } else {
+        abilityBtn.style.display = 'none';
+    }
+    
     console.log('🧹 [GAME] Cleaning up old game elements...');
-    const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient');
+    const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam');
     console.log(`🧹 [GAME] Removing ${elementsToRemove.length} old elements`);
     elementsToRemove.forEach(e => e.remove());
     
@@ -236,6 +245,7 @@ function update() {
     
     handleLevelUp();
     handleSpawning(now);
+    updateAbilityCooldown(now);
     
     updateBurgers();
     updateIngredients();
@@ -245,6 +255,47 @@ function update() {
     updateEnemies(now);
     
     requestAnimationFrame(update);
+}
+
+// ===== SPECIAL ABILITY SYSTEM =====
+
+function updateAbilityCooldown(now) {
+    if (currentSkinKey !== 'vortex') return;
+    
+    const abilityBtn = document.getElementById('special-ability-btn');
+    if (!abilityBtn) return;
+    
+    if (!state.specialAbility.ready) {
+        const elapsed = now - state.specialAbility.lastUsed;
+        const remaining = state.specialAbility.cooldown - elapsed;
+        
+        if (remaining <= 0) {
+            state.specialAbility.ready = true;
+            abilityBtn.classList.remove('cooldown');
+            abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+        } else {
+            const percent = (remaining / state.specialAbility.cooldown) * 100;
+            abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+        }
+    }
+}
+
+function activateSpecialAbility() {
+    if (!state.active) return;
+    if (currentSkinKey !== 'vortex') return;
+    if (!state.specialAbility.ready) {
+        console.log('⏳ [ABILITY] Ability on cooldown');
+        return;
+    }
+    
+    console.log('💫 [ABILITY] Activating special ability!');
+    useVortexLaser();
+    
+    state.specialAbility.ready = false;
+    state.specialAbility.lastUsed = Date.now();
+    
+    const abilityBtn = document.getElementById('special-ability-btn');
+    abilityBtn.classList.add('cooldown');
 }
 
 // ===== EVENT LISTENERS =====
@@ -270,6 +321,18 @@ window.addEventListener('touchstart', (e) => {
 window.addEventListener('mousedown', shoot);
 window.addEventListener('keydown', (e) => {
     if(e.code === 'Space') shoot();
+    if(e.code === 'KeyB') activateSpecialAbility();
+});
+
+// Special ability button click
+document.getElementById('special-ability-btn').addEventListener('click', activateSpecialAbility);
+
+// Prevent context menu on right click, use it for special ability instead
+window.addEventListener('contextmenu', (e) => {
+    if (state.active) {
+        e.preventDefault();
+        activateSpecialAbility();
+    }
 });
 
 // ===== INITIALIZATION =====
