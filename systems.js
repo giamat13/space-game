@@ -21,22 +21,27 @@ export function movePlayer(clientX) {
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
+    console.log(`💥 DAMAGE! -${amount} HP | Current HP: ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     const flash = document.createElement('div');
     flash.className = 'damage-flash';
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     if(state.playerHP <= 0) {
+        console.log('☠️ GAME OVER TRIGGERED! HP reached 0');
         state.active = false;
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
         document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        console.log('🎮 GAME OVER SCREEN DISPLAYED');
     }
 }
 
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
+    const oldHP = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
+    console.log(`💚 HEAL! +${percent}% (+${Math.floor(amount)}) | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -46,15 +51,32 @@ export function healPlayer(percent) {
 export function shoot() {
     if(!state.active) return;
     const now = Date.now();
-    if (now - state.lastShot < state.shotCooldown) return;
+    const adjustedCooldown = state.shotCooldown / state.currentSkinStats.fireRate;
+    if (now - state.lastShot < adjustedCooldown) return;
     state.lastShot = now;
 
     const b = document.createElement('div');
     b.className = 'bullet';
     b.style.left = (state.playerX + 23) + 'px';
     b.style.bottom = '80px';
+    
+    // Visual enhancement for powerful skins
+    if (state.currentSkinStats.bulletDamage > 1.5) {
+        b.style.width = '6px';
+        b.style.height = '20px';
+        b.style.boxShadow = '0 0 20px var(--primary), 0 0 10px #fff';
+    } else if (state.currentSkinStats.bulletDamage > 1.0) {
+        b.style.width = '5px';
+        b.style.height = '18px';
+        b.style.boxShadow = '0 0 15px var(--primary)';
+    }
+    
     DOM.wrapper.appendChild(b);
-    state.bullets.push({ el: b, y: 80 });
+    state.bullets.push({ 
+        el: b, 
+        y: 80,
+        damage: state.currentSkinStats.bulletDamage
+    });
 }
 
 export function enemyShoot(en) {

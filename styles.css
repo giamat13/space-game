@@ -158,8 +158,8 @@ body {
 }
 
 .skin-option {
-    width: 80px;
-    height: 100px;
+    width: 90px;
+    height: 120px;
     border: 2px solid rgba(255,255,255,0.1);
     border-radius: 10px;
     display: flex;
@@ -185,6 +185,14 @@ body {
     font-size: 0.65rem;
     color: #ff6b35;
     font-weight: bold;
+}
+
+.skin-desc {
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    margin-top: 2px;
+    line-height: 1.1;
 }
 
 .skin-option:not(.locked):hover {

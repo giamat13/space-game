@@ -18,7 +18,12 @@ export const SKINS = {
               </svg>`,
         color: '#00f2ff',
         unlockLevel: 0,
-        name: 'Classic'
+        name: 'Classic',
+        // Base stats
+        fireRate: 1.0,
+        bulletSpeed: 1.0,
+        bulletDamage: 1.0,
+        description: 'Balanced fighter'
     },
     interceptor: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #ff00ea);">
@@ -27,7 +32,11 @@ export const SKINS = {
               </svg>`,
         color: '#ff00ea',
         unlockLevel: 0,
-        name: 'Interceptor'
+        name: 'Interceptor',
+        fireRate: 1.0,
+        bulletSpeed: 1.0,
+        bulletDamage: 1.0,
+        description: 'Speed variant'
     },
     tanker: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #2ecc71);">
@@ -37,30 +46,60 @@ export const SKINS = {
               </svg>`,
         color: '#2ecc71',
         unlockLevel: 0,
-        name: 'Tanker'
+        name: 'Tanker',
+        fireRate: 1.0,
+        bulletSpeed: 1.0,
+        bulletDamage: 1.0,
+        description: 'Heavy armor'
     },
     phoenix: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 12px #ff6b35);">
-                <path d="M50 5 L30 25 L10 70 L25 85 L50 75 L75 85 L90 70 L70 25 Z" fill="#ff6b35" />
-                <path d="M35 30 L50 15 L65 30" fill="#ffd700" />
-                <circle cx="40" cy="45" r="4" fill="#ffd700" />
-                <circle cx="60" cy="45" r="4" fill="#ffd700" />
-                <path d="M30 75 L20 90 M70 75 L80 90" stroke="#ff6b35" stroke-width="3" fill="none" />
+        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 15px #ff6b35);">
+                <defs>
+                  <linearGradient id="phoenixGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#ff6b35;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ff0000;stop-opacity:1" />
+                  </linearGradient>
+                </defs>
+                <path d="M50 5 L30 25 L10 70 L25 85 L50 75 L75 85 L90 70 L70 25 Z" fill="url(#phoenixGrad)" />
+                <path d="M35 30 L50 10 L65 30" fill="#ffd700" />
+                <circle cx="40" cy="45" r="5" fill="#ffd700" />
+                <circle cx="60" cy="45" r="5" fill="#ffd700" />
+                <path d="M30 75 L15 95 M70 75 L85 95" stroke="#ff6b35" stroke-width="4" fill="none" />
+                <path d="M50 75 L50 90" stroke="#ffd700" stroke-width="3" />
+                <circle cx="50" cy="35" r="8" fill="#ff0000" opacity="0.7" />
               </svg>`,
         color: '#ff6b35',
         unlockLevel: 3,
-        name: 'Phoenix'
+        name: 'Phoenix',
+        fireRate: 1.3,        // 30% faster shooting
+        bulletSpeed: 1.2,     // 20% faster bullets
+        bulletDamage: 1.5,    // 50% more damage
+        description: '⚡ Faster fire rate | 🔥 More damage'
     },
     vortex: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 15px #9b59b6);">
-                <path d="M50 10 L35 30 L25 50 L35 70 L50 90 L65 70 L75 50 L65 30 Z" fill="#9b59b6" />
-                <circle cx="50" cy="50" r="15" fill="#3498db" />
-                <circle cx="50" cy="50" r="8" fill="#e74c3c" />
-                <path d="M20 50 L30 50 M70 50 L80 50 M50 20 L50 30 M50 70 L50 80" stroke="#fff" stroke-width="2" />
+        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 20px #9b59b6);">
+                <defs>
+                  <radialGradient id="vortexGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" style="stop-color:#e74c3c;stop-opacity:1" />
+                    <stop offset="40%" style="stop-color:#9b59b6;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#3498db;stop-opacity:1" />
+                  </radialGradient>
+                </defs>
+                <path d="M50 10 L35 30 L25 50 L35 70 L50 90 L65 70 L75 50 L65 30 Z" fill="url(#vortexGrad)" stroke="#fff" stroke-width="2" />
+                <circle cx="50" cy="50" r="20" fill="none" stroke="#3498db" stroke-width="3" opacity="0.7" />
+                <circle cx="50" cy="50" r="15" fill="#e74c3c" opacity="0.8" />
+                <circle cx="50" cy="50" r="8" fill="#fff" />
+                <path d="M20 50 L28 50 M72 50 L80 50 M50 20 L50 28 M50 72 L50 80" stroke="#fff" stroke-width="3" />
+                <path d="M33 33 L38 38 M62 33 L57 38 M33 67 L38 62 M62 67 L57 62" stroke="#3498db" stroke-width="2" />
               </svg>`,
         color: '#9b59b6',
         unlockLevel: 5,
-        name: 'Vortex'
+        name: 'Vortex',
+        fireRate: 1.6,        // 60% faster shooting
+        bulletSpeed: 1.4,     // 40% faster bullets
+        bulletDamage: 2.0,    // 100% more damage (DOUBLE!)
+        description: '⚡⚡ Ultra-fast fire | 💥 DOUBLE damage'
     }
 };
 
@@ -157,7 +196,13 @@ export const state = {
     lastShot: 0,
     shotCooldown: 180,
     lastHealScore: 0,
-    lastLevelScore: 0
+    lastLevelScore: 0,
+    // Skin bonuses
+    currentSkinStats: {
+        fireRate: 1.0,
+        bulletSpeed: 1.0,
+        bulletDamage: 1.0
+    }
 };
 
 export function resetState() {
