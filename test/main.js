@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -174,6 +174,11 @@ function initGame() {
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerText = '⚡';
+    } else if (currentSkinKey === 'phoenix') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerText = '🔥';
     } else {
         abilityBtn.style.display = 'none';
     }
@@ -260,42 +265,72 @@ function update() {
 // ===== SPECIAL ABILITY SYSTEM =====
 
 function updateAbilityCooldown(now) {
-    if (currentSkinKey !== 'vortex') return;
-    
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    if (!state.specialAbility.ready) {
-        const elapsed = now - state.specialAbility.lastUsed;
-        const remaining = state.specialAbility.cooldown - elapsed;
-        
-        if (remaining <= 0) {
-            state.specialAbility.ready = true;
-            abilityBtn.classList.remove('cooldown');
-            abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
-        } else {
-            const percent = (remaining / state.specialAbility.cooldown) * 100;
-            abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+    if (currentSkinKey === 'vortex') {
+        if (!state.specialAbility.ready) {
+            const elapsed = now - state.specialAbility.lastUsed;
+            const remaining = state.specialAbility.cooldown - elapsed;
+            
+            if (remaining <= 0) {
+                state.specialAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.specialAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
+    } else if (currentSkinKey === 'phoenix') {
+        if (!state.phoenixAbility.ready) {
+            const elapsed = now - state.phoenixAbility.lastUsed;
+            const remaining = state.phoenixAbility.cooldown - elapsed;
+            
+            if (remaining <= 0) {
+                state.phoenixAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.phoenixAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
         }
     }
 }
 
 function activateSpecialAbility() {
     if (!state.active) return;
-    if (currentSkinKey !== 'vortex') return;
-    if (!state.specialAbility.ready) {
-        console.log('⏳ [ABILITY] Ability on cooldown');
-        return;
+    
+    if (currentSkinKey === 'vortex') {
+        if (!state.specialAbility.ready) {
+            console.log('⏳ [ABILITY] Vortex ability on cooldown');
+            return;
+        }
+        
+        console.log('💫 [ABILITY] Activating Vortex laser!');
+        useVortexLaser();
+        
+        state.specialAbility.ready = false;
+        state.specialAbility.lastUsed = Date.now();
+        
+        const abilityBtn = document.getElementById('special-ability-btn');
+        abilityBtn.classList.add('cooldown');
+    } else if (currentSkinKey === 'phoenix') {
+        if (!state.phoenixAbility.ready) {
+            console.log('⏳ [ABILITY] Phoenix ability on cooldown');
+            return;
+        }
+        
+        console.log('🔥 [ABILITY] Activating Phoenix Feathers!');
+        usePhoenixFeathers();
+        
+        state.phoenixAbility.ready = false;
+        state.phoenixAbility.lastUsed = Date.now();
+        
+        const abilityBtn = document.getElementById('special-ability-btn');
+        abilityBtn.classList.add('cooldown');
     }
-    
-    console.log('💫 [ABILITY] Activating special ability!');
-    useVortexLaser();
-    
-    state.specialAbility.ready = false;
-    state.specialAbility.lastUsed = Date.now();
-    
-    const abilityBtn = document.getElementById('special-ability-btn');
-    abilityBtn.classList.add('cooldown');
 }
 
 // ===== EVENT LISTENERS =====
