@@ -101,21 +101,21 @@ export const SKINS = {
         maxHP: 400,
         description: '⚡⚡ Ultra-fast fire | 💥 2X dmg | ❤️ 2X HP'
     },
-    dragon: {
+    joker: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 25px #ff4500);">
                 <defs>
-                  <linearGradient id="dragonBody" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <linearGradient id="jokerBody" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" style="stop-color:#ff6b00;stop-opacity:1" />
                     <stop offset="50%" style="stop-color:#ff0000;stop-opacity:1" />
                     <stop offset="100%" style="stop-color:#8b0000;stop-opacity:1" />
                   </linearGradient>
-                  <radialGradient id="dragonFire" cx="50%" cy="50%" r="50%">
+                  <radialGradient id="jokerFire" cx="50%" cy="50%" r="50%">
                     <stop offset="0%" style="stop-color:#ffff00;stop-opacity:1" />
                     <stop offset="50%" style="stop-color:#ff6600;stop-opacity:1" />
                     <stop offset="100%" style="stop-color:#ff0000;stop-opacity:1" />
                   </radialGradient>
                 </defs>
-                <path d="M50 5 L20 25 L15 40 L10 60 L25 85 L50 75 L75 85 L90 60 L85 40 L80 25 Z" fill="url(#dragonBody)" stroke="#ffa500" stroke-width="2" />
+                <path d="M50 5 L20 25 L15 40 L10 60 L25 85 L50 75 L75 85 L90 60 L85 40 L80 25 Z" fill="url(#jokerBody)" stroke="#ffa500" stroke-width="2" />
                 <path d="M15 30 L5 20 L10 35 M85 30 L95 20 L90 35" fill="#ff4500" stroke="#ffa500" stroke-width="2" />
                 <path d="M35 20 L50 5 L65 20" fill="#ffff00" />
                 <circle cx="35" cy="35" r="6" fill="#ffff00" stroke="#ff0000" stroke-width="2" />
@@ -124,12 +124,12 @@ export const SKINS = {
                 <circle cx="68" cy="35" r="3" fill="#000" />
                 <path d="M40 48 Q50 55 60 48" fill="none" stroke="#ff0000" stroke-width="3" />
                 <path d="M25 75 L15 95 M75 75 L85 95" stroke="#ff6b00" stroke-width="5" fill="none" />
-                <circle cx="50" cy="25" r="10" fill="url(#dragonFire)" opacity="0.8" />
+                <circle cx="50" cy="25" r="10" fill="url(#jokerFire)" opacity="0.8" />
                 <path d="M30 65 L50 75 L70 65" fill="#8b0000" />
               </svg>`,
         color: '#ff4500',
         unlockLevel: 10,
-        name: 'Dragon',
+        name: 'joker',
         fireRate: 2.0,
         bulletSpeed: 1.6,
         bulletDamage: 3.0,

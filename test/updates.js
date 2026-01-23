@@ -85,7 +85,7 @@ export function updateBurgers() {
                 bgr.hp -= damage;
                 bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
                 
-                // Fire explosion for Dragon bullets
+                // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
                     createExplosion(bulRect.left, bulRect.top, '#ff4500');
                 }
@@ -211,7 +211,7 @@ export function updateEnemies(now) {
                 en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
                 
-                // Fire explosion for Dragon bullets
+                // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
                     createExplosion(bRect.left, bRect.top, '#ff4500');
                     createExplosion(bRect.left, bRect.top, '#ffa500');
