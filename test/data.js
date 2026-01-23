@@ -74,7 +74,7 @@ export const SKINS = {
         fireRate: 1.3,
         bulletSpeed: 1.2,
         bulletDamage: 1.5,
-        description: '⚡ Faster fire rate | 🔥 More damage'
+        description: 'âš¡ Faster fire rate | ðŸ"¥ More damage'
     },
     vortex: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 20px #9b59b6);">
@@ -99,9 +99,9 @@ export const SKINS = {
         bulletSpeed: 1.4,
         bulletDamage: 2.0,
         maxHP: 400,
-        description: '⚡⚡ Ultra-fast fire | 💥 2X dmg | ❤️ 2X HP'
+        description: 'âš¡âš¡ Ultra-fast fire | ðŸ'¥ 2X dmg | â¤ï¸ 2X HP'
     },
-    dragon: {
+    joker: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 25px #ff4500);">
                 <defs>
                   <linearGradient id="dragonBody" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -129,13 +129,13 @@ export const SKINS = {
               </svg>`,
         color: '#ff4500',
         unlockLevel: 10,
-        name: 'Dragon',
+        name: 'Joker',
         fireRate: 2.0,
         bulletSpeed: 1.6,
         bulletDamage: 3.0,
         maxHP: 600,
         isFire: true,
-        description: '🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
+        description: 'ðŸ"¥ðŸ"¥ðŸ"¥ Fire bullets | âš¡âš¡âš¡ 2X fire rate | ðŸ'¥ 3X dmg | â¤ï¸â¤ï¸â¤ï¸ 3 lives!'
     }
 };
 
@@ -159,7 +159,7 @@ export function setCookie(name, value, days = 365) {
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
     const expires = "expires=" + date.toUTCString();
     document.cookie = name + "=" + value + ";" + expires + ";path=/";
-    console.log(`🍪 Cookie saved: ${name} = ${value}`);
+    console.log(`ðŸª Cookie saved: ${name} = ${value}`);
 }
 
 export function getCookie(name) {
@@ -180,7 +180,7 @@ export function loadUnlockedSkins() {
     const saved = getCookie('unlockedSkins');
     if (saved) {
         unlockedSkins = JSON.parse(saved);
-        console.log('📂 Loaded unlocked skins:', unlockedSkins);
+        console.log('ðŸ"‚ Loaded unlocked skins:', unlockedSkins);
     }
 }
 
@@ -188,7 +188,7 @@ export function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
-        console.log(`🎉 NEW SKIN UNLOCKED: ${skinKey}!`);
+        console.log(`ðŸŽ‰ NEW SKIN UNLOCKED: ${skinKey}!`);
         return true;
     }
     return false;
@@ -208,7 +208,7 @@ export function saveMaxLevel(level) {
     const currentMax = getMaxLevel();
     if (level > currentMax) {
         setCookie('maxLevel', level.toString());
-        console.log(`📈 New max level: ${level}`);
+        console.log(`ðŸ"ˆ New max level: ${level}`);
     }
 }
 
@@ -231,7 +231,7 @@ export function saveScore(skinKey, score, level) {
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
     
-    console.log(`🏆 Score saved: ${score} for ${skinKey}`);
+    console.log(`ðŸ† Score saved: ${score} for ${skinKey}`);
 }
 
 // Game State
