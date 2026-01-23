@@ -1,15 +1,18 @@
 import { DOM, state } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
-
-// ===== UPDATE BULLETS =====
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, spawnIngredients } from './systems.js';
 
 export function updateBullets() {
-    const bulletSpeed = 15 * state.currentSkinStats.bulletSpeed;
     for (let i = state.bullets.length - 1; i >= 0; i--) {
         let b = state.bullets[i];
-        b.y += bulletSpeed;
+        
+        // שימוש במהירות שנקבעה ב-shoot (כולל זוויות)
+        b.y += (b.vy || 15);
+        b.x += (b.vx || 0);
+
         b.el.style.bottom = b.y + 'px';
-        if(b.y > DOM.wrapper.clientHeight) {
+        b.el.style.left = b.x + 'px';
+
+        if(b.y > DOM.wrapper.clientHeight || b.x < -50 || b.x > DOM.wrapper.clientWidth + 50) {
             b.el.remove();
             state.bullets.splice(i, 1);
         }
@@ -23,6 +26,7 @@ export function updateEnemyBullets() {
         eb.y += eb.vy;
         eb.el.style.left = eb.x + 'px';
         eb.el.style.top = eb.y + 'px';
+        
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
         
@@ -33,111 +37,12 @@ export function updateEnemyBullets() {
             state.enemyBullets.splice(i, 1);
             continue;
         }
-        
-        if (eb.friendly) {
-            let hitEnemy = false;
-            for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
-                let targetEn = state.enemies[ei];
-                const teRect = targetEn.el.getBoundingClientRect();
-                if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
-                    targetEn.hp -= 1;
-                    targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-                    createExplosion(eb.x, eb.y, 'white');
-                    eb.el.remove();
-                    state.enemyBullets.splice(i, 1);
-                    hitEnemy = true;
-                    break;
-                }
-            }
-            if (hitEnemy) continue;
-        }
-        
-        if(eb.y > DOM.wrapper.clientHeight || eb.y < -100 || eb.x < -50 || eb.x > DOM.wrapper.clientWidth + 50) {
+        if(eb.y > DOM.wrapper.clientHeight || eb.y < -50 || eb.x < -50 || eb.x > DOM.wrapper.clientWidth + 50) {
             eb.el.remove();
             state.enemyBullets.splice(i, 1);
         }
     }
 }
-
-// ===== UPDATE BURGERS =====
-
-export function updateBurgers() {
-    for (let i = state.burgers.length - 1; i >= 0; i--) {
-        let bgr = state.burgers[i];
-        bgr.y += bgr.speed;
-        bgr.el.style.top = bgr.y + 'px';
-        const bRect = bgr.el.getBoundingClientRect();
-        const pRect = DOM.player.getBoundingClientRect();
-        
-        if(!(bRect.right < pRect.left || bRect.left > pRect.right || bRect.bottom < pRect.top || bRect.top > pRect.bottom)) {
-            healPlayer(15);
-            createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
-            bgr.el.remove();
-            state.burgers.splice(i, 1);
-            continue;
-        }
-
-        for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
-            let bul = state.bullets[bi];
-            const bulRect = bul.el.getBoundingClientRect();
-            if(!(bulRect.right < bRect.left || bulRect.left > bRect.right || bulRect.bottom < bRect.top || bulRect.top > bRect.bottom)) {
-                const damage = bul.damage || 1.0;
-                bgr.hp -= damage;
-                bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
-                bul.el.remove();
-                state.bullets.splice(bi, 1);
-                if(bgr.hp <= 0) {
-                    healPlayer(15);
-                    state.score += 75;
-                    DOM.scoreEl.innerText = state.score;
-                    spawnIngredients(bRect.left, bRect.top);
-                    createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
-                    bgr.el.remove();
-                    state.burgers.splice(i, 1);
-                }
-                break;
-            }
-        }
-        
-        if(bgr.y > DOM.wrapper.clientHeight) {
-            bgr.el.remove();
-            state.burgers.splice(i, 1);
-        }
-    }
-}
-
-// ===== UPDATE INGREDIENTS =====
-
-export function updateIngredients() {
-    for (let i = state.ingredients.length - 1; i >= 0; i--) {
-        let ing = state.ingredients[i];
-        ing.x += ing.vx;
-        ing.y += ing.vy;
-        ing.el.style.left = ing.x + 'px';
-        ing.el.style.top = ing.y + 'px';
-        
-        const iRect = ing.el.getBoundingClientRect();
-        const pRect = DOM.player.getBoundingClientRect();
-        if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
-            state.score += 25;
-            DOM.scoreEl.innerText = state.score;
-            const oldHP = state.playerHP;
-            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
-            console.log(`🍔 INGREDIENT! +5 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
-            updateHPUI();
-            ing.el.remove();
-            state.ingredients.splice(i, 1);
-            continue;
-        }
-        
-        if(ing.y > DOM.wrapper.clientHeight) {
-            ing.el.remove();
-            state.ingredients.splice(i, 1);
-        }
-    }
-}
-
-// ===== UPDATE ASTEROIDS =====
 
 export function updateAsteroids() {
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
@@ -146,28 +51,35 @@ export function updateAsteroids() {
         ast.rot += ast.rotSpeed;
         ast.el.style.top = ast.y + 'px';
         ast.el.style.transform = `rotate(${ast.rot}deg)`;
+
         const aRect = ast.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
-        
+
         if(!(aRect.right < pRect.left || aRect.left > pRect.right || aRect.bottom < pRect.top || aRect.top > pRect.bottom)) {
-            damagePlayer(40);
-            createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+            damagePlayer(20);
+            createExplosion(aRect.left + 25, aRect.top + 25, '#555');
             ast.el.remove();
             state.asteroids.splice(i, 1);
             continue;
         }
-        
-        for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
-            let bul = state.bullets[bi];
-            const bRect = bul.el.getBoundingClientRect();
+
+        for (let j = state.bullets.length - 1; j >= 0; j--) {
+            let b = state.bullets[j];
+            const bRect = b.el.getBoundingClientRect();
             if(!(bRect.right < aRect.left || bRect.left > aRect.right || bRect.bottom < aRect.top || bRect.top > aRect.bottom)) {
-                createExplosion(bRect.left, bRect.top, '#666');
-                bul.el.remove();
-                state.bullets.splice(bi, 1);
+                ast.hp -= b.damage;
+                b.el.remove();
+                state.bullets.splice(j, 1);
+                if(ast.hp <= 0) {
+                    state.score += 20;
+                    DOM.scoreEl.innerText = state.score;
+                    createExplosion(aRect.left + 40, aRect.top + 40, '#555');
+                    ast.el.remove();
+                    state.asteroids.splice(i, 1);
+                }
                 break;
             }
         }
-        
         if(ast.y > DOM.wrapper.clientHeight) {
             ast.el.remove();
             state.asteroids.splice(i, 1);
@@ -175,79 +87,79 @@ export function updateAsteroids() {
     }
 }
 
-// ===== UPDATE ENEMIES =====
-
 export function updateEnemies(now) {
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         let en = state.enemies[i];
-        en.y += en.speed;
+        en.y += (en.type === 'orange' ? 1.5 : 2) * state.speedMult;
         en.el.style.top = en.y + 'px';
-        
-        if (now - en.lastShot > en.fireRate) {
+
+        if (now - en.lastShot > 2000 / state.speedMult) {
             enemyShoot(en);
             en.lastShot = now;
         }
-        
-        if(en.y > DOM.wrapper.clientHeight - 30) {
+
+        const eRect = en.el.getBoundingClientRect();
+        const pRect = DOM.player.getBoundingClientRect();
+
+        if(!(eRect.right < pRect.left || eRect.left > pRect.right || eRect.bottom < pRect.top || eRect.top > pRect.bottom)) {
             damagePlayer(30);
+            createExplosion(eRect.left + 25, eRect.top + 25, 'var(--danger)');
             en.el.remove();
             state.enemies.splice(i, 1);
             continue;
         }
 
-        for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
-            let bul = state.bullets[bi];
-            const bRect = bul.el.getBoundingClientRect();
-            const eRect = en.el.getBoundingClientRect();
-            
+        for (let j = state.bullets.length - 1; j >= 0; j--) {
+            let b = state.bullets[j];
+            const bRect = b.el.getBoundingClientRect();
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
-                const damage = bul.damage || 1.0;
-                en.hp -= damage;
+                en.hp -= b.damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
-                createExplosion(bRect.left, bRect.top, 'white');
-                bul.el.remove();
-                state.bullets.splice(bi, 1);
-                
+                b.el.remove();
+                state.bullets.splice(j, 1);
+
                 if(en.hp <= 0) {
-                    const isElite = en.type === 'orange';
-                    const points = isElite ? 150 : 50;
-                    const oldScore = state.score;
-                    state.score += points;
+                    state.score += (en.type === 'orange' ? 50 : 30);
                     DOM.scoreEl.innerText = state.score;
-                    const crossedHealThreshold = Math.floor(state.score / 300) > Math.floor(oldScore / 300);
+                    createExplosion(eRect.left + 25, eRect.top + 25, en.type === 'orange' ? 'var(--elite)' : 'var(--danger)');
                     
-                    if (isElite) {
-                        createExplosion(eRect.left + 25, eRect.top + 25, 'var(--elite)');
-                        if (crossedHealThreshold) {
-                            const healAmount = state.playerMaxHP * 0.75;
-                            const oldHP = state.playerHP;
-                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + healAmount);
-                            console.log(`⭐ ELITE KILL THRESHOLD! +75% HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
-                            state.lastHealScore = Math.floor(state.score / 300) * 300;
-                            showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, "var(--elite)");
-                        } else {
-                            const oldHP = state.playerHP;
-                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 50);
-                            console.log(`⭐ ELITE KILL! +50 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
-                            showFloatingMessage("REPAIR +25% & 150 PTS", eRect.left, eRect.top, "var(--elite)");
-                        }
-                        updateHPUI();
-                    } else {
-                        createExplosion(eRect.left + 25, eRect.top + 25, 'var(--danger)');
-                        if (crossedHealThreshold) {
-                            const oldHP = state.playerHP;
-                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 20);
-                            console.log(`🎯 ENEMY KILL THRESHOLD! +20 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
-                            state.lastHealScore = Math.floor(state.score / 300) * 300;
-                            showFloatingMessage("REPAIR +20", eRect.left, eRect.top, "var(--health)");
-                            updateHPUI();
-                        }
+                    if(en.type === 'orange' && Math.random() < 0.4) {
+                        spawnIngredients(eRect.left, eRect.top);
                     }
+                    
                     en.el.remove();
                     state.enemies.splice(i, 1);
                 }
                 break;
             }
         }
+        if(en.y > DOM.wrapper.clientHeight) {
+            en.el.remove();
+            state.enemies.splice(i, 1);
+        }
     }
+}
+
+export function updateIngredients() {
+    for (let i = state.ingredients.length - 1; i >= 0; i--) {
+        let ing = state.ingredients[i];
+        ing.y += 2;
+        ing.el.style.top = ing.y + 'px';
+        const iRect = ing.el.getBoundingClientRect();
+        const pRect = DOM.player.getBoundingClientRect();
+        if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
+            state.score += ing.type.score;
+            DOM.scoreEl.innerText = state.score;
+            showFloatingMessage(`+${ing.type.name}`, ing.x, ing.y, ing.type.color);
+            ing.el.remove();
+            state.ingredients.splice(i, 1);
+        } else if(ing.y > DOM.wrapper.clientHeight) {
+            ing.el.remove();
+            state.ingredients.splice(i, 1);
+        }
+    }
+}
+
+export function updateBurgers() {
+    // פונקציונליות בורגרים אם יש
 }
