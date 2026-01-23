@@ -32,8 +32,8 @@ export function damagePlayer(amount) {
         state.active = false;
         
         // Save score before showing game over
-        import('./data.js').then(module => {
-            module.saveScore(module.currentSkinKey, state.score, state.level);
+        import('./data.js').then(async (module) => {
+            await module.saveScore(module.currentSkinKey, state.score, state.level);
             console.log(`📊 Score saved: ${state.score} for ${module.currentSkinKey}`);
             
             // Show game over screen after saving
