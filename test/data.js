@@ -309,6 +309,11 @@ export const state = {
         fireRate: 1.0,
         bulletSpeed: 1.0,
         bulletDamage: 1.0
+    },
+    specialAbility: {
+        ready: true,
+        cooldown: 45000,
+        lastUsed: 0
     }
 };
 
@@ -337,5 +342,7 @@ export function resetState() {
     state.shotCooldown = 180;
     state.lastHealScore = 0;
     state.lastLevelScore = 0;
+    state.specialAbility.ready = true;
+    state.specialAbility.lastUsed = 0;
     console.log('✅ [STATE] Game state reset complete:', state);
 }
