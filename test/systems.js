@@ -31,7 +31,6 @@ export function damagePlayer(amount) {
         console.log('☠️ GAME OVER TRIGGERED! HP reached 0');
         state.active = false;
         
-        // Save score to leaderboard
         import('./data.js').then(module => {
             module.saveScore(module.currentSkinKey, state.score, state.level);
         });
@@ -69,7 +68,15 @@ export function shoot() {
     b.style.bottom = '80px';
     
     // Visual enhancement for powerful skins
-    if (state.currentSkinStats.bulletDamage > 1.5) {
+    if (state.currentSkinStats.bulletDamage >= 3.0) {
+        // Dragon fire bullets
+        b.style.width = '8px';
+        b.style.height = '25px';
+        b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
+        b.style.boxShadow = '0 0 25px #ff4500, 0 0 15px #ffa500, 0 0 8px #ffff00';
+        b.style.borderRadius = '50% 50% 40% 40%';
+        b.dataset.isFire = 'true';
+    } else if (state.currentSkinStats.bulletDamage > 1.5) {
         b.style.width = '6px';
         b.style.height = '20px';
         b.style.boxShadow = '0 0 20px var(--primary), 0 0 10px #fff';
@@ -182,7 +189,6 @@ export function handleSpawning(now) {
         const spawnRoll = Math.random();
         
         if (spawnRoll < 0.1) {
-            // Spawn Burger
             el.className = 'burger';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
@@ -204,7 +210,6 @@ export function handleSpawning(now) {
                 speed: 1.2 * state.speedMult
             });
         } else if (spawnRoll < 0.5) {
-            // Spawn Asteroid
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
@@ -218,7 +223,6 @@ export function handleSpawning(now) {
                 rotSpeed: Math.random() * 8 - 4 
             });
         } else {
-            // Spawn Enemy
             const orangeChance = Math.min(0.8, 0.25 + (state.level * 0.05));
             const isOrange = Math.random() < orangeChance; 
             const type = isOrange ? 'orange' : 'red';

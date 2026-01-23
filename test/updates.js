@@ -84,6 +84,12 @@ export function updateBurgers() {
                 const damage = bul.damage || 1.0;
                 bgr.hp -= damage;
                 bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
+                
+                // Fire explosion for Dragon bullets
+                if (bul.el.dataset.isFire === 'true') {
+                    createExplosion(bulRect.left, bulRect.top, '#ff4500');
+                }
+                
                 bul.el.remove();
                 state.bullets.splice(bi, 1);
                 if(bgr.hp <= 0) {
@@ -204,7 +210,15 @@ export function updateEnemies(now) {
                 const damage = bul.damage || 1.0;
                 en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
-                createExplosion(bRect.left, bRect.top, 'white');
+                
+                // Fire explosion for Dragon bullets
+                if (bul.el.dataset.isFire === 'true') {
+                    createExplosion(bRect.left, bRect.top, '#ff4500');
+                    createExplosion(bRect.left, bRect.top, '#ffa500');
+                } else {
+                    createExplosion(bRect.left, bRect.top, 'white');
+                }
+                
                 bul.el.remove();
                 state.bullets.splice(bi, 1);
                 
