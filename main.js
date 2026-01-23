@@ -1,14 +1,46 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
+// ===== INITIALIZATION =====
+
+loadUnlockedSkins();
+updateSkinOptions();
+
 // ===== SKIN SELECTION =====
 
+function updateSkinOptions() {
+    document.querySelectorAll('.skin-option').forEach(option => {
+        const skinKey = option.dataset.skin;
+        const unlockLevel = parseInt(option.dataset.unlockLevel) || 0;
+        const maxLevel = getMaxLevel();
+        
+        if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
+            unlockSkin(skinKey);
+            option.classList.add('newly-unlocked');
+            setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
+        }
+        
+        if (isSkinUnlocked(skinKey)) {
+            option.classList.remove('locked');
+            option.onclick = () => selectSkin(skinKey, option);
+        } else {
+            option.classList.add('locked');
+            option.onclick = null;
+        }
+    });
+}
+
 window.selectSkin = function(key, element) {
+    if (!isSkinUnlocked(key)) {
+        console.log(`🔒 Skin ${key} is locked!`);
+        return;
+    }
     setCurrentSkin(key);
     document.querySelectorAll('.skin-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
+    console.log(`✨ Skin changed to: ${key}`);
 };
 
 // ===== GAME INITIALIZATION =====
@@ -29,6 +61,9 @@ window.initGame = function() {
     document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient')
         .forEach(e => e.remove());
     
+    // Update skin options when starting game (in case they unlocked something)
+    updateSkinOptions();
+    
     updatePlayerPos();
     requestAnimationFrame(update);
 };
@@ -46,6 +81,31 @@ function handleLevelUp() {
         state.spawnRate = Math.max(250, state.spawnRate - 200);
         state.playerHP = state.playerMaxHP;
         updateHPUI();
+        
+        // Save max level
+        saveMaxLevel(state.level);
+        
+        // Check for skin unlocks
+        let unlocked = false;
+        Object.keys(SKINS).forEach(skinKey => {
+            const skin = SKINS[skinKey];
+            if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
+                if (unlockSkin(skinKey)) {
+                    unlocked = true;
+                    showFloatingMessage(
+                        `🎉 NEW SKIN UNLOCKED: ${skin.name.toUpperCase()}!`, 
+                        DOM.wrapper.clientWidth/2 - 100, 
+                        DOM.wrapper.clientHeight/2 + 50, 
+                        "#ffd700"
+                    );
+                }
+            }
+        });
+        
+        if (unlocked) {
+            updateSkinOptions();
+        }
+        
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
     }
 }

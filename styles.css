@@ -170,9 +170,24 @@ body {
     transition: all 0.2s;
     background: rgba(255,255,255,0.05);
     padding: 5px;
+    position: relative;
 }
 
-.skin-option:hover {
+.skin-option.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+}
+
+.skin-option.locked .skin-lock {
+    position: absolute;
+    bottom: 5px;
+    font-size: 0.65rem;
+    color: #ff6b35;
+    font-weight: bold;
+}
+
+.skin-option:not(.locked):hover {
     background: rgba(255,255,255,0.1);
     border-color: var(--primary);
 }
@@ -181,6 +196,15 @@ body {
     border-color: var(--primary);
     background: rgba(0, 242, 255, 0.15);
     box-shadow: 0 0 15px var(--primary);
+}
+
+.skin-option.newly-unlocked {
+    animation: unlockPulse 1s ease-in-out;
+}
+
+@keyframes unlockPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); box-shadow: 0 0 30px #ffd700; }
 }
 
 .skin-preview {

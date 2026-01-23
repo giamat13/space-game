@@ -24,23 +24,43 @@
             <p id="sub-title">בחר ספינה וצא למשימה</p>
             
             <div class="skin-selector">
-                <div class="skin-option selected" onclick="selectSkin('classic', this)">
+                <div class="skin-option selected" data-skin="classic">
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M50 5 L10 80 L50 65 L90 80 Z" fill="#00f2ff" /></svg>
                     </div>
                     <div class="skin-name">Classic</div>
                 </div>
-                <div class="skin-option" onclick="selectSkin('interceptor', this)">
+                <div class="skin-option" data-skin="interceptor">
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M50 5 L30 30 L10 90 L50 70 L90 90 L70 30 Z" fill="#ff00ea" /></svg>
                     </div>
                     <div class="skin-name">Interceptor</div>
                 </div>
-                <div class="skin-option" onclick="selectSkin('tanker', this)">
+                <div class="skin-option" data-skin="tanker">
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M20 20 H80 V80 H20 Z M40 20 V5 M60 20 V5" fill="#2ecc71" stroke="#fff" stroke-width="2"/></svg>
                     </div>
                     <div class="skin-name">Tanker</div>
+                </div>
+                <div class="skin-option locked" data-skin="phoenix" data-unlock-level="3">
+                    <div class="skin-preview">
+                        <svg viewBox="0 0 100 100">
+                            <path d="M50 5 L30 25 L10 70 L25 85 L50 75 L75 85 L90 70 L70 25 Z" fill="#ff6b35" />
+                            <path d="M35 30 L50 15 L65 30" fill="#ffd700" />
+                        </svg>
+                    </div>
+                    <div class="skin-name">Phoenix</div>
+                    <div class="skin-lock">🔒 LVL 3</div>
+                </div>
+                <div class="skin-option locked" data-skin="vortex" data-unlock-level="5">
+                    <div class="skin-preview">
+                        <svg viewBox="0 0 100 100">
+                            <path d="M50 10 L35 30 L25 50 L35 70 L50 90 L65 70 L75 50 L65 30 Z" fill="#9b59b6" />
+                            <circle cx="50" cy="50" r="15" fill="#3498db" />
+                        </svg>
+                    </div>
+                    <div class="skin-name">Vortex</div>
+                    <div class="skin-lock">🔒 LVL 5</div>
                 </div>
             </div>
 
