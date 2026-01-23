@@ -2,17 +2,6 @@ import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlo
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
-import { initLootLocker, submitScore, getTopScores } from './lootlocker-manager.js';
-
-// Initialize LootLocker when page loads
-console.log('🚀 [INIT] Initializing LootLocker...');
-initLootLocker().then(success => {
-    if (success) {
-        console.log('✅ [INIT] LootLocker ready!');
-    } else {
-        console.warn('⚠️ [INIT] LootLocker init failed, continuing without online features');
-    }
-});
 
 // ===== INITIALIZATION =====
 
@@ -365,62 +354,3 @@ console.log('✅ [INIT] 40 stars generated');
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
 console.log('✅ [INIT] Player sprite set to classic skin');
 console.log('🎮 [INIT] All systems ready!');
-
-// ===== GLOBAL LEADERBOARD FUNCTIONS =====
-
-async function showGlobalLeaderboard() {
-    console.log('🌍 [GLOBAL LB] Opening global leaderboard...');
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('global-leaderboard-container').style.display = 'block';
-    
-    // Show loading
-    const content = document.getElementById('global-leaderboard-content');
-    content.innerHTML = '<div class="lb-loading">טוען נתונים...</div>';
-    
-    // Fetch top scores
-    const scores = await getTopScores(10);
-    displayGlobalLeaderboard(scores);
-}
-
-function closeGlobalLeaderboard() {
-    console.log('❌ [GLOBAL LB] Closing global leaderboard...');
-    document.getElementById('global-leaderboard-container').style.display = 'none';
-    document.getElementById('main-menu').style.display = 'block';
-}
-
-function displayGlobalLeaderboard(scores) {
-    const content = document.getElementById('global-leaderboard-content');
-    
-    if (!scores || scores.length === 0) {
-        content.innerHTML = '<div class="lb-empty">אין עדיין שיאים עולמיים 🌍<br>היה הראשון!</div>';
-        return;
-    }
-    
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-    
-    const html = scores.map((entry, index) => {
-        const metadata = entry.metadata ? JSON.parse(entry.metadata) : {};
-        const playerName = entry.player?.name || `Player ${entry.player?.id || '?'}`;
-        const skinName = metadata.skin || 'Unknown';
-        const level = metadata.level || '?';
-        
-        return `
-        <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index] || (index + 1)}</div>
-            <div class="lb-info">
-                <div class="lb-player-name">${playerName}</div>
-                <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
-                <div class="lb-details">
-                    שלב ${level} • ${skinName}
-                </div>
-            </div>
-        </div>
-        `;
-    }).join('');
-    
-    content.innerHTML = html;
-}
-
-// Export functions to window
-window.showGlobalLeaderboard = showGlobalLeaderboard;
-window.closeGlobalLeaderboard = closeGlobalLeaderboard;
