@@ -14,7 +14,9 @@ window.selectSkin = function(key, element) {
 // ===== GAME INITIALIZATION =====
 
 window.initGame = function() {
+    console.log('🎮 GAME STARTING...');
     resetState();
+    console.log(`✅ Game initialized | HP: ${state.playerHP}/${state.playerMaxHP}`);
     
     DOM.playerSpriteContainer.innerHTML = SKINS[currentSkinKey].svg;
     document.documentElement.style.setProperty('--primary', SKINS[currentSkinKey].color);
