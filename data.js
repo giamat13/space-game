@@ -19,7 +19,6 @@ export const SKINS = {
         color: '#00f2ff',
         unlockLevel: 0,
         name: 'Classic',
-        // Base stats
         fireRate: 1.0,
         bulletSpeed: 1.0,
         bulletDamage: 1.0,
@@ -72,9 +71,9 @@ export const SKINS = {
         color: '#ff6b35',
         unlockLevel: 3,
         name: 'Phoenix',
-        fireRate: 1.3,        // 30% faster shooting
-        bulletSpeed: 1.2,     // 20% faster bullets
-        bulletDamage: 1.5,    // 50% more damage
+        fireRate: 1.3,
+        bulletSpeed: 1.2,
+        bulletDamage: 1.5,
         description: '⚡ Faster fire rate | 🔥 More damage'
     },
     vortex: {
@@ -96,11 +95,47 @@ export const SKINS = {
         color: '#9b59b6',
         unlockLevel: 5,
         name: 'Vortex',
-        fireRate: 1.6,        // 60% faster shooting
-        bulletSpeed: 1.4,     // 40% faster bullets
-        bulletDamage: 2.0,    // 100% more damage (DOUBLE!)
-        maxHP: 400,           // DOUBLE HP!
+        fireRate: 1.6,
+        bulletSpeed: 1.4,
+        bulletDamage: 2.0,
+        maxHP: 400,
         description: '⚡⚡ Ultra-fast fire | 💥 2X dmg | ❤️ 2X HP'
+    },
+    joker: {
+        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 25px #ff4500);">
+                <defs>
+                  <linearGradient id="jokerBody" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ff6b00;stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#ff0000;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#8b0000;stop-opacity:1" />
+                  </linearGradient>
+                  <radialGradient id="jokerFire" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" style="stop-color:#ffff00;stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#ff6600;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ff0000;stop-opacity:1" />
+                  </radialGradient>
+                </defs>
+                <path d="M50 5 L20 25 L15 40 L10 60 L25 85 L50 75 L75 85 L90 60 L85 40 L80 25 Z" fill="url(#jokerBody)" stroke="#ffa500" stroke-width="2" />
+                <path d="M15 30 L5 20 L10 35 M85 30 L95 20 L90 35" fill="#ff4500" stroke="#ffa500" stroke-width="2" />
+                <path d="M35 20 L50 5 L65 20" fill="#ffff00" />
+                <circle cx="35" cy="35" r="6" fill="#ffff00" stroke="#ff0000" stroke-width="2" />
+                <circle cx="65" cy="35" r="6" fill="#ffff00" stroke="#ff0000" stroke-width="2" />
+                <circle cx="38" cy="35" r="3" fill="#000" />
+                <circle cx="68" cy="35" r="3" fill="#000" />
+                <path d="M40 48 Q50 55 60 48" fill="none" stroke="#ff0000" stroke-width="3" />
+                <path d="M25 75 L15 95 M75 75 L85 95" stroke="#ff6b00" stroke-width="5" fill="none" />
+                <circle cx="50" cy="25" r="10" fill="url(#jokerFire)" opacity="0.8" />
+                <path d="M30 65 L50 75 L70 65" fill="#8b0000" />
+              </svg>`,
+        color: '#ff4500',
+        unlockLevel: 10,
+        name: 'joker',
+        fireRate: 2.0,
+        bulletSpeed: 1.6,
+        bulletDamage: 3.0,
+        maxHP: 600,
+        isFire: true,
+        description: '🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
     }
 };
 
@@ -139,7 +174,7 @@ export function getCookie(name) {
 }
 
 // Unlocked Skins Management
-export let unlockedSkins = ['classic', 'interceptor', 'tanker']; // Default unlocked
+export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
 export function loadUnlockedSkins() {
     const saved = getCookie('unlockedSkins');
@@ -184,18 +219,16 @@ export function getLeaderboard(skinKey = 'overall') {
 }
 
 export function saveScore(skinKey, score, level) {
-    // Save for specific skin
     let skinLeaderboard = getLeaderboard(skinKey);
     skinLeaderboard.push({ score, level, date: new Date().toLocaleDateString('he-IL') });
     skinLeaderboard.sort((a, b) => b.score - a.score);
-    skinLeaderboard = skinLeaderboard.slice(0, 5); // Keep top 5
+    skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
     
-    // Save for overall
     let overallLeaderboard = getLeaderboard('overall');
     overallLeaderboard.push({ score, level, skin: skinKey, date: new Date().toLocaleDateString('he-IL') });
     overallLeaderboard.sort((a, b) => b.score - a.score);
-    overallLeaderboard = overallLeaderboard.slice(0, 5); // Keep top 5
+    overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
     
     console.log(`🏆 Score saved: ${score} for ${skinKey}`);
@@ -222,7 +255,6 @@ export const state = {
     shotCooldown: 180,
     lastHealScore: 0,
     lastLevelScore: 0,
-    // Skin bonuses
     currentSkinStats: {
         fireRate: 1.0,
         bulletSpeed: 1.0,
@@ -236,7 +268,6 @@ export function resetState() {
     state.level = 1;
     state.playerX = DOM.wrapper.clientWidth / 2 - 25;
     
-    // Set HP based on selected skin
     const skin = SKINS[currentSkinKey];
     const maxHP = skin.maxHP || 200;
     state.playerHP = maxHP;
