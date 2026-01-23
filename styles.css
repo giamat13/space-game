@@ -107,6 +107,20 @@ body {
     z-index: 40;
 }
 
+.phoenix-feather {
+    position: absolute;
+    width: 20px;
+    height: 40px;
+    z-index: 45;
+    filter: drop-shadow(0 0 10px #ff6b35);
+    animation: featherSpin 0.5s linear infinite;
+}
+
+@keyframes featherSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .enemy-bullet {
     position: absolute;
     width: 8px;

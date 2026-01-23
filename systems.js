@@ -173,6 +173,48 @@ export function showFloatingMessage(text, x, y, color) {
 
 // ===== SPECIAL ABILITIES =====
 
+export function usePhoenixFeathers() {
+    console.log('🔥 [PHOENIX] Activating Phoenix Feathers ability!');
+    
+    const playerCenterX = state.playerX + 25;
+    const playerY = DOM.wrapper.clientHeight - 90;
+    
+    // Get mouse position from last known position
+    const targetX = state.lastMouseX || playerCenterX;
+    const targetY = state.lastMouseY || playerY - 100;
+    
+    // Shoot 3 feathers with slight spread
+    for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+            const feather = document.createElement('div');
+            feather.className = 'phoenix-feather';
+            feather.style.left = playerCenterX + 'px';
+            feather.style.bottom = '90px';
+            feather.innerHTML = `<svg viewBox="0 0 20 40" style="width:100%; height:100%;">
+                <path d="M10 0 L15 15 L10 40 L5 15 Z" fill="#ff6b35" />
+                <path d="M10 5 L12 12 L10 20 L8 12 Z" fill="#ffd700" />
+            </svg>`;
+            DOM.wrapper.appendChild(feather);
+            
+            // Calculate angle with slight spread
+            const spread = (i - 1) * 15; // -15, 0, 15 degrees
+            const angle = Math.atan2(targetY - playerY, targetX - playerCenterX) + (spread * Math.PI / 180);
+            
+            state.bullets.push({
+                el: feather,
+                y: 90,
+                isFeather: true,
+                vx: Math.cos(angle) * 8,
+                vy: Math.sin(angle) * 8,
+                damage: 5.0 // Massive damage to kill instantly
+            });
+        }, i * 100); // Stagger the shots
+    }
+    
+    showFloatingMessage('PHOENIX FEATHERS!', playerCenterX - 60, playerY - 50, '#ff6b35');
+    console.log('✅ [PHOENIX] 3 Feathers launched!');
+}
+
 export function useVortexLaser() {
     console.log('⚡ [VORTEX] Activating laser ability!');
     const playerCenterX = state.playerX + 25;

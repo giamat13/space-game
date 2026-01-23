@@ -7,11 +7,32 @@ export function updateBullets() {
     const bulletSpeed = 15 * state.currentSkinStats.bulletSpeed;
     for (let i = state.bullets.length - 1; i >= 0; i--) {
         let b = state.bullets[i];
-        b.y += bulletSpeed;
-        b.el.style.bottom = b.y + 'px';
-        if(b.y > DOM.wrapper.clientHeight) {
-            b.el.remove();
-            state.bullets.splice(i, 1);
+        
+        if (b.isFeather) {
+            // Phoenix feathers move in a direction
+            const currentLeft = parseFloat(b.el.style.left) || state.playerX + 23;
+            const currentTop = parseFloat(b.el.style.top) || (DOM.wrapper.clientHeight - b.y);
+            
+            const newLeft = currentLeft + b.vx;
+            const newTop = currentTop + b.vy;
+            
+            b.el.style.left = newLeft + 'px';
+            b.el.style.top = newTop + 'px';
+            
+            // Remove if out of bounds
+            if (newTop < -50 || newTop > DOM.wrapper.clientHeight + 50 || 
+                newLeft < -50 || newLeft > DOM.wrapper.clientWidth + 50) {
+                b.el.remove();
+                state.bullets.splice(i, 1);
+            }
+        } else {
+            // Regular bullets
+            b.y += bulletSpeed;
+            b.el.style.bottom = b.y + 'px';
+            if(b.y > DOM.wrapper.clientHeight) {
+                b.el.remove();
+                state.bullets.splice(i, 1);
+            }
         }
     }
 }
@@ -208,6 +229,60 @@ export function updateEnemies(now) {
             
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
                 const damage = bul.damage || 1.0;
+                
+                // Phoenix Feather explosion - damages nearby enemies
+                if (bul.isFeather) {
+                    console.log('💥 [PHOENIX] Feather hit! Creating explosion...');
+                    
+                    // Create big explosion
+                    for(let e=0; e<30; e++) {
+                        const p = document.createElement('div');
+                        p.className = 'particle';
+                        p.style.background = e % 3 === 0 ? '#ffd700' : '#ff6b35';
+                        p.style.left = bRect.left + 'px';
+                        p.style.top = bRect.top + 'px';
+                        p.style.width = '6px';
+                        p.style.height = '6px';
+                        DOM.wrapper.appendChild(p);
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * 120 + 30;
+                        p.animate([
+                            { opacity: 1 }, 
+                            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
+                        ], 700).onfinish = () => p.remove();
+                    }
+                    
+                    // Damage all enemies in radius (150px)
+                    const explosionRadius = 150;
+                    for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
+                        let targetEn = state.enemies[ei];
+                        const teRect = targetEn.el.getBoundingClientRect();
+                        const dx = (teRect.left + 25) - (bRect.left + 10);
+                        const dy = (teRect.top + 25) - (bRect.top + 20);
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (dist < explosionRadius) {
+                            targetEn.hp -= damage;
+                            targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                            
+                            if (targetEn.hp <= 0) {
+                                const isElite = targetEn.type === 'orange';
+                                const points = isElite ? 150 : 50;
+                                state.score += points;
+                                DOM.scoreEl.innerText = state.score;
+                                createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                                targetEn.el.remove();
+                                state.enemies.splice(ei, 1);
+                                console.log(`🔥 [PHOENIX] Explosion killed enemy at distance ${Math.floor(dist)}px`);
+                            }
+                        }
+                    }
+                    
+                    bul.el.remove();
+                    state.bullets.splice(bi, 1);
+                    break;
+                }
+                
                 en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
                 

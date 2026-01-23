@@ -292,6 +292,8 @@ export const state = {
     playerX: 0,
     playerHP: 200,
     playerMaxHP: 200,
+    lastMouseX: 0,
+    lastMouseY: 0,
     bullets: [],
     enemyBullets: [],
     enemies: [],
@@ -313,6 +315,11 @@ export const state = {
     specialAbility: {
         ready: true,
         cooldown: 45000,
+        lastUsed: 0
+    },
+    phoenixAbility: {
+        ready: true,
+        cooldown: 30000,
         lastUsed: 0
     }
 };
@@ -344,5 +351,7 @@ export function resetState() {
     state.lastLevelScore = 0;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
+    state.phoenixAbility.ready = true;
+    state.phoenixAbility.lastUsed = 0;
     console.log('✅ [STATE] Game state reset complete:', state);
 }
