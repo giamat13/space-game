@@ -324,10 +324,10 @@ export function useJokerChaos() {
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Activate chaos mode for 10 seconds
+    // Activate chaos mode PERMANENTLY (no time limit)
     state.jokerAbility.chaosMode = true;
-    state.jokerAbility.chaosModeEnd = Date.now() + 10000;
-    state.jokerAbility.infectionActive = true;
+    state.jokerAbility.chaosModeEnd = Infinity; // Never ends!
+    state.jokerAbility.infectionActive = true; // Always active
     
     // Mark all current enemies as chaotic with infection properties
     state.enemies.forEach(en => {
@@ -352,8 +352,8 @@ export function useJokerChaos() {
         ], 1000).onfinish = () => p.remove();
     }
     
-    showFloatingMessage('🃏 CHAOS INFECTION! 10s', playerCenterX - 90, playerY - 50, '#ff4500');
-    console.log(`✅ [JOKER] Chaos mode activated! ${state.enemies.length} enemies infected`);
+    showFloatingMessage('🃏 CHAOS FOREVER!', playerCenterX - 90, playerY - 50, '#ff4500');
+    console.log(`✅ [JOKER] Chaos mode activated PERMANENTLY! ${state.enemies.length} enemies infected`);
 }
 
 export function infectEnemy(en) {
