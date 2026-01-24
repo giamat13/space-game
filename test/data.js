@@ -330,10 +330,8 @@ export const state = {
         lastUsed: 0,
         chaosMode: false,
         chaosModeEnd: 0,
-        infectionActive: false // Track if infection period is active
+        infectionActive: false // Infection is permanent once activated
     }
-};
-
 export function resetState() {
     console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
@@ -369,6 +367,6 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.chaosMode = false;
     state.jokerAbility.chaosModeEnd = 0;
-    state.jokerAbility.infectionActive = false;
+    state.jokerAbility.infectionActive = false; // Reset infection on new game
     console.log('✅ [STATE] Game state reset complete:', state);
 }
