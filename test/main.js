@@ -278,12 +278,7 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode should end
-    if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
-        state.jokerAbility.chaosMode = false;
-        state.jokerAbility.infectionActive = false;
-        console.log('🃏 [JOKER] Chaos mode and infection period ended');
-    }
+    // Chaos mode never ends now - removed the end check
     
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) {
