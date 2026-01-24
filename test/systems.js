@@ -125,7 +125,7 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
-    // If enemy is chaotic, ALWAYS shoot at non-chaotic enemies only
+    // If enemy is chaotic, ALWAYS shoot at non-chaotic enemies only (NEVER at player)
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
         if (nonChaoticEnemies.length > 0) {
@@ -138,9 +138,9 @@ export function enemyShoot(en) {
             eb.style.background = '#ffff00';
             eb.style.boxShadow = '0 0 20px #ffff00';
         } else {
-            // No non-chaotic enemies, shoot at player
-            targetX = state.playerX + 25;
-            targetY = DOM.wrapper.clientHeight - 55;
+            // No non-chaotic enemies left, don't shoot at all
+            eb.remove();
+            return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
         // Normal friendly fire chance (5%)

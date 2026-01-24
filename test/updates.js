@@ -62,7 +62,7 @@ export function updateEnemyBullets() {
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
                     
-                    // Track hits for infection spreading
+                    // Track hits for infection spreading (changed to 3 hits)
                     if (eb.shooterId && targetEn.el.dataset.enemyId) {
                         if (!targetEn.hitsByEnemy) targetEn.hitsByEnemy = {};
                         if (!targetEn.hitsByEnemy[eb.shooterId]) {
@@ -70,11 +70,11 @@ export function updateEnemyBullets() {
                         }
                         targetEn.hitsByEnemy[eb.shooterId]++;
                         
-                        // Infect if hit 5 times by same enemy
-                        if (targetEn.hitsByEnemy[eb.shooterId] >= 5 && !targetEn.chaotic) {
+                        // Infect if hit 3 times by same enemy (changed from 5 to 3)
+                        if (targetEn.hitsByEnemy[eb.shooterId] >= 3 && !targetEn.chaotic) {
                             infectEnemy(targetEn);
                             showFloatingMessage('🃏 INFECTED!', teRect.left, teRect.top - 20, '#ffff00');
-                            console.log(`🃏 [INFECTION] Enemy ${targetEn.el.dataset.enemyId} infected after 5 hits from ${eb.shooterId}`);
+                            console.log(`🃏 [INFECTION] Enemy ${targetEn.el.dataset.enemyId} infected after 3 hits from ${eb.shooterId}`);
                         }
                     }
                     
@@ -214,7 +214,7 @@ export function updateIngredients() {
             DOM.scoreEl.innerText = state.score;
             const oldHP = state.playerHP;
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
-            console.log(`🍔 INGREDIENT! +5 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
+            console.log(`🥗 INGREDIENT! +5 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
             updateHPUI();
             ing.el.remove();
             state.ingredients.splice(i, 1);
