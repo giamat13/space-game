@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -179,6 +179,10 @@ function initGame() {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '🔥';
+    } else if (currentSkinKey === 'joker') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerText = '🃏';
     } else {
         abilityBtn.style.display = 'none';
     }
@@ -268,6 +272,12 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
+    // Check if chaos mode should end
+    if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
+        state.jokerAbility.chaosMode = false;
+        console.log('🃏 [JOKER] Chaos mode ended');
+    }
+    
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) {
             const elapsed = now - state.specialAbility.lastUsed;
@@ -293,6 +303,20 @@ function updateAbilityCooldown(now) {
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
                 const percent = (remaining / state.phoenixAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
+    } else if (currentSkinKey === 'joker') {
+        if (!state.jokerAbility.ready) {
+            const elapsed = now - state.jokerAbility.lastUsed;
+            const remaining = state.jokerAbility.cooldown - elapsed;
+            
+            if (remaining <= 0) {
+                state.jokerAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.jokerAbility.cooldown) * 100;
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
@@ -327,6 +351,20 @@ function activateSpecialAbility() {
         
         state.phoenixAbility.ready = false;
         state.phoenixAbility.lastUsed = Date.now();
+        
+        const abilityBtn = document.getElementById('special-ability-btn');
+        abilityBtn.classList.add('cooldown');
+    } else if (currentSkinKey === 'joker') {
+        if (!state.jokerAbility.ready) {
+            console.log('⏳ [ABILITY] Joker ability on cooldown');
+            return;
+        }
+        
+        console.log('🃏 [ABILITY] Activating CHAOS MODE!');
+        useJokerChaos();
+        
+        state.jokerAbility.ready = false;
+        state.jokerAbility.lastUsed = Date.now();
         
         const abilityBtn = document.getElementById('special-ability-btn');
         abilityBtn.classList.add('cooldown');
