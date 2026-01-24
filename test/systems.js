@@ -115,11 +115,11 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
-    // If enemy is chaotic, ALWAYS shoot at other enemies
+    // If enemy is chaotic, ALWAYS shoot at non-chaotic enemies only
     if (en.chaotic) {
-        const otherEnemies = state.enemies.filter(e => e.el !== en.el);
-        if (otherEnemies.length > 0) {
-            targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
+        if (nonChaoticEnemies.length > 0) {
+            targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
             targetY = targetEnemy.y + 25;
             eb.dataset.friendlyFire = "true";
@@ -128,7 +128,7 @@ export function enemyShoot(en) {
             eb.style.background = '#ffff00';
             eb.style.boxShadow = '0 0 20px #ffff00';
         } else {
-            // No other enemies, shoot at player
+            // No non-chaotic enemies, shoot at player
             targetX = state.playerX + 25;
             targetY = DOM.wrapper.clientHeight - 55;
         }

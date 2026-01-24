@@ -487,7 +487,38 @@ window.debugListSkins = function() {
     });
 };
 
+window.setLvl = function(lvlNum) {
+    const level = parseInt(lvlNum);
+    if (isNaN(level) || level < 1) {
+        console.error('❌ [DEBUG] Invalid level! Please provide a number >= 1');
+        return false;
+    }
+    
+    if (!state.active) {
+        console.error('❌ [DEBUG] Game must be active! Start a game first.');
+        return false;
+    }
+    
+    state.level = level;
+    state.lastLevelScore = (level - 1) * 1000;
+    DOM.levelEl.innerText = level;
+    
+    // Update game difficulty based on level
+    state.speedMult = 1 + ((level - 1) * 0.2);
+    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    
+    console.log(`✅ [DEBUG] Level set to ${level}`);
+    console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
+    console.log(`📊 [DEBUG] Spawn rate: ${state.spawnRate}ms`);
+    
+    // Save max level if higher
+    saveMaxLevel(level);
+    
+    return true;
+};
+
 console.log('🛠️ [DEBUG] Debug commands available:');
 console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
+console.log('  - setLvl(number) - Set current level (game must be active)');
