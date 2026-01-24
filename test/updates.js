@@ -78,12 +78,22 @@ export function updateEnemyBullets() {
                         }
                     }
                     
-                    // Don't damage immortal chaotic enemies
+                    // Don't damage immortal chaotic enemies, but kill if HP reaches 0
                     if (targetEn.immortal) {
                         targetEn.hp = Math.max(0, targetEn.hp - 1);
                         targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
                         if (targetEn.hp === 0) {
                             targetEn.hpFill.style.background = '#ffff00';
+                            // Kill the chaotic enemy
+                            const isElite = targetEn.type === 'orange';
+                            const points = isElite ? 75 : 25;
+                            state.score += points;
+                            DOM.scoreEl.innerText = state.score;
+                            createExplosion(teRect.left + 25, teRect.top + 25, '#ffff00');
+                            showFloatingMessage(`🃏 +${points}!`, teRect.left, teRect.top - 20, '#ffff00');
+                            targetEn.el.remove();
+                            state.enemies.splice(ei, 1);
+                            console.log(`🃏 [CHAOS] Chaotic enemy killed by another chaotic enemy!`);
                         }
                     } else {
                         targetEn.hp -= 1;
@@ -129,10 +139,26 @@ export function updateBurgers() {
         const pRect = DOM.player.getBoundingClientRect();
         
         if(!(bRect.right < pRect.left || bRect.left > pRect.right || bRect.bottom < pRect.top || bRect.top > pRect.bottom)) {
+            const wasFullHP = state.playerHP >= state.playerMaxHP;
+            
             healPlayer(15);
             createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
             bgr.el.remove();
             state.burgers.splice(i, 1);
+            
+            // Check if player ate burger at full HP
+            if (wasFullHP && state.playerHP >= state.playerMaxHP) {
+                state.burgersEatenAtFullHP++;
+                console.log(`🍔 [BURGER] Eaten at full HP! Count: ${state.burgersEatenAtFullHP}/3`);
+                
+                if (state.burgersEatenAtFullHP >= 3 && !state.isPlayerFat) {
+                    state.isPlayerFat = true;
+                    DOM.player.style.transform = 'scale(1.5)';
+                    console.log('🐷 [FAT] Player is now FAT! Size increased to 150%');
+                    showFloatingMessage("YOU'RE FAT NOW! 🍔🍔🍔", state.playerX - 40, DOM.wrapper.clientHeight - 120, "#ff6b35");
+                }
+            }
+            
             continue;
         }
 

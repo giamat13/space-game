@@ -22,6 +22,16 @@ export function movePlayer(clientX) {
 export function damagePlayer(amount) {
     state.playerHP -= amount;
     console.log(`💥 [DAMAGE] Player took ${amount} damage | HP: ${state.playerHP}/${state.playerMaxHP}`);
+    
+    // Check if player should shrink back to normal
+    if (state.isPlayerFat && state.playerHP <= state.playerMaxHP - 2) {
+        state.isPlayerFat = false;
+        state.burgersEatenAtFullHP = 0;
+        DOM.player.style.transform = 'scale(1)';
+        console.log('🏃 [FAT] Player lost weight! Back to normal size');
+        showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
+    }
+    
     updateHPUI();
     const flash = document.createElement('div');
     flash.className = 'damage-flash';

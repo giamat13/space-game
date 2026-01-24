@@ -307,6 +307,8 @@ export const state = {
     shotCooldown: 180,
     lastHealScore: 0,
     lastLevelScore: 0,
+    burgersEatenAtFullHP: 0,
+    isPlayerFat: false,
     currentSkinStats: {
         fireRate: 1.0,
         bulletSpeed: 1.0,
@@ -357,6 +359,8 @@ export function resetState() {
     state.shotCooldown = 180;
     state.lastHealScore = 0;
     state.lastLevelScore = 0;
+    state.burgersEatenAtFullHP = 0;
+    state.isPlayerFat = false;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
     state.phoenixAbility.ready = true;

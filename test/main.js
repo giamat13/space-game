@@ -150,6 +150,9 @@ function initGame() {
     console.log('🎮 [GAME] ==================== GAME STARTING ====================');
     resetState();
     
+    // Reset player size
+    DOM.player.style.transform = 'scale(1)';
+    
     // Apply skin stats
     const skin = SKINS[currentSkinKey];
     console.log(`🎨 [GAME] Using skin: ${skin.name}`);
@@ -169,20 +172,23 @@ function initGame() {
     updateHPUI();
     DOM.overlay.style.display = 'none';
     
-    // Show/hide special ability button based on skin
+    // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '⚡';
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'phoenix') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '🔥';
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'joker') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '🃏';
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
     }
