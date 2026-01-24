@@ -113,7 +113,25 @@ export function enemyShoot(en) {
     const enTop = en.y + 40;
     
     let targetX, targetY;
-    if (Math.random() < 0.05 && state.enemies.length > 1) {
+    
+    // If in chaos mode and enemy is chaotic, ALWAYS shoot at other enemies
+    if (state.jokerAbility.chaosMode && en.chaotic) {
+        const otherEnemies = state.enemies.filter(e => e.el !== en.el);
+        if (otherEnemies.length > 0) {
+            const targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+            targetX = parseFloat(targetEnemy.el.style.left) + 25;
+            targetY = targetEnemy.y + 25;
+            eb.dataset.friendlyFire = "true";
+            // Color the bullet differently in chaos mode
+            eb.style.background = '#ffff00';
+            eb.style.boxShadow = '0 0 20px #ffff00';
+        } else {
+            // No other enemies, shoot at player
+            targetX = state.playerX + 25;
+            targetY = DOM.wrapper.clientHeight - 55;
+        }
+    } else if (Math.random() < 0.05 && state.enemies.length > 1) {
+        // Normal friendly fire chance (5%)
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
         const targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
@@ -278,6 +296,44 @@ export function useVortexLaser() {
     console.log(`✅ [VORTEX] Laser complete! Killed: ${killCount}`);
 }
 
+export function useJokerChaos() {
+    console.log('🃏 [JOKER] Activating CHAOS MODE!');
+    
+    const playerCenterX = state.playerX + 25;
+    const playerY = DOM.wrapper.clientHeight - 90;
+    
+    // Activate chaos mode for 10 seconds
+    state.jokerAbility.chaosMode = true;
+    state.jokerAbility.chaosModeEnd = Date.now() + 10000;
+    
+    // Mark all current enemies as chaotic
+    state.enemies.forEach(en => {
+        en.chaotic = true;
+        en.el.style.filter = 'hue-rotate(180deg) saturate(200%)';
+    });
+    
+    // Create visual effect
+    for(let i=0; i<50; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.background = i % 2 === 0 ? '#ff4500' : '#ffff00';
+        p.style.left = playerCenterX + 'px';
+        p.style.top = playerY + 'px';
+        p.style.width = '8px';
+        p.style.height = '8px';
+        DOM.wrapper.appendChild(p);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 200 + 50;
+        p.animate([
+            { opacity: 1 }, 
+            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
+        ], 1000).onfinish = () => p.remove();
+    }
+    
+    showFloatingMessage('🃏 CHAOS MODE! 10s', playerCenterX - 80, playerY - 50, '#ff4500');
+    console.log(`✅ [JOKER] Chaos mode activated! ${state.enemies.length} enemies marked as chaotic`);
+}
+
 // ===== SPAWNING SYSTEMS =====
 
 export function spawnIngredients(x, y) {
@@ -358,7 +414,8 @@ export function handleSpawning(now) {
                 maxHP: maxHP,
                 speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
                 lastShot: now + Math.random() * 500,
-                fireRate: (isOrange ? 600 : 1000) / state.speedMult
+                fireRate: (isOrange ? 600 : 1000) / state.speedMult,
+                chaotic: false // New enemies are not chaotic
             });
         }
         state.lastSpawn = now;
