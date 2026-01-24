@@ -442,3 +442,49 @@ console.log('✅ [INIT] 40 stars generated');
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
 console.log('✅ [INIT] Player sprite set to classic skin');
 console.log('🎮 [INIT] All systems ready!');
+
+// ===== DEBUG COMMANDS =====
+
+window.unlockSkin = function(skinKey) {
+    if (!SKINS[skinKey]) {
+        console.error(`❌ [DEBUG] Skin "${skinKey}" does not exist!`);
+        console.log('📋 [DEBUG] Available skins:', Object.keys(SKINS).join(', '));
+        return false;
+    }
+    
+    if (unlockSkin(skinKey)) {
+        console.log(`🎉 [DEBUG] Successfully unlocked skin: ${skinKey}`);
+        updateSkinOptions();
+        return true;
+    } else {
+        console.log(`ℹ️ [DEBUG] Skin ${skinKey} was already unlocked`);
+        return false;
+    }
+};
+
+window.unlockAllSkins = function() {
+    console.log('🔓 [DEBUG] Unlocking all skins...');
+    let count = 0;
+    Object.keys(SKINS).forEach(skinKey => {
+        if (unlockSkin(skinKey)) {
+            count++;
+        }
+    });
+    updateSkinOptions();
+    console.log(`✅ [DEBUG] Unlocked ${count} new skins!`);
+    console.log('📋 [DEBUG] All unlocked skins:', Object.keys(SKINS).join(', '));
+};
+
+window.listSkins = function() {
+    console.log('📋 [DEBUG] === AVAILABLE SKINS ===');
+    Object.keys(SKINS).forEach(key => {
+        const skin = SKINS[key];
+        const unlocked = isSkinUnlocked(key);
+        console.log(`${unlocked ? '✅' : '🔒'} ${key} (${skin.name}) - Unlock Level: ${skin.unlockLevel}`);
+    });
+};
+
+console.log('🛠️ [DEBUG] Debug commands available:');
+console.log('  - unlockSkin("skinName") - Unlock a specific skin');
+console.log('  - unlockAllSkins() - Unlock all skins');
+console.log('  - listSkins() - Show all available skins');
