@@ -321,6 +321,13 @@ export const state = {
         ready: true,
         cooldown: 30000,
         lastUsed: 0
+    },
+    jokerAbility: {
+        ready: true,
+        cooldown: 75000,
+        lastUsed: 0,
+        chaosMode: false,
+        chaosModeEnd: 0
     }
 };
 
@@ -353,5 +360,9 @@ export function resetState() {
     state.specialAbility.lastUsed = 0;
     state.phoenixAbility.ready = true;
     state.phoenixAbility.lastUsed = 0;
+    state.jokerAbility.ready = true;
+    state.jokerAbility.lastUsed = 0;
+    state.jokerAbility.chaosMode = false;
+    state.jokerAbility.chaosModeEnd = 0;
     console.log('✅ [STATE] Game state reset complete:', state);
 }
