@@ -1,5 +1,5 @@
 import { DOM, state } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients, infectEnemy } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -61,8 +61,46 @@ export function updateEnemyBullets() {
                 let targetEn = state.enemies[ei];
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
-                    targetEn.hp -= 1;
-                    targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
+                    
+                    // Track hits for infection spreading
+                    if (eb.shooterId && targetEn.el.dataset.enemyId) {
+                        if (!targetEn.hitsByEnemy) targetEn.hitsByEnemy = {};
+                        if (!targetEn.hitsByEnemy[eb.shooterId]) {
+                            targetEn.hitsByEnemy[eb.shooterId] = 0;
+                        }
+                        targetEn.hitsByEnemy[eb.shooterId]++;
+                        
+                        // Infect if hit 5 times by same enemy
+                        if (targetEn.hitsByEnemy[eb.shooterId] >= 5 && !targetEn.chaotic) {
+                            infectEnemy(targetEn);
+                            showFloatingMessage('🃏 INFECTED!', teRect.left, teRect.top - 20, '#ffff00');
+                            console.log(`🃏 [INFECTION] Enemy ${targetEn.el.dataset.enemyId} infected after 5 hits from ${eb.shooterId}`);
+                        }
+                    }
+                    
+                    // Don't damage immortal chaotic enemies
+                    if (targetEn.immortal) {
+                        targetEn.hp = Math.max(0, targetEn.hp - 1);
+                        targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
+                        if (targetEn.hp === 0) {
+                            targetEn.hpFill.style.background = '#ffff00';
+                        }
+                    } else {
+                        targetEn.hp -= 1;
+                        targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
+                        
+                        // Kill non-immortal enemies
+                        if (targetEn.hp <= 0) {
+                            const isElite = targetEn.type === 'orange';
+                            const points = isElite ? 75 : 25; // Reduced points for friendly fire kills
+                            state.score += points;
+                            DOM.scoreEl.innerText = state.score;
+                            createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                            targetEn.el.remove();
+                            state.enemies.splice(ei, 1);
+                        }
+                    }
+                    
                     createExplosion(eb.x, eb.y, 'white');
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
@@ -265,7 +303,7 @@ export function updateEnemies(now) {
                             targetEn.hp -= damage;
                             targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
                             
-                            if (targetEn.hp <= 0) {
+                            if (targetEn.hp <= 0 && !targetEn.immortal) {
                                 const isElite = targetEn.type === 'orange';
                                 const points = isElite ? 150 : 50;
                                 state.score += points;
@@ -297,7 +335,8 @@ export function updateEnemies(now) {
                 bul.el.remove();
                 state.bullets.splice(bi, 1);
                 
-                if(en.hp <= 0) {
+                // Immortal chaotic enemies can't die from player bullets
+                if(en.hp <= 0 && !en.immortal) {
                     const isElite = en.type === 'orange';
                     const points = isElite ? 150 : 50;
                     const oldScore = state.score;
@@ -334,6 +373,10 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
+                } else if (en.hp <= 0 && en.immortal) {
+                    // Chaotic enemy at 0 HP - show they're immortal
+                    en.hpFill.style.background = '#ffff00';
+                    showFloatingMessage("IMMORTAL!", eRect.left, eRect.top - 20, '#ffff00');
                 }
                 break;
             }

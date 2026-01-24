@@ -324,10 +324,11 @@ export const state = {
     },
     jokerAbility: {
         ready: true,
-        cooldown: 75000,
+        cooldown: 45000,
         lastUsed: 0,
         chaosMode: false,
-        chaosModeEnd: 0
+        chaosModeEnd: 0,
+        infectionActive: false // Track if infection period is active
     }
 };
 
@@ -364,5 +365,6 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.chaosMode = false;
     state.jokerAbility.chaosModeEnd = 0;
+    state.jokerAbility.infectionActive = false;
     console.log('✅ [STATE] Game state reset complete:', state);
 }

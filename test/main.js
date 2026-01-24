@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, infectEnemy } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -275,7 +275,8 @@ function updateAbilityCooldown(now) {
     // Check if chaos mode should end
     if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
         state.jokerAbility.chaosMode = false;
-        console.log('🃏 [JOKER] Chaos mode ended');
+        state.jokerAbility.infectionActive = false;
+        console.log('🃏 [JOKER] Chaos mode and infection period ended');
     }
     
     if (currentSkinKey === 'vortex') {
@@ -360,7 +361,7 @@ function activateSpecialAbility() {
             return;
         }
         
-        console.log('🃏 [ABILITY] Activating CHAOS MODE!');
+        console.log('🃏 [ABILITY] Activating CHAOS INFECTION!');
         useJokerChaos();
         
         state.jokerAbility.ready = false;
@@ -445,14 +446,15 @@ console.log('🎮 [INIT] All systems ready!');
 
 // ===== DEBUG COMMANDS =====
 
-window.unlockSkin = function(skinKey) {
+window.debugUnlockSkin = function(skinKey) {
     if (!SKINS[skinKey]) {
         console.error(`❌ [DEBUG] Skin "${skinKey}" does not exist!`);
         console.log('📋 [DEBUG] Available skins:', Object.keys(SKINS).join(', '));
         return false;
     }
     
-    if (unlockSkin(skinKey)) {
+    const result = unlockSkin(skinKey);
+    if (result) {
         console.log(`🎉 [DEBUG] Successfully unlocked skin: ${skinKey}`);
         updateSkinOptions();
         return true;
@@ -462,11 +464,12 @@ window.unlockSkin = function(skinKey) {
     }
 };
 
-window.unlockAllSkins = function() {
+window.debugUnlockAllSkins = function() {
     console.log('🔓 [DEBUG] Unlocking all skins...');
     let count = 0;
     Object.keys(SKINS).forEach(skinKey => {
-        if (unlockSkin(skinKey)) {
+        const result = unlockSkin(skinKey);
+        if (result) {
             count++;
         }
     });
@@ -475,7 +478,7 @@ window.unlockAllSkins = function() {
     console.log('📋 [DEBUG] All unlocked skins:', Object.keys(SKINS).join(', '));
 };
 
-window.listSkins = function() {
+window.debugListSkins = function() {
     console.log('📋 [DEBUG] === AVAILABLE SKINS ===');
     Object.keys(SKINS).forEach(key => {
         const skin = SKINS[key];
@@ -485,6 +488,6 @@ window.listSkins = function() {
 };
 
 console.log('🛠️ [DEBUG] Debug commands available:');
-console.log('  - unlockSkin("skinName") - Unlock a specific skin');
-console.log('  - unlockAllSkins() - Unlock all skins');
-console.log('  - listSkins() - Show all available skins');
+console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
+console.log('  - debugUnlockAllSkins() - Unlock all skins');
+console.log('  - debugListSkins() - Show all available skins');
