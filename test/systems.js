@@ -106,6 +106,16 @@ export function shoot() {
 
 export function enemyShoot(en) {
     if (!state.active) return;
+    
+    // If this enemy is chaotic, check if there are non-chaotic enemies to shoot
+    if (en.chaotic) {
+        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
+        if (nonChaoticEnemies.length === 0) {
+            // No non-chaotic enemies, don't shoot at all
+            return;
+        }
+    }
+    
     const eb = document.createElement('div');
     eb.className = 'enemy-bullet';
     if (en.type === 'orange') eb.style.background = 'var(--elite)';
@@ -119,19 +129,13 @@ export function enemyShoot(en) {
     // If this enemy is chaotic, ALWAYS target non-chaotic enemies
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        if (nonChaoticEnemies.length > 0) {
-            targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
-            targetX = parseFloat(targetEnemy.el.style.left) + 25;
-            targetY = targetEnemy.y + 25;
-            eb.dataset.friendlyFire = "true";
-            eb.dataset.shooterId = en.el.dataset.enemyId;
-            eb.style.background = '#ffff00';
-            eb.style.boxShadow = '0 0 20px #ffff00';
-        } else {
-            // No non-chaotic enemies left, don't shoot at all
-            eb.remove();
-            return;
-        }
+        targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
+        targetX = parseFloat(targetEnemy.el.style.left) + 25;
+        targetY = targetEnemy.y + 25;
+        eb.dataset.friendlyFire = "true";
+        eb.dataset.shooterId = en.el.dataset.enemyId;
+        eb.style.background = '#ffff00';
+        eb.style.boxShadow = '0 0 20px #ffff00';
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
         // Non-chaotic enemies have 5% chance to friendly fire
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
