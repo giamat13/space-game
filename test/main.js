@@ -5,44 +5,67 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 
 // ===== INITIALIZATION =====
 
+console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
 updateSkinOptions();
+console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
 
 function showLeaderboard() {
+    console.log('🏆 [LEADERBOARD] Opening leaderboard...');
+    console.log('🏆 [LEADERBOARD] Hiding main menu');
     document.getElementById('main-menu').style.display = 'none';
+    console.log('🏆 [LEADERBOARD] Showing leaderboard container');
     document.getElementById('leaderboard-container').style.display = 'block';
+    console.log('🏆 [LEADERBOARD] Displaying overall category');
     displayLeaderboard('overall');
     
+    // Setup tab listeners
+    console.log('🏆 [LEADERBOARD] Setting up tab listeners');
     const tabs = document.querySelectorAll('.lb-tab');
-    tabs.forEach(tab => {
+    console.log(`🏆 [LEADERBOARD] Found ${tabs.length} tabs`);
+    tabs.forEach((tab, index) => {
+        console.log(`🏆 [LEADERBOARD] Setting up tab ${index}: ${tab.dataset.tab}`);
         tab.onclick = function() {
+            console.log(`👆 [TAB CLICK] User clicked tab: ${this.dataset.tab}`);
             document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
+            console.log(`👆 [TAB CLICK] Displaying leaderboard for: ${this.dataset.tab}`);
             displayLeaderboard(this.dataset.tab);
         };
     });
+    console.log('✅ [LEADERBOARD] Leaderboard opened successfully');
 }
 
 function closeLeaderboard() {
+    console.log('❌ [LEADERBOARD] Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
 function displayLeaderboard(category) {
+    console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
     const leaderboard = getLeaderboard(category);
+    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
     const content = document.getElementById('leaderboard-content');
     
-    if (!content) return;
+    if (!content) {
+        console.error('❌ [DISPLAY] ERROR: leaderboard-content element not found!');
+        return;
+    }
     
     if (leaderboard.length === 0) {
+        console.log('⚠️ [DISPLAY] No entries found, showing empty message');
         content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
         return;
     }
     
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    console.log('📊 [DISPLAY] Generating HTML for entries...');
     const html = leaderboard.map((entry, index) => {
+        console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index]}</div>
@@ -57,50 +80,77 @@ function displayLeaderboard(category) {
     }).join('');
     
     content.innerHTML = html;
+    console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
 
+// Export to window for HTML onclick
+console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
 window.closeLeaderboard = closeLeaderboard;
+console.log('✅ [EXPORT] Functions exported:', {
+    showLeaderboard: typeof window.showLeaderboard,
+    closeLeaderboard: typeof window.closeLeaderboard
+});
 
 // ===== SKIN SELECTION =====
 
 function updateSkinOptions() {
+    console.log('🎨 [SKINS] Updating skin options...');
     const options = document.querySelectorAll('.skin-option');
+    console.log(`🎨 [SKINS] Found ${options.length} skin options`);
     
-    options.forEach(option => {
+    options.forEach((option, index) => {
         const skinKey = option.dataset.skin;
         const unlockLevel = parseInt(option.dataset.unlockLevel) || 0;
         const maxLevel = getMaxLevel();
         
+        console.log(`🎨 [SKINS] Processing skin ${index}: ${skinKey} (unlock level: ${unlockLevel}, max level: ${maxLevel})`);
+        
         if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
+            console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             unlockSkin(skinKey);
             option.classList.add('newly-unlocked');
             setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
         }
         
         if (isSkinUnlocked(skinKey)) {
+            console.log(`✅ [SKINS] ${skinKey} is unlocked, making clickable`);
             option.classList.remove('locked');
-            option.onclick = () => selectSkin(skinKey, option);
+            option.onclick = () => {
+                console.log(`👆 [SKIN CLICK] User clicked skin: ${skinKey}`);
+                selectSkin(skinKey, option);
+            };
         } else {
+            console.log(`🔒 [SKINS] ${skinKey} is locked`);
             option.classList.add('locked');
             option.onclick = null;
         }
     });
+    console.log('✅ [SKINS] Skin options updated');
 }
 
 function selectSkin(key, element) {
-    if (!isSkinUnlocked(key)) return;
+    console.log(`🎨 [SELECT] Selecting skin: ${key}`);
+    if (!isSkinUnlocked(key)) {
+        console.log(`🔒 [SELECT] Skin ${key} is locked! Selection blocked.`);
+        return;
+    }
     setCurrentSkin(key);
     document.querySelectorAll('.skin-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
+    console.log(`✅ [SELECT] Skin ${key} selected successfully`);
 }
 
+// Export to window for HTML onclick
 window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
 function initGame() {
     resetState();
+    
+    // Reset player size to normal
+    DOM.player.style.transform = 'scale(1)';
     
     const skin = SKINS[currentSkinKey];
     state.currentSkinStats = {
@@ -117,6 +167,7 @@ function initGame() {
     updateHPUI();
     DOM.overlay.style.display = 'none';
     
+    // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
@@ -145,7 +196,9 @@ function initGame() {
     requestAnimationFrame(update);
 }
 
+// Export to window for HTML onclick
 window.initGame = initGame;
+console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
 // ===== LEVEL UP SYSTEM =====
 
@@ -187,19 +240,9 @@ function handleLevelUp() {
 
 // ===== MAIN UPDATE LOOP =====
 
-let lastUpdate = Date.now();
-
 function update() {
     if(!state.active) return;
     const now = Date.now();
-    const deltaTime = now - lastUpdate;
-    lastUpdate = now;
-    
-    // Limit updates to 60 FPS max
-    if (deltaTime < 16) {
-        requestAnimationFrame(update);
-        return;
-    }
     
     handleLevelUp();
     handleSpawning(now);
@@ -221,6 +264,7 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
+    // Check if chaos mode should end
     if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
         state.jokerAbility.chaosMode = false;
         state.jokerAbility.infectionActive = false;
@@ -276,18 +320,21 @@ function activateSpecialAbility() {
     
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) return;
+        
         useVortexLaser();
         state.specialAbility.ready = false;
         state.specialAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'phoenix') {
         if (!state.phoenixAbility.ready) return;
+        
         usePhoenixFeathers();
         state.phoenixAbility.ready = false;
         state.phoenixAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
+        
         useJokerChaos();
         state.jokerAbility.ready = false;
         state.jokerAbility.lastUsed = Date.now();
@@ -301,6 +348,7 @@ window.addEventListener('mousemove', (e) => {
     if(!state.active) return;
     movePlayer(e.clientX);
     
+    // Track mouse position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.clientX - rect.left;
     state.lastMouseY = e.clientY - rect.top;
@@ -312,6 +360,7 @@ window.addEventListener('touchmove', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
+    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
@@ -322,6 +371,7 @@ window.addEventListener('touchstart', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
+    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
@@ -333,8 +383,10 @@ window.addEventListener('keydown', (e) => {
     if(e.code === 'KeyB') activateSpecialAbility();
 });
 
+// Special ability button click
 document.getElementById('special-ability-btn').addEventListener('click', activateSpecialAbility);
 
+// Prevent context menu on right click, use it for special ability instead
 window.addEventListener('contextmenu', (e) => {
     if (state.active) {
         e.preventDefault();
@@ -344,6 +396,8 @@ window.addEventListener('contextmenu', (e) => {
 
 // ===== INITIALIZATION =====
 
+// Generate stars
+console.log('⭐ [INIT] Generating stars...');
 for(let i=0; i<40; i++) {
     const s = document.createElement('div');
     s.className = 'star';
@@ -354,75 +408,48 @@ for(let i=0; i<40; i++) {
     s.style.animationDuration = (Math.random()*4+2)+'s';
     DOM.wrapper.appendChild(s);
 }
+console.log('✅ [INIT] 40 stars generated');
 
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
+console.log('✅ [INIT] Player sprite set to classic skin');
+console.log('🎮 [INIT] All systems ready!');
 
 // ===== DEBUG COMMANDS =====
 
-window.setlvl = function(lvl) {
-    const level = parseInt(lvl);
-    if (isNaN(level) || level < 1) {
-        console.error('Invalid level! Use: setlvl(5)');
-        return;
-    }
-    
-    if (!state.active) {
-        console.error('Start a game first!');
-        return;
-    }
-    
-    state.level = level;
-    state.lastLevelScore = (level - 1) * 1000;
-    state.score = state.lastLevelScore;
-    DOM.levelEl.innerText = level;
-    DOM.scoreEl.innerText = state.score;
-    saveMaxLevel(level);
-    
-    console.log(`✅ Level set to ${level}!`);
-    
-    // Check for unlocks
-    Object.keys(SKINS).forEach(skinKey => {
-        const skin = SKINS[skinKey];
-        if (skin.unlockLevel <= level && !isSkinUnlocked(skinKey)) {
-            unlockSkin(skinKey);
-            console.log(`🎉 Unlocked: ${skin.name}`);
-        }
-    });
-    
-    updateSkinOptions();
-};
-
 window.debugUnlockSkin = function(skinKey) {
     if (!SKINS[skinKey]) {
-        console.error(`Skin "${skinKey}" does not exist!`);
-        console.log('Available skins:', Object.keys(SKINS).join(', '));
+        console.error(`❌ [DEBUG] Skin "${skinKey}" does not exist!`);
+        console.log('📋 [DEBUG] Available skins:', Object.keys(SKINS).join(', '));
         return false;
     }
     
     const result = unlockSkin(skinKey);
     if (result) {
-        console.log(`🎉 Successfully unlocked skin: ${skinKey}`);
+        console.log(`🎉 [DEBUG] Successfully unlocked skin: ${skinKey}`);
         updateSkinOptions();
         return true;
     } else {
-        console.log(`Skin ${skinKey} was already unlocked`);
+        console.log(`ℹ️ [DEBUG] Skin ${skinKey} was already unlocked`);
         return false;
     }
 };
 
 window.debugUnlockAllSkins = function() {
+    console.log('🔓 [DEBUG] Unlocking all skins...');
     let count = 0;
     Object.keys(SKINS).forEach(skinKey => {
         const result = unlockSkin(skinKey);
-        if (result) count++;
+        if (result) {
+            count++;
+        }
     });
     updateSkinOptions();
-    console.log(`✅ Unlocked ${count} new skins!`);
-    console.log('All unlocked skins:', Object.keys(SKINS).join(', '));
+    console.log(`✅ [DEBUG] Unlocked ${count} new skins!`);
+    console.log('📋 [DEBUG] All unlocked skins:', Object.keys(SKINS).join(', '));
 };
 
 window.debugListSkins = function() {
-    console.log('=== AVAILABLE SKINS ===');
+    console.log('📋 [DEBUG] === AVAILABLE SKINS ===');
     Object.keys(SKINS).forEach(key => {
         const skin = SKINS[key];
         const unlocked = isSkinUnlocked(key);
@@ -430,8 +457,38 @@ window.debugListSkins = function() {
     });
 };
 
-console.log('🛠️ Debug commands:');
-console.log('  - setlvl(5) - Set level to 5');
+window.setLvl = function(lvlNum) {
+    const level = parseInt(lvlNum);
+    if (isNaN(level) || level < 1) {
+        console.error('❌ [DEBUG] Invalid level! Please provide a number >= 1');
+        return false;
+    }
+    
+    if (!state.active) {
+        console.error('❌ [DEBUG] Game must be active! Start a game first.');
+        return false;
+    }
+    
+    state.level = level;
+    state.lastLevelScore = (level - 1) * 1000;
+    DOM.levelEl.innerText = level;
+    
+    // Update game difficulty based on level
+    state.speedMult = 1 + ((level - 1) * 0.2);
+    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    
+    console.log(`✅ [DEBUG] Level set to ${level}`);
+    console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
+    console.log(`📊 [DEBUG] Spawn rate: ${state.spawnRate}ms`);
+    
+    // Save max level if higher
+    saveMaxLevel(level);
+    
+    return true;
+};
+
+console.log('🛠️ [DEBUG] Debug commands available:');
 console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
+console.log('  - setLvl(number) - Set current level (game must be active)');
