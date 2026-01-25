@@ -47,12 +47,15 @@ export function updateEnemyBullets() {
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
         
-        if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
-            damagePlayer(15);
-            createExplosion(eb.x, eb.y, 'var(--primary)');
-            eb.el.remove();
-            state.enemyBullets.splice(i, 1);
-            continue;
+        // Friendly fire bullets (from chaotic enemies) should NOT hit player
+        if (!eb.friendly) {
+            if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
+                damagePlayer(15);
+                createExplosion(eb.x, eb.y, 'var(--primary)');
+                eb.el.remove();
+                state.enemyBullets.splice(i, 1);
+                continue;
+            }
         }
         
         if (eb.friendly) {
