@@ -116,6 +116,7 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
+    // If this enemy is chaotic, ALWAYS target non-chaotic enemies
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
         if (nonChaoticEnemies.length > 0) {
@@ -127,10 +128,12 @@ export function enemyShoot(en) {
             eb.style.background = '#ffff00';
             eb.style.boxShadow = '0 0 20px #ffff00';
         } else {
-            targetX = state.playerX + 25;
-            targetY = DOM.wrapper.clientHeight - 55;
+            // No non-chaotic enemies left, don't shoot at all
+            eb.remove();
+            return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
+        // Non-chaotic enemies have 5% chance to friendly fire
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
         targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
@@ -138,6 +141,7 @@ export function enemyShoot(en) {
         eb.dataset.friendlyFire = "true";
         eb.dataset.shooterId = en.el.dataset.enemyId;
     } else {
+        // Normal enemies shoot at player
         targetX = state.playerX + 25;
         targetY = DOM.wrapper.clientHeight - 55;
     }
