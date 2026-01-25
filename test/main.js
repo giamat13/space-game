@@ -264,10 +264,11 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode should end
+    // Check if chaos mode should end (but enemies stay immortal)
     if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
         state.jokerAbility.chaosMode = false;
         state.jokerAbility.infectionActive = false;
+        console.log('⏰ [JOKER] Chaos mode ended - but infected enemies remain immortal!');
     }
     
     if (currentSkinKey === 'vortex') {
@@ -471,13 +472,16 @@ window.setLvl = function(lvlNum) {
     
     state.level = level;
     state.lastLevelScore = (level - 1) * 1000;
+    state.score = state.lastLevelScore;
     DOM.levelEl.innerText = level;
+    DOM.scoreEl.innerText = state.score;
     
     // Update game difficulty based on level
     state.speedMult = 1 + ((level - 1) * 0.2);
     state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
     
     console.log(`✅ [DEBUG] Level set to ${level}`);
+    console.log(`📊 [DEBUG] Score set to: ${state.score}`);
     console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
     console.log(`📊 [DEBUG] Spawn rate: ${state.spawnRate}ms`);
     
@@ -487,8 +491,98 @@ window.setLvl = function(lvlNum) {
     return true;
 };
 
+
+window.spawn = function(type) {
+    if (!state.active) {
+        console.error('❌ [DEBUG] Game must be active! Start a game first.');
+        return false;
+    }
+    
+    const validTypes = ['burger', 'asteroid', 'enemy', 'elite', 'orange', 'red'];
+    const lowerType = type.toLowerCase();
+    
+    if (!validTypes.includes(lowerType)) {
+        console.error(`❌ [DEBUG] Invalid type! Valid types: ${validTypes.join(', ')}`);
+        return false;
+    }
+    
+    const posX = Math.random() * (DOM.wrapper.clientWidth - 50);
+    const el = document.createElement('div');
+    
+    if (lowerType === 'burger') {
+        el.className = 'burger';
+        el.style.left = posX + 'px'; 
+        el.style.top = '-60px';
+        el.innerHTML = `
+            <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
+            <svg viewBox="0 0 100 100">
+                <path d="M10 50 Q50 10 90 50 Z" fill="#e67e22"/>
+                <rect x="10" y="50" width="80" height="10" fill="#6d4c41"/>
+                <rect x="10" y="60" width="80" height="5" fill="#f1c40f"/>
+                <path d="M10 65 L90 65 L80 85 L20 85 Z" fill="#e67e22"/>
+            </svg>`;
+        DOM.wrapper.appendChild(el);
+        state.burgers.push({
+            el: el, 
+            hpFill: el.querySelector('.enemy-hp-fill'),
+            y: -60, 
+            hp: 4, 
+            maxHP: 4, 
+            speed: 1.2 * state.speedMult
+        });
+        console.log('🍔 [DEBUG] Spawned burger');
+    } else if (lowerType === 'asteroid') {
+        el.className = 'asteroid';
+        el.style.left = posX + 'px'; 
+        el.style.top = '-60px';
+        el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#333" stroke="#555" stroke-width="3"/><circle cx="40" cy="40" r="5" fill="#222"/><circle cx="60" cy="70" r="8" fill="#222"/></svg>`;
+        DOM.wrapper.appendChild(el);
+        state.asteroids.push({ 
+            el: el, 
+            y: -60, 
+            speed: (Math.random() * 2.0 + 1.2) * state.speedMult, 
+            rot: 0, 
+            rotSpeed: Math.random() * 8 - 4 
+        });
+        console.log('🪨 [DEBUG] Spawned asteroid');
+    } else {
+        const isOrange = lowerType === 'elite' || lowerType === 'orange';
+        const type = isOrange ? 'orange' : 'red';
+        const maxHP = isOrange ? (Math.floor(Math.random() * 3) + 3) : (Math.floor(Math.random() * 3) + 1);
+        const colorCode = isOrange ? '#ff9900' : '#ff0000';
+        el.className = `enemy-ship ${type}`;
+        el.style.left = posX + 'px'; 
+        el.style.top = '-60px';
+        el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
+        DOM.wrapper.appendChild(el);
+        state.enemies.push({ 
+            el: el, 
+            hpFill: el.querySelector('.enemy-hp-fill'),
+            type: type, 
+            y: -60, 
+            hp: maxHP, 
+            maxHP: maxHP,
+            speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
+            lastShot: Date.now() + Math.random() * 500,
+            fireRate: (isOrange ? 600 : 1000) / state.speedMult,
+            chaotic: false,
+            immortal: false,
+            hitsByEnemy: {}
+        });
+        
+        if (state.jokerAbility.infectionActive) {
+            const newEnemy = state.enemies[state.enemies.length - 1];
+            infectEnemy(newEnemy);
+        }
+        console.log(`👾 [DEBUG] Spawned ${type} enemy`);
+    }
+    
+    return true;
+};
+
 console.log('🛠️ [DEBUG] Debug commands available:');
 console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
+console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "elite"');

@@ -296,13 +296,13 @@ export function useVortexLaser() {
 }
 
 export function useJokerChaos() {
-    console.log('🃏 [JOKER] Activating CHAOS!');
+    console.log('🃏 [JOKER] Activating CHAOS MODE!');
     
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
     state.jokerAbility.chaosMode = true;
-    state.jokerAbility.chaosModeEnd = Date.now() + 10000;
+    state.jokerAbility.chaosModeEnd = Date.now() + 10000; // 10 seconds chaos mode
     state.jokerAbility.infectionActive = true;
     
     state.enemies.forEach(en => {
@@ -327,7 +327,7 @@ export function useJokerChaos() {
     }
     
     showFloatingMessage('🃏 CHAOS! 10s', playerCenterX - 50, playerY - 50, '#ff4500');
-    console.log(`✅ [JOKER] ${state.enemies.length} enemies infected`);
+    console.log(`✅ [JOKER] ${state.enemies.length} enemies infected - they are now IMMORTAL forever!`);
 }
 
 export function infectEnemy(en) {

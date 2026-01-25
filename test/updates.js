@@ -77,21 +77,14 @@ export function updateEnemyBullets() {
                         }
                     }
                     
-                    // Don't damage immortal chaotic enemies, but kill if HP reaches 0
+                    // Immortal chaotic enemies can NEVER die from any source
                     if (targetEn.immortal) {
-                        targetEn.hp = Math.max(0, targetEn.hp - 1);
-                        targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-                        if (targetEn.hp === 0) {
+                        targetEn.hp -= 1;
+                        targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                        if (targetEn.hp <= 0) {
                             targetEn.hpFill.style.background = '#ffff00';
-                            // Kill the chaotic enemy
-                            const isElite = targetEn.type === 'orange';
-                            const points = isElite ? 75 : 25;
-                            state.score += points;
-                            DOM.scoreEl.innerText = state.score;
-                            createExplosion(teRect.left + 25, teRect.top + 25, '#ffff00');
-                            showFloatingMessage(`🃏 +${points}!`, teRect.left, teRect.top - 20, '#ffff00');
-                            targetEn.el.remove();
-                            state.enemies.splice(ei, 1);
+                            targetEn.hp = 0; // Keep at 0 HP but don't kill
+                            showFloatingMessage('♾️ IMMORTAL!', teRect.left, teRect.top - 20, '#ffff00');
                         }
                     } else {
                         targetEn.hp -= 1;
