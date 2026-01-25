@@ -4,6 +4,7 @@ import { DOM, state, INGREDIENT_TYPES } from './data.js';
 
 export function updatePlayerPos() {
     DOM.player.style.left = state.playerX + 'px';
+    DOM.player.style.transform = `scale(${state.playerScale})`;
 }
 
 export function updateHPUI() {
@@ -14,39 +15,32 @@ export function updateHPUI() {
 
 export function movePlayer(clientX) {
     const rect = DOM.wrapper.getBoundingClientRect();
-    let x = clientX - rect.left - 25;
-    state.playerX = Math.max(0, Math.min(x, DOM.wrapper.clientWidth - 50));
+    let x = clientX - rect.left - (25 * state.playerScale);
+    state.playerX = Math.max(0, Math.min(x, DOM.wrapper.clientWidth - (50 * state.playerScale)));
     updatePlayerPos();
 }
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
-    console.log(`💥 [DAMAGE] -${amount} HP | Now: ${state.playerHP}/${state.playerMaxHP}`);
+    updateHPUI();
     
-    // Check if player should lose weight
-    if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
-        state.isPlayerFat = false;
+    // Check if player got hit while fat - shrink back to normal
+    if (state.playerScale > 1.0) {
+        state.playerScale = 1.0;
         state.burgersEatenAtFullHP = 0;
-        DOM.player.style.transform = 'scale(1)';
-        console.log('🏃 [FAT] Weight lost! Back to normal');
-        showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
+        updatePlayerPos();
+        showFloatingMessage("BACK TO NORMAL!", state.playerX, DOM.wrapper.clientHeight - 100, "#ffaa00");
     }
     
-    updateHPUI();
     const flash = document.createElement('div');
     flash.className = 'damage-flash';
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     
     if(state.playerHP <= 0) {
-        console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
-        
         import('./data.js').then(module => {
             module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log('✅ [GAME OVER] Score saved');
-        }).catch(err => {
-            console.error('❌ [GAME OVER] Save error:', err);
         });
         
         DOM.overlay.style.display = 'flex';
@@ -59,8 +53,19 @@ export function damagePlayer(amount) {
 
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
+    const oldHP = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
-    console.log(`💚 [HEAL] +${percent}% | Now: ${state.playerHP}/${state.playerMaxHP}`);
+    
+    // Check if at full HP after healing
+    if (state.playerHP >= state.playerMaxHP) {
+        state.burgersEatenAtFullHP++;
+        if (state.burgersEatenAtFullHP >= 3 && state.playerScale === 1.0) {
+            state.playerScale = 1.5;
+            updatePlayerPos();
+            showFloatingMessage("FAT MODE! 2 HITS TO SHRINK!", state.playerX, DOM.wrapper.clientHeight - 100, "#ff6b35");
+        }
+    }
+    
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -76,8 +81,8 @@ export function shoot() {
 
     const b = document.createElement('div');
     b.className = 'bullet';
-    b.style.left = (state.playerX + 23) + 'px';
-    b.style.bottom = '80px';
+    b.style.left = (state.playerX + (23 * state.playerScale)) + 'px';
+    b.style.bottom = (40 + (40 * state.playerScale)) + 'px';
     
     if (state.currentSkinStats.bulletDamage >= 3.0) {
         b.style.width = '8px';
@@ -99,7 +104,7 @@ export function shoot() {
     DOM.wrapper.appendChild(b);
     state.bullets.push({ 
         el: b, 
-        y: 80,
+        y: 40 + (40 * state.playerScale),
         damage: state.currentSkinStats.bulletDamage
     });
 }
@@ -116,10 +121,11 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
+    // Chaotic enemies ONLY shoot at non-chaotic enemies
     if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        if (nonChaoticEnemies.length > 0) {
-            targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
+        const healthyEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
+        if (healthyEnemies.length > 0) {
+            targetEnemy = healthyEnemies[Math.floor(Math.random() * healthyEnemies.length)];
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
             targetY = targetEnemy.y + 25;
             eb.dataset.friendlyFire = "true";
@@ -127,18 +133,11 @@ export function enemyShoot(en) {
             eb.style.background = '#ffff00';
             eb.style.boxShadow = '0 0 20px #ffff00';
         } else {
-            targetX = state.playerX + 25;
-            targetY = DOM.wrapper.clientHeight - 55;
+            return; // Don't shoot if no healthy enemies
         }
-    } else if (Math.random() < 0.05 && state.enemies.length > 1) {
-        const otherEnemies = state.enemies.filter(e => e.el !== en.el);
-        targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
-        targetX = parseFloat(targetEnemy.el.style.left) + 25;
-        targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
     } else {
-        targetX = state.playerX + 25;
+        // Normal enemies shoot at player
+        targetX = state.playerX + (25 * state.playerScale);
         targetY = DOM.wrapper.clientHeight - 55;
     }
     
@@ -171,7 +170,7 @@ export function enemyShoot(en) {
 // ===== VISUAL EFFECTS =====
 
 export function createExplosion(x, y, color) {
-    for(let i=0; i<15; i++) {
+    for(let i=0; i<10; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
         p.style.background = color;
@@ -179,11 +178,11 @@ export function createExplosion(x, y, color) {
         p.style.top = y + 'px';
         DOM.wrapper.appendChild(p);
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 60 + 10;
+        const dist = Math.random() * 40 + 10;
         p.animate([
             { opacity: 1 }, 
             { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-        ], 500).onfinish = () => p.remove();
+        ], 400).onfinish = () => p.remove();
     }
 }
 
@@ -201,9 +200,7 @@ export function showFloatingMessage(text, x, y, color) {
 // ===== SPECIAL ABILITIES =====
 
 export function usePhoenixFeathers() {
-    console.log('🔥 [PHOENIX] Activating feathers!');
-    
-    const playerCenterX = state.playerX + 25;
+    const playerCenterX = state.playerX + (25 * state.playerScale);
     const playerY = DOM.wrapper.clientHeight - 90;
     
     const targetX = state.lastMouseX || playerCenterX;
@@ -214,7 +211,7 @@ export function usePhoenixFeathers() {
             const feather = document.createElement('div');
             feather.className = 'phoenix-feather';
             feather.style.left = playerCenterX + 'px';
-            feather.style.bottom = '90px';
+            feather.style.bottom = (40 + (40 * state.playerScale)) + 'px';
             feather.innerHTML = `<svg viewBox="0 0 20 40" style="width:100%; height:100%;">
                 <path d="M10 0 L15 15 L10 40 L5 15 Z" fill="#ff6b35" />
                 <path d="M10 5 L12 12 L10 20 L8 12 Z" fill="#ffd700" />
@@ -226,7 +223,7 @@ export function usePhoenixFeathers() {
             
             state.bullets.push({
                 el: feather,
-                y: 90,
+                y: 40 + (40 * state.playerScale),
                 isFeather: true,
                 vx: Math.cos(angle) * 8,
                 vy: Math.sin(angle) * 8,
@@ -236,12 +233,10 @@ export function usePhoenixFeathers() {
     }
     
     showFloatingMessage('PHOENIX FEATHERS!', playerCenterX - 60, playerY - 50, '#ff6b35');
-    console.log('✅ [PHOENIX] 3 Feathers launched');
 }
 
 export function useVortexLaser() {
-    console.log('⚡ [VORTEX] Activating laser!');
-    const playerCenterX = state.playerX + 25;
+    const playerCenterX = state.playerX + (25 * state.playerScale);
     const playerY = DOM.wrapper.clientHeight - 90;
     
     const numBeams = 12;
@@ -250,7 +245,7 @@ export function useVortexLaser() {
         const laser = document.createElement('div');
         laser.className = 'laser-beam';
         laser.style.left = playerCenterX + 'px';
-        laser.style.bottom = '90px';
+        laser.style.bottom = (40 + (40 * state.playerScale)) + 'px';
         laser.style.transform = `rotate(${angle}deg)`;
         DOM.wrapper.appendChild(laser);
         setTimeout(() => laser.remove(), 300);
@@ -291,14 +286,10 @@ export function useVortexLaser() {
     if (killCount > 0) {
         showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
-    
-    console.log(`✅ [VORTEX] Killed: ${killCount}`);
 }
 
 export function useJokerChaos() {
-    console.log('🃏 [JOKER] Activating CHAOS!');
-    
-    const playerCenterX = state.playerX + 25;
+    const playerCenterX = state.playerX + (25 * state.playerScale);
     const playerY = DOM.wrapper.clientHeight - 90;
     
     state.jokerAbility.chaosMode = true;
@@ -309,7 +300,7 @@ export function useJokerChaos() {
         infectEnemy(en);
     });
     
-    for(let i=0; i<50; i++) {
+    for(let i=0; i<30; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
         p.style.background = i % 2 === 0 ? '#ff4500' : '#ffff00';
@@ -319,15 +310,14 @@ export function useJokerChaos() {
         p.style.height = '8px';
         DOM.wrapper.appendChild(p);
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 200 + 50;
+        const dist = Math.random() * 150 + 50;
         p.animate([
             { opacity: 1 }, 
             { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-        ], 1000).onfinish = () => p.remove();
+        ], 800).onfinish = () => p.remove();
     }
     
-    showFloatingMessage('🃏 CHAOS! 10s', playerCenterX - 50, playerY - 50, '#ff4500');
-    console.log(`✅ [JOKER] ${state.enemies.length} enemies infected`);
+    showFloatingMessage('🃏 CHAOS INFECTION! 10s', playerCenterX - 90, playerY - 50, '#ff4500');
 }
 
 export function infectEnemy(en) {
@@ -342,8 +332,6 @@ export function infectEnemy(en) {
     if (!en.el.dataset.enemyId) {
         en.el.dataset.enemyId = 'enemy_' + Date.now() + '_' + Math.random();
     }
-    
-    console.log(`🃏 [INFECTION] Enemy ${en.el.dataset.enemyId} infected`);
 }
 
 // ===== SPAWNING SYSTEMS =====
@@ -435,7 +423,6 @@ export function handleSpawning(now) {
             if (state.jokerAbility.infectionActive) {
                 const newEnemy = state.enemies[state.enemies.length - 1];
                 infectEnemy(newEnemy);
-                console.log('🃏 [AUTO-INFECT] New enemy infected');
             }
         }
         state.lastSpawn = now;

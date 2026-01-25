@@ -150,7 +150,6 @@ export const INGREDIENT_TYPES = [
 // Current skin
 export let currentSkinKey = 'classic';
 export function setCurrentSkin(key) {
-    console.log(`🎨 [SKIN] Setting current skin to: ${key}`);
     currentSkinKey = key;
 }
 
@@ -160,7 +159,6 @@ export function setCookie(name, value, days = 365) {
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
     const expires = "expires=" + date.toUTCString();
     document.cookie = name + "=" + value + ";" + expires + ";path=/";
-    console.log(`🍪 [COOKIE] Saved ${name}`);
 }
 
 export function getCookie(name) {
@@ -180,14 +178,12 @@ export function getCookie(name) {
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
 export function loadUnlockedSkins() {
-    console.log('📂 [SKINS] Loading unlocked skins...');
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
             unlockedSkins = JSON.parse(saved);
-            console.log(`✅ [SKINS] Loaded:`, unlockedSkins);
         } catch (e) {
-            console.error('❌ [SKINS] Error:', e);
+            console.error('Error parsing unlocked skins:', e);
         }
     }
 }
@@ -196,7 +192,6 @@ export function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
-        console.log(`🎉 [SKINS] Unlocked: ${skinKey}`);
         return true;
     }
     return false;
@@ -216,7 +211,6 @@ export function saveMaxLevel(level) {
     const currentMax = getMaxLevel();
     if (level > currentMax) {
         setCookie('maxLevel', level.toString());
-        console.log(`📈 [LEVEL] New max: ${level}`);
     }
 }
 
@@ -235,8 +229,6 @@ export function getLeaderboard(skinKey = 'overall') {
 }
 
 export function saveScore(skinKey, score, level) {
-    console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}`);
-    
     let skinLeaderboard = getLeaderboard(skinKey);
     const newEntry = { score, level, date: new Date().toLocaleDateString('he-IL') };
     skinLeaderboard.push(newEntry);
@@ -260,6 +252,8 @@ export const state = {
     playerX: 0,
     playerHP: 200,
     playerMaxHP: 200,
+    playerScale: 1.0,
+    burgersEatenAtFullHP: 0,
     lastMouseX: 0,
     lastMouseY: 0,
     bullets: [],
@@ -275,8 +269,6 @@ export const state = {
     shotCooldown: 180,
     lastHealScore: 0,
     lastLevelScore: 0,
-    burgersEatenAtFullHP: 0,
-    isPlayerFat: false,
     currentSkinStats: {
         fireRate: 1.0,
         bulletSpeed: 1.0,
@@ -303,7 +295,6 @@ export const state = {
 };
 
 export function resetState() {
-    console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
     state.score = 0;
     state.level = 1;
@@ -313,6 +304,8 @@ export function resetState() {
     const maxHP = skin.maxHP || 200;
     state.playerHP = maxHP;
     state.playerMaxHP = maxHP;
+    state.playerScale = 1.0;
+    state.burgersEatenAtFullHP = 0;
     
     state.bullets = [];
     state.enemyBullets = [];
@@ -327,8 +320,6 @@ export function resetState() {
     state.shotCooldown = 180;
     state.lastHealScore = 0;
     state.lastLevelScore = 0;
-    state.burgersEatenAtFullHP = 0;
-    state.isPlayerFat = false;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
     state.phoenixAbility.ready = true;
@@ -338,5 +329,4 @@ export function resetState() {
     state.jokerAbility.chaosMode = false;
     state.jokerAbility.chaosModeEnd = 0;
     state.jokerAbility.infectionActive = false;
-    console.log('✅ [STATE] Reset complete');
 }
