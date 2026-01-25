@@ -147,22 +147,17 @@ window.selectSkin = selectSkin;
 // ===== GAME INITIALIZATION =====
 
 function initGame() {
-    console.log('🎮 [GAME] ==================== GAME STARTING ====================');
     resetState();
     
-    // Reset player size
+    // Reset player size to normal
     DOM.player.style.transform = 'scale(1)';
     
-    // Apply skin stats
     const skin = SKINS[currentSkinKey];
-    console.log(`🎨 [GAME] Using skin: ${skin.name}`);
     state.currentSkinStats = {
         fireRate: skin.fireRate,
         bulletSpeed: skin.bulletSpeed,
         bulletDamage: skin.bulletDamage
     };
-    console.log(`📊 [GAME] Skin stats:`, state.currentSkinStats);
-    console.log(`❤️ [GAME] HP: ${state.playerHP}/${state.playerMaxHP}`);
     
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
@@ -193,14 +188,11 @@ function initGame() {
         abilityBtn.style.display = 'none';
     }
     
-    console.log('🧹 [GAME] Cleaning up old game elements...');
     const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam');
-    console.log(`🧹 [GAME] Removing ${elementsToRemove.length} old elements`);
     elementsToRemove.forEach(e => e.remove());
     
     updateSkinOptions();
     updatePlayerPos();
-    console.log('✅ [GAME] Game initialized successfully, starting update loop');
     requestAnimationFrame(update);
 }
 
@@ -212,26 +204,20 @@ console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
 function handleLevelUp() {
     if (state.score >= state.lastLevelScore + 1000) {
-        console.log(`⬆️ [LEVEL UP] Player leveled up! Score: ${state.score}`);
         state.lastLevelScore = Math.floor(state.score / 1000) * 1000;
         state.level++;
-        console.log(`⬆️ [LEVEL UP] New level: ${state.level}`);
         DOM.levelEl.innerText = state.level;
         state.speedMult += 0.2;
         state.spawnRate = Math.max(250, state.spawnRate - 200);
         state.playerHP = state.playerMaxHP;
         updateHPUI();
         
-        // Save max level
         saveMaxLevel(state.level);
         
-        // Check for skin unlocks
-        console.log(`🔍 [LEVEL UP] Checking for skin unlocks at level ${state.level}...`);
         let unlocked = false;
         Object.keys(SKINS).forEach(skinKey => {
             const skin = SKINS[skinKey];
             if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
-                console.log(`🎉 [LEVEL UP] Unlocking skin: ${skinKey}`);
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
                     showFloatingMessage(
@@ -278,7 +264,11 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Chaos mode never ends now - removed the end check
+    // Check if chaos mode should end
+    if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
+        state.jokerAbility.chaosMode = false;
+        state.jokerAbility.infectionActive = false;
+    }
     
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) {
@@ -329,47 +319,26 @@ function activateSpecialAbility() {
     if (!state.active) return;
     
     if (currentSkinKey === 'vortex') {
-        if (!state.specialAbility.ready) {
-            console.log('⏳ [ABILITY] Vortex ability on cooldown');
-            return;
-        }
+        if (!state.specialAbility.ready) return;
         
-        console.log('💫 [ABILITY] Activating Vortex laser!');
         useVortexLaser();
-        
         state.specialAbility.ready = false;
         state.specialAbility.lastUsed = Date.now();
-        
-        const abilityBtn = document.getElementById('special-ability-btn');
-        abilityBtn.classList.add('cooldown');
+        document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'phoenix') {
-        if (!state.phoenixAbility.ready) {
-            console.log('⏳ [ABILITY] Phoenix ability on cooldown');
-            return;
-        }
+        if (!state.phoenixAbility.ready) return;
         
-        console.log('🔥 [ABILITY] Activating Phoenix Feathers!');
         usePhoenixFeathers();
-        
         state.phoenixAbility.ready = false;
         state.phoenixAbility.lastUsed = Date.now();
-        
-        const abilityBtn = document.getElementById('special-ability-btn');
-        abilityBtn.classList.add('cooldown');
+        document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'joker') {
-        if (!state.jokerAbility.ready) {
-            console.log('⏳ [ABILITY] Joker ability on cooldown');
-            return;
-        }
+        if (!state.jokerAbility.ready) return;
         
-        console.log('🃏 [ABILITY] Activating CHAOS INFECTION!');
         useJokerChaos();
-        
         state.jokerAbility.ready = false;
         state.jokerAbility.lastUsed = Date.now();
-        
-        const abilityBtn = document.getElementById('special-ability-btn');
-        abilityBtn.classList.add('cooldown');
+        document.getElementById('special-ability-btn').classList.add('cooldown');
     }
 }
 

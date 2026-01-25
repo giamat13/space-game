@@ -21,14 +21,14 @@ export function movePlayer(clientX) {
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
-    console.log(`💥 [DAMAGE] Player took ${amount} damage | HP: ${state.playerHP}/${state.playerMaxHP}`);
+    console.log(`💥 [DAMAGE] -${amount} HP | Now: ${state.playerHP}/${state.playerMaxHP}`);
     
-    // Check if player should shrink back to normal
-    if (state.isPlayerFat && state.playerHP <= state.playerMaxHP - 2) {
+    // Check if player should lose weight
+    if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
         state.isPlayerFat = false;
         state.burgersEatenAtFullHP = 0;
         DOM.player.style.transform = 'scale(1)';
-        console.log('🏃 [FAT] Player lost weight! Back to normal size');
+        console.log('🏃 [FAT] Weight lost! Back to normal');
         showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
     }
     
@@ -39,35 +39,28 @@ export function damagePlayer(amount) {
     setTimeout(() => flash.remove(), 300);
     
     if(state.playerHP <= 0) {
-        console.log('💀 [GAME OVER] ==================== GAME OVER ====================');
-        console.log(`💀 [GAME OVER] Final Score: ${state.score}, Level: ${state.level}`);
+        console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
         
-        console.log('💾 [GAME OVER] Importing data module for saving score...');
         import('./data.js').then(module => {
-            console.log(`💾 [GAME OVER] Saving score for skin: ${module.currentSkinKey}`);
-            console.log(`💾 [GAME OVER] Score: ${state.score}, Level: ${state.level}`);
             module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log('✅ [GAME OVER] Score saved successfully');
+            console.log('✅ [GAME OVER] Score saved');
         }).catch(err => {
-            console.error('❌ [GAME OVER] ERROR saving score:', err);
+            console.error('❌ [GAME OVER] Save error:', err);
         });
         
-        console.log('📺 [GAME OVER] Showing game over screen...');
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
         document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
         document.getElementById('leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
-        console.log('✅ [GAME OVER] Game over screen displayed');
     }
 }
 
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
-    const oldHP = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
-    console.log(`💚 [HEAL] +${percent}% (+${Math.floor(amount)}) | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
+    console.log(`💚 [HEAL] +${percent}% | Now: ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -86,9 +79,7 @@ export function shoot() {
     b.style.left = (state.playerX + 23) + 'px';
     b.style.bottom = '80px';
     
-    // Visual enhancement for powerful skins
     if (state.currentSkinStats.bulletDamage >= 3.0) {
-        // joker fire bullets
         b.style.width = '8px';
         b.style.height = '25px';
         b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
@@ -125,7 +116,6 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
-    // If enemy is chaotic, ALWAYS shoot at non-chaotic enemies only (NEVER at player)
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
         if (nonChaoticEnemies.length > 0) {
@@ -133,17 +123,14 @@ export function enemyShoot(en) {
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
             targetY = targetEnemy.y + 25;
             eb.dataset.friendlyFire = "true";
-            eb.dataset.shooterId = en.el.dataset.enemyId; // Track who shot this
-            // Color the bullet differently for chaotic enemies
+            eb.dataset.shooterId = en.el.dataset.enemyId;
             eb.style.background = '#ffff00';
             eb.style.boxShadow = '0 0 20px #ffff00';
         } else {
-            // No non-chaotic enemies left, don't shoot at all
-            eb.remove();
-            return;
+            targetX = state.playerX + 25;
+            targetY = DOM.wrapper.clientHeight - 55;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
-        // Normal friendly fire chance (5%)
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
         targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
@@ -214,16 +201,14 @@ export function showFloatingMessage(text, x, y, color) {
 // ===== SPECIAL ABILITIES =====
 
 export function usePhoenixFeathers() {
-    console.log('🔥 [PHOENIX] Activating Phoenix Feathers ability!');
+    console.log('🔥 [PHOENIX] Activating feathers!');
     
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Get mouse position from last known position
     const targetX = state.lastMouseX || playerCenterX;
     const targetY = state.lastMouseY || playerY - 100;
     
-    // Shoot 3 feathers with slight spread
     for (let i = 0; i < 3; i++) {
         setTimeout(() => {
             const feather = document.createElement('div');
@@ -236,8 +221,7 @@ export function usePhoenixFeathers() {
             </svg>`;
             DOM.wrapper.appendChild(feather);
             
-            // Calculate angle with slight spread
-            const spread = (i - 1) * 15; // -15, 0, 15 degrees
+            const spread = (i - 1) * 15;
             const angle = Math.atan2(targetY - playerY, targetX - playerCenterX) + (spread * Math.PI / 180);
             
             state.bullets.push({
@@ -246,21 +230,20 @@ export function usePhoenixFeathers() {
                 isFeather: true,
                 vx: Math.cos(angle) * 8,
                 vy: Math.sin(angle) * 8,
-                damage: 5.0 // Massive damage to kill instantly
+                damage: 5.0
             });
-        }, i * 100); // Stagger the shots
+        }, i * 100);
     }
     
     showFloatingMessage('PHOENIX FEATHERS!', playerCenterX - 60, playerY - 50, '#ff6b35');
-    console.log('✅ [PHOENIX] 3 Feathers launched!');
+    console.log('✅ [PHOENIX] 3 Feathers launched');
 }
 
 export function useVortexLaser() {
-    console.log('⚡ [VORTEX] Activating laser ability!');
+    console.log('⚡ [VORTEX] Activating laser!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Create 12 laser beams in all directions
     const numBeams = 12;
     for (let i = 0; i < numBeams; i++) {
         const angle = (i / numBeams) * 360;
@@ -270,15 +253,11 @@ export function useVortexLaser() {
         laser.style.bottom = '90px';
         laser.style.transform = `rotate(${angle}deg)`;
         DOM.wrapper.appendChild(laser);
-        
-        // Remove laser after animation
         setTimeout(() => laser.remove(), 300);
     }
     
-    // Instant kill all enemies and asteroids on screen
     let killCount = 0;
     
-    // Kill all enemies
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
         const isElite = en.type === 'orange';
@@ -291,7 +270,6 @@ export function useVortexLaser() {
         killCount++;
     }
     
-    // Destroy all asteroids
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
         const ast = state.asteroids[i];
         const aRect = ast.el.getBoundingClientRect();
@@ -301,7 +279,6 @@ export function useVortexLaser() {
         killCount++;
     }
     
-    // Destroy all enemy bullets
     for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
         const eb = state.enemyBullets[i];
         createExplosion(eb.x, eb.y, '#ff0000');
@@ -315,26 +292,23 @@ export function useVortexLaser() {
         showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
     
-    console.log(`✅ [VORTEX] Laser complete! Killed: ${killCount}`);
+    console.log(`✅ [VORTEX] Killed: ${killCount}`);
 }
 
 export function useJokerChaos() {
-    console.log('🃏 [JOKER] Activating CHAOS INFECTION!');
+    console.log('🃏 [JOKER] Activating CHAOS!');
     
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Activate chaos mode PERMANENTLY (no time limit)
     state.jokerAbility.chaosMode = true;
-    state.jokerAbility.chaosModeEnd = Infinity; // Never ends!
-    state.jokerAbility.infectionActive = true; // Always active
+    state.jokerAbility.chaosModeEnd = Date.now() + 10000;
+    state.jokerAbility.infectionActive = true;
     
-    // Mark all current enemies as chaotic with infection properties
     state.enemies.forEach(en => {
         infectEnemy(en);
     });
     
-    // Create visual effect
     for(let i=0; i<50; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
@@ -352,25 +326,24 @@ export function useJokerChaos() {
         ], 1000).onfinish = () => p.remove();
     }
     
-    showFloatingMessage('🃏 CHAOS FOREVER!', playerCenterX - 90, playerY - 50, '#ff4500');
-    console.log(`✅ [JOKER] Chaos mode activated PERMANENTLY! ${state.enemies.length} enemies infected`);
+    showFloatingMessage('🃏 CHAOS! 10s', playerCenterX - 50, playerY - 50, '#ff4500');
+    console.log(`✅ [JOKER] ${state.enemies.length} enemies infected`);
 }
 
 export function infectEnemy(en) {
-    if (en.chaotic) return; // Already infected
+    if (en.chaotic) return;
     
     en.chaotic = true;
-    en.immortal = true; // Cannot die while chaotic
-    en.hitsByEnemy = {}; // Track hits from each enemy for infection spreading
+    en.immortal = true;
+    en.hitsByEnemy = {};
     en.el.style.filter = 'hue-rotate(180deg) saturate(200%) brightness(1.2)';
     en.el.style.animation = 'chaoticPulse 1s infinite';
     
-    // Give unique ID if not already set
     if (!en.el.dataset.enemyId) {
         en.el.dataset.enemyId = 'enemy_' + Date.now() + '_' + Math.random();
     }
     
-    console.log(`🃏 [INFECTION] Enemy infected: ${en.el.dataset.enemyId}`);
+    console.log(`🃏 [INFECTION] Enemy ${en.el.dataset.enemyId} infected`);
 }
 
 // ===== SPAWNING SYSTEMS =====
@@ -454,16 +427,15 @@ export function handleSpawning(now) {
                 speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
                 lastShot: now + Math.random() * 500,
                 fireRate: (isOrange ? 600 : 1000) / state.speedMult,
-                chaotic: false, // New enemies are not chaotic
+                chaotic: false,
                 immortal: false,
                 hitsByEnemy: {}
             });
             
-            // If infection is active, infect new enemies
             if (state.jokerAbility.infectionActive) {
                 const newEnemy = state.enemies[state.enemies.length - 1];
                 infectEnemy(newEnemy);
-                console.log('🃏 [INFECTION] New enemy auto-infected during infection period');
+                console.log('🃏 [AUTO-INFECT] New enemy infected');
             }
         }
         state.lastSpawn = now;
