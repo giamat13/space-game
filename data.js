@@ -160,23 +160,19 @@ export function setCookie(name, value, days = 365) {
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
     const expires = "expires=" + date.toUTCString();
     document.cookie = name + "=" + value + ";" + expires + ";path=/";
-    console.log(`🍪 [COOKIE SAVE] ${name} = ${value}`);
+    console.log(`🍪 [COOKIE] Saved ${name}`);
 }
 
 export function getCookie(name) {
-    console.log(`🔍 [COOKIE READ] Attempting to read cookie: ${name}`);
     const nameEQ = name + "=";
     const ca = document.cookie.split(';');
     for(let i = 0; i < ca.length; i++) {
         let c = ca[i];
         while (c.charAt(0) == ' ') c = c.substring(1, c.length);
         if (c.indexOf(nameEQ) == 0) {
-            const value = c.substring(nameEQ.length, c.length);
-            console.log(`✅ [COOKIE READ] Found ${name} = ${value}`);
-            return value;
+            return c.substring(nameEQ.length, c.length);
         }
     }
-    console.log(`❌ [COOKIE READ] Cookie ${name} not found`);
     return null;
 }
 
@@ -184,104 +180,76 @@ export function getCookie(name) {
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
 export function loadUnlockedSkins() {
-    console.log('📂 [SKINS] Loading unlocked skins from cookies...');
+    console.log('📂 [SKINS] Loading unlocked skins...');
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
             unlockedSkins = JSON.parse(saved);
-            console.log(`✅ [SKINS] Loaded unlocked skins:`, unlockedSkins);
+            console.log(`✅ [SKINS] Loaded:`, unlockedSkins);
         } catch (e) {
-            console.error('❌ [SKINS] Error parsing unlocked skins:', e);
+            console.error('❌ [SKINS] Error:', e);
         }
-    } else {
-        console.log('⚠️ [SKINS] No saved skins found, using defaults:', unlockedSkins);
     }
 }
 
 export function unlockSkin(skinKey) {
-    console.log(`🔓 [SKINS] Attempting to unlock skin: ${skinKey}`);
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
-        console.log(`🎉 [SKINS] NEW SKIN UNLOCKED: ${skinKey}! Current unlocked:`, unlockedSkins);
+        console.log(`🎉 [SKINS] Unlocked: ${skinKey}`);
         return true;
     }
-    console.log(`ℹ️ [SKINS] Skin ${skinKey} already unlocked`);
     return false;
 }
 
 export function isSkinUnlocked(skinKey) {
-    const isUnlocked = unlockedSkins.includes(skinKey);
-    console.log(`🔍 [SKINS] Checking if ${skinKey} is unlocked: ${isUnlocked}`);
-    return isUnlocked;
+    return unlockedSkins.includes(skinKey);
 }
 
 // Max Level Reached
 export function getMaxLevel() {
-    console.log('📊 [LEVEL] Getting max level...');
     const saved = getCookie('maxLevel');
-    const level = saved ? parseInt(saved) : 1;
-    console.log(`📊 [LEVEL] Max level is: ${level}`);
-    return level;
+    return saved ? parseInt(saved) : 1;
 }
 
 export function saveMaxLevel(level) {
-    console.log(`📈 [LEVEL] Attempting to save max level: ${level}`);
     const currentMax = getMaxLevel();
     if (level > currentMax) {
         setCookie('maxLevel', level.toString());
-        console.log(`✅ [LEVEL] New max level saved: ${level}`);
-    } else {
-        console.log(`ℹ️ [LEVEL] Current level ${level} not higher than max ${currentMax}, not saving`);
+        console.log(`📈 [LEVEL] New max: ${level}`);
     }
 }
 
 // Leaderboard Management
 export function getLeaderboard(skinKey = 'overall') {
-    console.log(`🏆 [LEADERBOARD] Getting leaderboard for: ${skinKey}`);
     const cookieName = `leaderboard_${skinKey}`;
     const saved = getCookie(cookieName);
     if (saved) {
         try {
-            const data = JSON.parse(saved);
-            console.log(`✅ [LEADERBOARD] Found ${data.length} entries for ${skinKey}:`, data);
-            return data;
+            return JSON.parse(saved);
         } catch (e) {
-            console.error(`❌ [LEADERBOARD] Error parsing leaderboard for ${skinKey}:`, e);
             return [];
         }
     }
-    console.log(`⚠️ [LEADERBOARD] No leaderboard found for ${skinKey}`);
     return [];
 }
 
 export function saveScore(skinKey, score, level) {
-    console.log(`💾 [SCORE] Saving score - Skin: ${skinKey}, Score: ${score}, Level: ${level}`);
+    console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}`);
     
-    // Save to skin-specific leaderboard
     let skinLeaderboard = getLeaderboard(skinKey);
-    console.log(`📋 [SCORE] Current ${skinKey} leaderboard before save:`, skinLeaderboard);
-    
     const newEntry = { score, level, date: new Date().toLocaleDateString('he-IL') };
     skinLeaderboard.push(newEntry);
     skinLeaderboard.sort((a, b) => b.score - a.score);
     skinLeaderboard = skinLeaderboard.slice(0, 5);
-    
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
-    console.log(`✅ [SCORE] Saved to ${skinKey} leaderboard:`, skinLeaderboard);
     
-    // Save to overall leaderboard
     let overallLeaderboard = getLeaderboard('overall');
-    console.log(`📋 [SCORE] Current overall leaderboard before save:`, overallLeaderboard);
-    
     const overallEntry = { score, level, skin: skinKey, date: new Date().toLocaleDateString('he-IL') };
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
     overallLeaderboard = overallLeaderboard.slice(0, 5);
-    
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
-    console.log(`✅ [SCORE] Saved to overall leaderboard:`, overallLeaderboard);
-    console.log(`🏆 [SCORE] Score save complete!`);
 }
 
 // Game State
@@ -307,6 +275,8 @@ export const state = {
     shotCooldown: 180,
     lastHealScore: 0,
     lastLevelScore: 0,
+    burgersEatenAtFullHP: 0,
+    isPlayerFat: false,
     currentSkinStats: {
         fireRate: 1.0,
         bulletSpeed: 1.0,
@@ -328,7 +298,7 @@ export const state = {
         lastUsed: 0,
         chaosMode: false,
         chaosModeEnd: 0,
-        infectionActive: false // Track if infection period is active
+        infectionActive: false
     }
 };
 
@@ -357,6 +327,8 @@ export function resetState() {
     state.shotCooldown = 180;
     state.lastHealScore = 0;
     state.lastLevelScore = 0;
+    state.burgersEatenAtFullHP = 0;
+    state.isPlayerFat = false;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
     state.phoenixAbility.ready = true;
@@ -366,5 +338,5 @@ export function resetState() {
     state.jokerAbility.chaosMode = false;
     state.jokerAbility.chaosModeEnd = 0;
     state.jokerAbility.infectionActive = false;
-    console.log('✅ [STATE] Game state reset complete:', state);
+    console.log('✅ [STATE] Reset complete');
 }

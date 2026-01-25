@@ -47,12 +47,15 @@ export function updateEnemyBullets() {
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
         
-        if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
-            damagePlayer(15);
-            createExplosion(eb.x, eb.y, 'var(--primary)');
-            eb.el.remove();
-            state.enemyBullets.splice(i, 1);
-            continue;
+        // Friendly fire bullets (from chaotic enemies) should NOT hit player
+        if (!eb.friendly) {
+            if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
+                damagePlayer(15);
+                createExplosion(eb.x, eb.y, 'var(--primary)');
+                eb.el.remove();
+                state.enemyBullets.splice(i, 1);
+                continue;
+            }
         }
         
         if (eb.friendly) {
@@ -74,16 +77,17 @@ export function updateEnemyBullets() {
                         if (targetEn.hitsByEnemy[eb.shooterId] >= 5 && !targetEn.chaotic) {
                             infectEnemy(targetEn);
                             showFloatingMessage('🃏 INFECTED!', teRect.left, teRect.top - 20, '#ffff00');
-                            console.log(`🃏 [INFECTION] Enemy ${targetEn.el.dataset.enemyId} infected after 5 hits from ${eb.shooterId}`);
                         }
                     }
                     
-                    // Don't damage immortal chaotic enemies
+                    // Immortal chaotic enemies can NEVER die from any source
                     if (targetEn.immortal) {
-                        targetEn.hp = Math.max(0, targetEn.hp - 1);
-                        targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-                        if (targetEn.hp === 0) {
+                        targetEn.hp -= 1;
+                        targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                        if (targetEn.hp <= 0) {
                             targetEn.hpFill.style.background = '#ffff00';
+                            targetEn.hp = 0; // Keep at 0 HP but don't kill
+                            showFloatingMessage('♾️ IMMORTAL!', teRect.left, teRect.top - 20, '#ffff00');
                         }
                     } else {
                         targetEn.hp -= 1;
@@ -129,10 +133,24 @@ export function updateBurgers() {
         const pRect = DOM.player.getBoundingClientRect();
         
         if(!(bRect.right < pRect.left || bRect.left > pRect.right || bRect.bottom < pRect.top || bRect.top > pRect.bottom)) {
+            const wasFullHP = (state.playerHP >= state.playerMaxHP);
+            
             healPlayer(15);
             createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
             bgr.el.remove();
             state.burgers.splice(i, 1);
+            
+            // Check if player ate burger at full HP
+            if (wasFullHP) {
+                state.burgersEatenAtFullHP++;
+                
+                if (state.burgersEatenAtFullHP >= 3 && !state.isPlayerFat) {
+                    state.isPlayerFat = true;
+                    DOM.player.style.transform = 'scale(1.5)';
+                    showFloatingMessage("FAT! 🍔🍔🍔", state.playerX - 20, DOM.wrapper.clientHeight - 120, "#ff6b35");
+                }
+            }
+            
             continue;
         }
 
@@ -144,7 +162,6 @@ export function updateBurgers() {
                 bgr.hp -= damage;
                 bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
                 
-                // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
                     createExplosion(bulRect.left, bulRect.top, '#ff4500');
                 }
@@ -186,9 +203,7 @@ export function updateIngredients() {
         if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
             state.score += 25;
             DOM.scoreEl.innerText = state.score;
-            const oldHP = state.playerHP;
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
-            console.log(`🍔 INGREDIENT! +5 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
             updateHPUI();
             ing.el.remove();
             state.ingredients.splice(i, 1);
@@ -270,8 +285,6 @@ export function updateEnemies(now) {
                 
                 // Phoenix Feather explosion - damages nearby enemies
                 if (bul.isFeather) {
-                    console.log('💥 [PHOENIX] Feather hit! Creating explosion...');
-                    
                     // Create big explosion
                     for(let e=0; e<30; e++) {
                         const p = document.createElement('div');
@@ -311,7 +324,6 @@ export function updateEnemies(now) {
                                 createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                                 targetEn.el.remove();
                                 state.enemies.splice(ei, 1);
-                                console.log(`🔥 [PHOENIX] Explosion killed enemy at distance ${Math.floor(dist)}px`);
                             }
                         }
                     }
@@ -348,24 +360,18 @@ export function updateEnemies(now) {
                         createExplosion(eRect.left + 25, eRect.top + 25, 'var(--elite)');
                         if (crossedHealThreshold) {
                             const healAmount = state.playerMaxHP * 0.75;
-                            const oldHP = state.playerHP;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + healAmount);
-                            console.log(`⭐ ELITE KILL THRESHOLD! +75% HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
                             showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, "var(--elite)");
                         } else {
-                            const oldHP = state.playerHP;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 50);
-                            console.log(`⭐ ELITE KILL! +50 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             showFloatingMessage("REPAIR +25% & 150 PTS", eRect.left, eRect.top, "var(--elite)");
                         }
                         updateHPUI();
                     } else {
                         createExplosion(eRect.left + 25, eRect.top + 25, 'var(--danger)');
                         if (crossedHealThreshold) {
-                            const oldHP = state.playerHP;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 20);
-                            console.log(`🎯 ENEMY KILL THRESHOLD! +20 HP | HP: ${oldHP} → ${state.playerHP}/${state.playerMaxHP}`);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
                             showFloatingMessage("REPAIR +20", eRect.left, eRect.top, "var(--health)");
                             updateHPUI();
