@@ -107,15 +107,14 @@ export function shoot() {
 export function enemyShoot(en) {
     if (!state.active) return;
     
-    const eb = document.createElement('div');
-    eb.className = 'enemy-bullet';
-    if (en.type === 'orange') eb.style.background = 'var(--elite)';
-    
     const enLeft = parseFloat(en.el.style.left) + 20;
     const enTop = en.y + 40;
     
     let targetX, targetY;
     let targetEnemy = null;
+    let isFriendlyFire = false;
+    let bulletColor = null;
+    let bulletGlow = null;
     
     // If this enemy is chaotic, ONLY target non-chaotic enemies
     if (en.chaotic) {
@@ -128,22 +127,35 @@ export function enemyShoot(en) {
         targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
         targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
-        eb.style.background = '#ffff00';
-        eb.style.boxShadow = '0 0 20px #ffff00';
+        isFriendlyFire = true;
+        bulletColor = '#ffff00';
+        bulletGlow = '0 0 20px #ffff00';
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
         // Non-chaotic enemies have 5% chance to friendly fire
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
         targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
         targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
+        isFriendlyFire = true;
     } else {
         // Normal enemies shoot at player
         targetX = state.playerX + 25;
         targetY = DOM.wrapper.clientHeight - 55;
+    }
+    
+    // Now create the bullet with the correct target
+    const eb = document.createElement('div');
+    eb.className = 'enemy-bullet';
+    if (bulletColor) {
+        eb.style.background = bulletColor;
+        eb.style.boxShadow = bulletGlow;
+    } else if (en.type === 'orange') {
+        eb.style.background = 'var(--elite)';
+    }
+    
+    if (isFriendlyFire) {
+        eb.dataset.friendlyFire = "true";
+        eb.dataset.shooterId = en.el.dataset.enemyId;
     }
     
     const dx = targetX - enLeft;
