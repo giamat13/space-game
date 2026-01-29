@@ -58,32 +58,35 @@ export function updateEnemyBullets() {
             }
         }
         
-        // Chaotic bullets damage and kill enemies
+        // Chaotic bullets hit normal enemies
         if (eb.chaotic) {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
+                // Only hit non-chaotic enemies, and don't hit the shooter itself
+                if (targetEn.isChaotic || targetEn.el === eb.shooterId) continue;
                 
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
-                    // Deal 1 damage
+                    // Damage the target enemy
                     targetEn.hp -= 1;
-                    targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                    targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
                     
-                    // If enemy dies
+                    createExplosion(eb.x, eb.y, '#00f2ff');
+                    
+                    // Kill enemy if HP reaches 0
                     if (targetEn.hp <= 0) {
                         const isElite = targetEn.type === 'orange';
-                        const points = isElite ? 75 : 25; // Half points for chaotic kills
+                        const points = isElite ? 75 : 25;
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
                         createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
-                        showFloatingMessage('CHAOS KILL!', teRect.left, teRect.top, '#00f2ff');
-                        console.log('🃏 [CHAOS] Enemy killed by chaotic enemy!');
+                        showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
+                        console.log('🃏 [CHAOS] Chaotic enemy killed a normal enemy!');
                     }
                     
-                    createExplosion(eb.x, eb.y, '#00f2ff');
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
                     hitEnemy = true;
