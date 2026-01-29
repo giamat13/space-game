@@ -264,20 +264,11 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode should end
+    // Check if chaos mode duration ended (but don't revert enemies)
     if (state.jokerAbility.active && now >= state.jokerAbility.endTime) {
-        console.log('🃏 [JOKER] Chaos mode ended');
+        console.log('🃏 [JOKER] Chaos mode duration ended (enemies stay chaotic)');
         state.jokerAbility.active = false;
-        // Remove chaos effect from remaining enemies
-        for (let i = 0; i < state.enemies.length; i++) {
-            const en = state.enemies[i];
-            if (en.isChaotic) {
-                en.isChaotic = false;
-                en.isInvulnerable = false;
-                en.el.style.filter = '';
-                en.el.style.border = '';
-            }
-        }
+        // Don't remove chaos effect - enemies stay chaotic forever!
     }
     
     if (currentSkinKey === 'vortex') {
