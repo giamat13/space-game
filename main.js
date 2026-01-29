@@ -382,17 +382,19 @@ window.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 // Arrow key controls
-let arrowKeysPressed = { left: false, right: false, up: false, down: false };
+let arrowKeysPressed = { left: false, right: false, up: false, down: false, shoot: false };
+let mousePressed = false;
 
 window.addEventListener('keydown', (e) => {
-    // Handle shooting and special ability for all control types
-    if (state.active) {
-        if (e.code === keyBindings.shoot) {
-            shoot();
-        }
-        if (e.code === keyBindings.ability) {
-            activateSpecialAbility();
-        }
+    // Handle shooting key - track if it's pressed
+    if (state.active && e.code === keyBindings.shoot) {
+        arrowKeysPressed.shoot = true;
+        shoot(); // Shoot immediately on press
+    }
+    
+    // Handle special ability for all control types
+    if (state.active && e.code === keyBindings.ability) {
+        activateSpecialAbility();
     }
     
     // Handle movement keys only for arrows control type
@@ -409,6 +411,11 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+    // Track shoot key release
+    if (e.code === keyBindings.shoot) {
+        arrowKeysPressed.shoot = false;
+    }
+    
     if (keyBindings.controlType !== 'arrows') return;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') arrowKeysPressed.left = false;
     if (e.code === 'ArrowRight' || e.code === 'KeyD') arrowKeysPressed.right = false;
@@ -416,20 +423,41 @@ window.addEventListener('keyup', (e) => {
 
 // Arrow movement update
 function updateArrowMovement() {
-    if (!state.active || keyBindings.controlType !== 'arrows') return;
-    const speed = 8;
-    if (arrowKeysPressed.left) {
-        state.playerX = Math.max(0, state.playerX - speed);
-        updatePlayerPos();
+    if (!state.active) return;
+    
+    // Handle arrow key movement
+    if (keyBindings.controlType === 'arrows') {
+        const speed = 8;
+        if (arrowKeysPressed.left) {
+            state.playerX = Math.max(0, state.playerX - speed);
+            updatePlayerPos();
+        }
+        if (arrowKeysPressed.right) {
+            state.playerX = Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed);
+            updatePlayerPos();
+        }
     }
-    if (arrowKeysPressed.right) {
-        state.playerX = Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed);
-        updatePlayerPos();
+    
+    // Continuous shooting when shoot key is held (works in both modes)
+    if (arrowKeysPressed.shoot) {
+        shoot();
+    }
+    
+    // Continuous shooting when mouse button is held (mouse mode only)
+    if (keyBindings.controlType === 'mouse' && mousePressed) {
+        shoot();
     }
 }
 
 window.addEventListener('mousedown', (e) => {
-    if (keyBindings.controlType === 'mouse') shoot();
+    if (keyBindings.controlType === 'mouse') {
+        mousePressed = true;
+        shoot();
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    mousePressed = false;
 });
 
 // Special ability button click
