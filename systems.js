@@ -107,16 +107,6 @@ export function shoot() {
 export function enemyShoot(en) {
     if (!state.active) return;
     
-    // If this enemy is chaotic, check if there are non-chaotic enemies to shoot
-    if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        if (nonChaoticEnemies.length === 0) {
-            // No non-chaotic enemies, reset last shot to check again very soon
-            en.lastShot = Date.now() - (en.fireRate * 0.9); // Will check again in just 10% of fire rate
-            return;
-        }
-    }
-    
     const eb = document.createElement('div');
     eb.className = 'enemy-bullet';
     if (en.type === 'orange') eb.style.background = 'var(--elite)';
@@ -127,9 +117,14 @@ export function enemyShoot(en) {
     let targetX, targetY;
     let targetEnemy = null;
     
-    // If this enemy is chaotic, ALWAYS target non-chaotic enemies
+    // If this enemy is chaotic, ONLY target non-chaotic enemies
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
+        if (nonChaoticEnemies.length === 0) {
+            // No non-chaotic enemies exist, don't shoot but check again soon
+            en.lastShot = Date.now() - (en.fireRate * 0.9);
+            return;
+        }
         targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
         targetY = targetEnemy.y + 25;
