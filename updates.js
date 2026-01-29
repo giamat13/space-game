@@ -58,32 +58,29 @@ export function updateEnemyBullets() {
             }
         }
         
-        // Chaotic bullets hit normal enemies
+        // Chaotic bullets damage and kill enemies
         if (eb.chaotic) {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
-                // Only hit non-chaotic enemies
-                if (targetEn.isChaotic) continue;
                 
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
-                    // Track which chaotic enemy hit this target
-                    const shooterEnemy = state.enemies.find(e => e.el === eb.shooterId);
-                    if (shooterEnemy) {
-                        if (!targetEn.hitsByChaos) targetEn.hitsByChaos = {};
-                        const shooterId = state.enemies.indexOf(shooterEnemy);
-                        targetEn.hitsByChaos[shooterId] = (targetEn.hitsByChaos[shooterId] || 0) + 1;
-                        
-                        // If hit 6 times by chaotic enemies, convert to chaotic
-                        const totalHits = Object.values(targetEn.hitsByChaos).reduce((sum, hits) => sum + hits, 0);
-                        if (totalHits >= 6) {
-                            targetEn.isChaotic = true;
-                            targetEn.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
-                            targetEn.el.style.border = '2px solid #00f2ff';
-                            showFloatingMessage('CONVERTED!', teRect.left, teRect.top, '#00f2ff');
-                            console.log('🃏 [CHAOS] Enemy converted to chaotic!');
-                        }
+                    // Deal 1 damage
+                    targetEn.hp -= 1;
+                    targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                    
+                    // If enemy dies
+                    if (targetEn.hp <= 0) {
+                        const isElite = targetEn.type === 'orange';
+                        const points = isElite ? 75 : 25; // Half points for chaotic kills
+                        state.score += points;
+                        DOM.scoreEl.innerText = state.score;
+                        createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                        showFloatingMessage('CHAOS KILL!', teRect.left, teRect.top, '#00f2ff');
+                        console.log('🃏 [CHAOS] Enemy killed by chaotic enemy!');
+                        targetEn.el.remove();
+                        state.enemies.splice(ei, 1);
                     }
                     
                     createExplosion(eb.x, eb.y, '#00f2ff');

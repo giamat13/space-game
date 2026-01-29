@@ -116,18 +116,28 @@ export function enemyShoot(en) {
     
     let targetX, targetY;
     
-    // Chaotic enemies always target normal enemies
+    // Chaotic enemies target normal enemies (95%) or other chaotics (5%)
     if (en.isChaotic) {
-        const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
-        if (normalEnemies.length > 0) {
-            const targetEnemy = normalEnemies[Math.floor(Math.random() * normalEnemies.length)];
+        const shouldTargetChaotic = Math.random() < 0.05;
+        let targetEnemies;
+        
+        if (shouldTargetChaotic) {
+            // 5% chance to target other chaotic enemies
+            targetEnemies = state.enemies.filter(e => e.isChaotic && e.el !== en.el);
+        } else {
+            // 95% chance to target normal enemies
+            targetEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
+        }
+        
+        if (targetEnemies.length > 0) {
+            const targetEnemy = targetEnemies[Math.floor(Math.random() * targetEnemies.length)];
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
             targetY = targetEnemy.y + 25;
             eb.dataset.chaoticShot = "true";
             eb.style.background = '#00f2ff';
             eb.style.boxShadow = '0 0 10px #00f2ff';
         } else {
-            // No normal enemies, don't shoot
+            // No valid targets, don't shoot
             return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
@@ -311,7 +321,6 @@ export function useJokerChaos() {
         const en = state.enemies[i];
         if (!en.isChaotic) {
             en.isChaotic = true;
-            en.hitsByChaos = {}; // Track hits by other chaotic enemies
             en.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
             en.el.style.border = '2px solid #00f2ff';
             convertedCount++;
@@ -433,8 +442,7 @@ export function handleSpawning(now) {
                 speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
                 lastShot: now + Math.random() * 500,
                 fireRate: (isOrange ? 600 : 1000) / state.speedMult,
-                isChaotic: isChaotic,
-                hitsByChaos: isChaotic ? {} : undefined
+                isChaotic: isChaotic
             });
         }
         state.lastSpawn = now;
