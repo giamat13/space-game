@@ -107,15 +107,6 @@ export function shoot() {
 export function enemyShoot(en) {
     if (!state.active) return;
     
-    // If this enemy is chaotic, check if there are non-chaotic enemies to shoot
-    if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        if (nonChaoticEnemies.length === 0) {
-            // No non-chaotic enemies, don't shoot at all
-            return;
-        }
-    }
-    
     const eb = document.createElement('div');
     eb.className = 'enemy-bullet';
     if (en.type === 'orange') eb.style.background = 'var(--elite)';
@@ -124,28 +115,40 @@ export function enemyShoot(en) {
     const enTop = en.y + 40;
     
     let targetX, targetY;
-    let targetEnemy = null;
     
-    // If this enemy is chaotic, ALWAYS target non-chaotic enemies
-    if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
-        targetX = parseFloat(targetEnemy.el.style.left) + 25;
-        targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
-        eb.style.background = '#ffff00';
-        eb.style.boxShadow = '0 0 20px #ffff00';
+    // Chaotic enemies target normal enemies (95%) or other chaotics (5%)
+    if (en.isChaotic) {
+        const shouldTargetChaotic = Math.random() < 0.05;
+        let targetEnemies;
+        
+        if (shouldTargetChaotic) {
+            // 5% chance to target other chaotic enemies
+            targetEnemies = state.enemies.filter(e => e.isChaotic && e.el !== en.el);
+        } else {
+            // 95% chance to target normal enemies
+            targetEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
+        }
+        
+        if (targetEnemies.length > 0) {
+            const targetEnemy = targetEnemies[Math.floor(Math.random() * targetEnemies.length)];
+            targetX = parseFloat(targetEnemy.el.style.left) + 25;
+            targetY = targetEnemy.y + 25;
+            eb.dataset.chaoticShot = "true";
+            eb.style.background = '#00f2ff';
+            eb.style.boxShadow = '0 0 10px #00f2ff';
+        } else {
+            // No valid targets, don't shoot
+            return;
+        }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
-        // Non-chaotic enemies have 5% chance to friendly fire
+        // 5% chance to friendly fire (only for normal enemies)
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
-        targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+        const targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
         targetY = targetEnemy.y + 25;
         eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
     } else {
-        // Normal enemies shoot at player
+        // Normal shot at player
         targetX = state.playerX + 25;
         targetY = DOM.wrapper.clientHeight - 55;
     }
@@ -171,8 +174,8 @@ export function enemyShoot(en) {
         vx: vx, 
         vy: vy, 
         friendly: !!eb.dataset.friendlyFire,
-        shooterId: eb.dataset.shooterId,
-        targetEnemy: targetEnemy
+        chaotic: !!eb.dataset.chaoticShot,
+        shooterId: en.el
     });
 }
 
@@ -305,53 +308,49 @@ export function useVortexLaser() {
 
 export function useJokerChaos() {
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
-    
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    state.jokerAbility.chaosMode = true;
-    state.jokerAbility.chaosModeEnd = Date.now() + 10000; // 10 seconds chaos mode
-    state.jokerAbility.infectionActive = true;
+    // Set chaos mode active for 10 seconds
+    state.jokerAbility.active = true;
+    state.jokerAbility.endTime = Date.now() + 10000;
     
-    state.enemies.forEach(en => {
-        infectEnemy(en);
-    });
-    
-    for(let i=0; i<50; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        p.style.background = i % 2 === 0 ? '#ff4500' : '#ffff00';
-        p.style.left = playerCenterX + 'px';
-        p.style.top = playerY + 'px';
-        p.style.width = '8px';
-        p.style.height = '8px';
-        DOM.wrapper.appendChild(p);
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 200 + 50;
-        p.animate([
-            { opacity: 1 }, 
-            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-        ], 1000).onfinish = () => p.remove();
+    // Convert all existing enemies to chaos
+    let convertedCount = 0;
+    for (let i = 0; i < state.enemies.length; i++) {
+        const en = state.enemies[i];
+        if (!en.isChaotic) {
+            en.isChaotic = true;
+            en.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
+            en.el.style.border = '2px solid #00f2ff';
+            convertedCount++;
+        }
     }
     
-    showFloatingMessage('🃏 CHAOS! 10s', playerCenterX - 50, playerY - 50, '#ff4500');
-    console.log(`✅ [JOKER] ${state.enemies.length} enemies infected - they are now IMMORTAL forever!`);
-}
-
-export function infectEnemy(en) {
-    if (en.chaotic) return;
+    // Visual effect - chaos wave
+    const chaosWave = document.createElement('div');
+    chaosWave.style.position = 'absolute';
+    chaosWave.style.left = playerCenterX + 'px';
+    chaosWave.style.bottom = '90px';
+    chaosWave.style.width = '40px';
+    chaosWave.style.height = '40px';
+    chaosWave.style.borderRadius = '50%';
+    chaosWave.style.background = 'radial-gradient(circle, rgba(0,242,255,0.8), transparent)';
+    chaosWave.style.boxShadow = '0 0 30px #00f2ff';
+    chaosWave.style.pointerEvents = 'none';
+    chaosWave.style.zIndex = '100';
+    DOM.wrapper.appendChild(chaosWave);
     
-    en.chaotic = true;
-    en.immortal = true;
-    en.hitsByEnemy = {};
-    en.el.style.filter = 'hue-rotate(180deg) saturate(200%) brightness(1.2)';
-    en.el.style.animation = 'chaoticPulse 1s infinite';
+    chaosWave.animate([
+        { transform: 'translate(-50%, 50%) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%, 50%) scale(20)', opacity: 0 }
+    ], {
+        duration: 1000,
+        easing: 'ease-out'
+    }).onfinish = () => chaosWave.remove();
     
-    if (!en.el.dataset.enemyId) {
-        en.el.dataset.enemyId = 'enemy_' + Date.now() + '_' + Math.random();
-    }
-    
-    console.log(`🃏 [INFECTION] Enemy ${en.el.dataset.enemyId} infected`);
+    showFloatingMessage('CHAOS MODE ACTIVATED!', playerCenterX - 90, playerY - 50, '#00f2ff');
+    console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic`);
 }
 
 // ===== SPAWNING SYSTEMS =====
@@ -425,6 +424,14 @@ export function handleSpawning(now) {
             el.style.top = '-60px';
             el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
             DOM.wrapper.appendChild(el);
+            
+            // Check if chaos mode is active
+            const isChaotic = state.jokerAbility && state.jokerAbility.active;
+            if (isChaotic) {
+                el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
+                el.style.border = '2px solid #00f2ff';
+            }
+            
             state.enemies.push({ 
                 el: el, 
                 hpFill: el.querySelector('.enemy-hp-fill'),
@@ -435,16 +442,8 @@ export function handleSpawning(now) {
                 speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
                 lastShot: now + Math.random() * 500,
                 fireRate: (isOrange ? 600 : 1000) / state.speedMult,
-                chaotic: false,
-                immortal: false,
-                hitsByEnemy: {}
+                isChaotic: isChaotic
             });
-            
-            if (state.jokerAbility.infectionActive) {
-                const newEnemy = state.enemies[state.enemies.length - 1];
-                infectEnemy(newEnemy);
-                console.log('🃏 [AUTO-INFECT] New enemy infected');
-            }
         }
         state.lastSpawn = now;
     }

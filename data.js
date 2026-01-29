@@ -135,7 +135,7 @@ export const SKINS = {
         bulletDamage: 3.0,
         maxHP: 600,
         isFire: true,
-        description: '🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
+        description: '🃏 CHAOS MODE (45s CD) | 🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
     }
 };
 
@@ -175,6 +175,38 @@ export function getCookie(name) {
     }
     return null;
 }
+
+// Key Bindings
+export let keyBindings = {
+    shoot: 'Space',
+    ability: 'KeyB',
+    rightClickAbility: true,
+    controlType: 'mouse' // 'mouse' or 'arrows'
+};
+
+export function loadKeyBindings() {
+    console.log('🎮 [KEYS] Loading key bindings...');
+    const saved = getCookie('keyBindings');
+    if (saved) {
+        try {
+            keyBindings = JSON.parse(saved);
+            console.log('✅ [KEYS] Loaded:', keyBindings);
+        } catch (e) {
+            console.error('❌ [KEYS] Error:', e);
+        }
+    }
+}
+
+export function saveKeyBindings() {
+    setCookie('keyBindings', JSON.stringify(keyBindings));
+    console.log('💾 [KEYS] Saved:', keyBindings);
+}
+
+export function setKeyBinding(action, value) {
+    keyBindings[action] = value;
+    saveKeyBindings();
+}
+
 
 // Unlocked Skins Management
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
@@ -296,9 +328,8 @@ export const state = {
         ready: true,
         cooldown: 45000,
         lastUsed: 0,
-        chaosMode: false,
-        chaosModeEnd: 0,
-        infectionActive: false
+        active: false,
+        endTime: 0
     }
 };
 
@@ -335,8 +366,7 @@ export function resetState() {
     state.phoenixAbility.lastUsed = 0;
     state.jokerAbility.ready = true;
     state.jokerAbility.lastUsed = 0;
-    state.jokerAbility.chaosMode = false;
-    state.jokerAbility.chaosModeEnd = 0;
-    state.jokerAbility.infectionActive = false;
+    state.jokerAbility.active = false;
+    state.jokerAbility.endTime = 0;
     console.log('✅ [STATE] Reset complete');
 }

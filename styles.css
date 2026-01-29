@@ -456,7 +456,108 @@ button:hover {
     50% { opacity: 1; }
 }
 
-@keyframes chaoticPulse {
-    0%, 100% { transform: scale(1); filter: hue-rotate(180deg) saturate(200%) brightness(1.2); }
-    50% { transform: scale(1.05); filter: hue-rotate(180deg) saturate(200%) brightness(1.4); }
+/* Settings Styles */
+#settings-container {
+    text-align: center;
+    max-width: 400px;
+    padding: 20px;
+}
+
+.settings-group {
+    margin: 25px 0;
+    padding: 15px;
+    background: rgba(0, 242, 255, 0.05);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 10px;
+}
+
+.settings-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: var(--primary);
+    font-weight: bold;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.setting-btn {
+    padding: 10px 20px;
+    background: rgba(0, 242, 255, 0.1);
+    border: 2px solid rgba(0, 242, 255, 0.3);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.setting-btn:hover {
+    background: rgba(0, 242, 255, 0.2);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.setting-btn.active {
+    background: var(--primary);
+    color: #000;
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
+}
+
+.key-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.key-display span {
+    background: rgba(0, 242, 255, 0.2);
+    padding: 8px 20px;
+    border-radius: 5px;
+    border: 2px solid var(--primary);
+    font-weight: bold;
+    min-width: 80px;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+
+.change-key-btn {
+    padding: 8px 15px;
+    background: rgba(255, 0, 234, 0.2);
+    border: 2px solid var(--secondary);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+
+.change-key-btn:hover {
+    background: rgba(255, 0, 234, 0.3);
+    transform: scale(1.05);
+}
+
+.change-key-btn.listening {
+    background: var(--secondary);
+    color: #000;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.settings-group small {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
 }
