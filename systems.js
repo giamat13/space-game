@@ -107,6 +107,8 @@ export function shoot() {
 export function enemyShoot(en) {
     if (!state.active) return;
     
+    console.log(`🔫 [SHOOT] Enemy trying to shoot - chaotic: ${en.chaotic}, type: ${en.type}`);
+    
     // Calculate shooter position
     const shooterX = parseFloat(en.el.style.left) + 20;
     const shooterY = en.y + 40;
@@ -118,12 +120,23 @@ export function enemyShoot(en) {
     
     // CHAOTIC ENEMIES - only shoot at non-chaotic enemies
     if (en.chaotic) {
+        console.log(`🃏 [CHAOTIC] This is a chaotic enemy, looking for non-chaotic targets...`);
+        
+        const allEnemies = state.enemies.length;
+        console.log(`🃏 [CHAOTIC] Total enemies in game: ${allEnemies}`);
+        
         const nonChaoticEnemies = state.enemies.filter(enemy => {
-            return enemy.el !== en.el && !enemy.chaotic;
+            const isNotSelf = enemy.el !== en.el;
+            const isNotChaotic = !enemy.chaotic;
+            console.log(`🃏 [FILTER] Enemy check - notSelf: ${isNotSelf}, notChaotic: ${isNotChaotic}, result: ${isNotSelf && isNotChaotic}`);
+            return isNotSelf && isNotChaotic;
         });
+        
+        console.log(`🃏 [CHAOTIC] Found ${nonChaoticEnemies.length} non-chaotic enemies`);
         
         if (nonChaoticEnemies.length === 0) {
             // No targets available, skip shooting but check again soon
+            console.log(`🃏 [CHAOTIC] NO TARGETS - skipping shot`);
             en.lastShot = Date.now() - (en.fireRate * 0.9);
             shouldShoot = false;
         } else {
@@ -132,10 +145,12 @@ export function enemyShoot(en) {
             targetX = parseFloat(target.el.style.left) + 25;
             targetY = target.y + 25;
             isFriendlyFire = true;
+            console.log(`🎯 [CHAOTIC] SHOOTING AT NON-CHAOTIC ENEMY at position (${targetX}, ${targetY})`);
         }
     } 
     // NORMAL ENEMIES - mostly shoot at player, 5% chance friendly fire
     else {
+        console.log(`👾 [NORMAL] This is a normal enemy`);
         if (Math.random() < 0.05 && state.enemies.length > 1) {
             // 5% chance to shoot another enemy
             const otherEnemies = state.enemies.filter(enemy => enemy.el !== en.el);
@@ -143,16 +158,23 @@ export function enemyShoot(en) {
             targetX = parseFloat(target.el.style.left) + 25;
             targetY = target.y + 25;
             isFriendlyFire = true;
+            console.log(`👾 [NORMAL] Friendly fire - shooting at another enemy`);
         } else {
             // Shoot at player
             targetX = state.playerX + 25;
             targetY = DOM.wrapper.clientHeight - 55;
             isFriendlyFire = false;
+            console.log(`👾 [NORMAL] Shooting at player`);
         }
     }
     
     // If we decided not to shoot, exit now
-    if (!shouldShoot) return;
+    if (!shouldShoot) {
+        console.log(`⛔ [SHOOT] Decided NOT to shoot - exiting`);
+        return;
+    }
+    
+    console.log(`✅ [SHOOT] Creating bullet - friendlyFire: ${isFriendlyFire}`);
     
     // Create bullet element
     const bullet = document.createElement('div');
@@ -466,6 +488,8 @@ export function handleSpawning(now) {
                 immortal: false,
                 hitsByEnemy: {}
             });
+            
+            console.log(`👾 [SPAWN] New ${type} enemy spawned - chaotic: false, infectionActive: ${state.jokerAbility.infectionActive}`);
             
             if (state.jokerAbility.infectionActive) {
                 const newEnemy = state.enemies[state.enemies.length - 1];
