@@ -63,8 +63,8 @@ export function updateEnemyBullets() {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
-                // Only hit non-chaotic enemies
-                if (targetEn.isChaotic) continue;
+                // Only hit non-chaotic enemies, and don't hit the shooter itself
+                if (targetEn.isChaotic || targetEn.el === eb.shooterId) continue;
                 
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {

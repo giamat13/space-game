@@ -116,9 +116,9 @@ export function enemyShoot(en) {
     
     let targetX, targetY;
     
-    // Chaotic enemies always target normal enemies
+    // Chaotic enemies always target normal enemies (only those below/in front)
     if (en.isChaotic) {
-        const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
+        const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el && e.y > en.y);
         if (normalEnemies.length > 0) {
             const targetEnemy = normalEnemies[Math.floor(Math.random() * normalEnemies.length)];
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
@@ -127,7 +127,7 @@ export function enemyShoot(en) {
             eb.style.background = '#00f2ff';
             eb.style.boxShadow = '0 0 10px #00f2ff';
         } else {
-            // No normal enemies, don't shoot
+            // No normal enemies below, don't shoot
             return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
@@ -314,6 +314,8 @@ export function useJokerChaos() {
             en.hitsByChaos = {}; // Track hits by other chaotic enemies
             en.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
             en.el.style.border = '2px solid #00f2ff';
+            // Add delay before chaotic can shoot to avoid immediate collision
+            en.lastShot = Date.now() + 1000; // 1 second delay before first shot
             convertedCount++;
         }
     }

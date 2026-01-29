@@ -382,14 +382,27 @@ window.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 // Arrow key controls
-let arrowKeysPressed = { left: false, right: false };
+let arrowKeysPressed = { left: false, right: false, up: false, down: false };
+
 window.addEventListener('keydown', (e) => {
+    // Handle shooting and special ability for all control types
+    if (state.active) {
+        if (e.code === keyBindings.shoot) {
+            shoot();
+        }
+        if (e.code === keyBindings.ability) {
+            activateSpecialAbility();
+        }
+    }
+    
+    // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
-    if (e.code === 'ArrowLeft') {
+    
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         arrowKeysPressed.left = true;
         e.preventDefault();
     }
-    if (e.code === 'ArrowRight') {
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         arrowKeysPressed.right = true;
         e.preventDefault();
     }
@@ -397,8 +410,8 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keyup', (e) => {
     if (keyBindings.controlType !== 'arrows') return;
-    if (e.code === 'ArrowLeft') arrowKeysPressed.left = false;
-    if (e.code === 'ArrowRight') arrowKeysPressed.right = false;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') arrowKeysPressed.left = false;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') arrowKeysPressed.right = false;
 });
 
 // Arrow movement update
@@ -417,11 +430,6 @@ function updateArrowMovement() {
 
 window.addEventListener('mousedown', (e) => {
     if (keyBindings.controlType === 'mouse') shoot();
-});
-
-window.addEventListener('keydown', (e) => {
-    if(e.code === keyBindings.shoot) shoot();
-    if(e.code === keyBindings.ability) activateSpecialAbility();
 });
 
 // Special ability button click
