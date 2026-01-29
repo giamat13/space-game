@@ -72,6 +72,8 @@ export function updateEnemyBullets() {
                     targetEn.hp -= 1;
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
                     
+                    console.log(`💥 [CHAOTIC HIT] Normal enemy hit! HP: ${targetEn.hp}/${targetEn.maxHP}`);
+                    
                     createExplosion(eb.x, eb.y, '#00f2ff');
                     
                     // Kill enemy if HP reaches 0
@@ -84,7 +86,7 @@ export function updateEnemyBullets() {
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
-                        console.log('🃏 [CHAOS] Chaotic enemy killed a normal enemy!');
+                        console.log(`☠️ [CHAOTIC KILL] Normal enemy killed! +${points} points`);
                     }
                     
                     eb.el.remove();

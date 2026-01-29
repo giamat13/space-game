@@ -116,9 +116,10 @@ export function enemyShoot(en) {
     
     let targetX, targetY;
     
-    // Chaotic enemies always target normal enemies (only those below/in front)
+    // Chaotic enemies always target normal enemies
     if (en.isChaotic) {
-        const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el && e.y > en.y);
+        // Target any normal enemy regardless of position
+        const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
         if (normalEnemies.length > 0) {
             const targetEnemy = normalEnemies[Math.floor(Math.random() * normalEnemies.length)];
             targetX = parseFloat(targetEnemy.el.style.left) + 25;
@@ -126,8 +127,10 @@ export function enemyShoot(en) {
             eb.dataset.chaoticShot = "true";
             eb.style.background = '#00f2ff';
             eb.style.boxShadow = '0 0 10px #00f2ff';
+            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} shooting at normal enemy at Y=${targetEnemy.y.toFixed(0)}`);
         } else {
-            // No normal enemies below, don't shoot
+            // No normal enemies, don't shoot
+            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} has no normal enemies to target`);
             return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
