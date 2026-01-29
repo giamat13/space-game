@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
@@ -7,6 +7,7 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 
 console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
+loadKeyBindings();
 updateSkinOptions();
 console.log('✅ [INIT] Game loaded successfully');
 
@@ -247,6 +248,7 @@ function update() {
     handleLevelUp();
     handleSpawning(now);
     updateAbilityCooldown(now);
+    updateArrowMovement();
     
     updateBurgers();
     updateIngredients();
@@ -345,8 +347,9 @@ function activateSpecialAbility() {
 
 // ===== EVENT LISTENERS =====
 
+// Mouse/Arrow control
 window.addEventListener('mousemove', (e) => {
-    if(!state.active) return;
+    if(!state.active || keyBindings.controlType !== 'mouse') return;
     movePlayer(e.clientX);
     
     // Track mouse position for Phoenix feathers
@@ -378,10 +381,47 @@ window.addEventListener('touchstart', (e) => {
     state.lastMouseY = e.touches[0].clientY - rect.top;
 }, { passive: false });
 
-window.addEventListener('mousedown', shoot);
+// Arrow key controls
+let arrowKeysPressed = { left: false, right: false };
 window.addEventListener('keydown', (e) => {
-    if(e.code === 'Space') shoot();
-    if(e.code === 'KeyB') activateSpecialAbility();
+    if (!state.active || keyBindings.controlType !== 'arrows') return;
+    if (e.code === 'ArrowLeft') {
+        arrowKeysPressed.left = true;
+        e.preventDefault();
+    }
+    if (e.code === 'ArrowRight') {
+        arrowKeysPressed.right = true;
+        e.preventDefault();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (keyBindings.controlType !== 'arrows') return;
+    if (e.code === 'ArrowLeft') arrowKeysPressed.left = false;
+    if (e.code === 'ArrowRight') arrowKeysPressed.right = false;
+});
+
+// Arrow movement update
+function updateArrowMovement() {
+    if (!state.active || keyBindings.controlType !== 'arrows') return;
+    const speed = 8;
+    if (arrowKeysPressed.left) {
+        state.playerX = Math.max(0, state.playerX - speed);
+        updatePlayerPos();
+    }
+    if (arrowKeysPressed.right) {
+        state.playerX = Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed);
+        updatePlayerPos();
+    }
+}
+
+window.addEventListener('mousedown', (e) => {
+    if (keyBindings.controlType === 'mouse') shoot();
+});
+
+window.addEventListener('keydown', (e) => {
+    if(e.code === keyBindings.shoot) shoot();
+    if(e.code === keyBindings.ability) activateSpecialAbility();
 });
 
 // Special ability button click
@@ -389,7 +429,7 @@ document.getElementById('special-ability-btn').addEventListener('click', activat
 
 // Prevent context menu on right click, use it for special ability instead
 window.addEventListener('contextmenu', (e) => {
-    if (state.active) {
+    if (state.active && keyBindings.rightClickAbility) {
         e.preventDefault();
         activateSpecialAbility();
     }
@@ -578,3 +618,94 @@ console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
 console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "elite"');
+
+// ===== SETTINGS MENU =====
+
+function showSettings() {
+    console.log('⚙️ [SETTINGS] Opening settings...');
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('settings-container').style.display = 'block';
+    updateSettingsDisplay();
+}
+
+function closeSettings() {
+    console.log('⚙️ [SETTINGS] Closing settings...');
+    document.getElementById('settings-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
+}
+
+function updateSettingsDisplay() {
+    // Update control type buttons
+    document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
+    document.getElementById('control-arrows').classList.toggle('active', keyBindings.controlType === 'arrows');
+    
+    // Update right-click buttons
+    document.getElementById('rightclick-on').classList.toggle('active', keyBindings.rightClickAbility === true);
+    document.getElementById('rightclick-off').classList.toggle('active', keyBindings.rightClickAbility === false);
+    
+    // Update key displays
+    document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
+    document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
+}
+
+function formatKeyName(code) {
+    if (code === 'Space') return 'Space';
+    if (code.startsWith('Key')) return code.replace('Key', '');
+    if (code.startsWith('Digit')) return code.replace('Digit', '');
+    if (code.startsWith('Arrow')) return code.replace('Arrow', '') + ' Arrow';
+    return code;
+}
+
+function setControl(type) {
+    console.log(`⚙️ [SETTINGS] Control type set to: ${type}`);
+    setKeyBinding('controlType', type);
+    updateSettingsDisplay();
+}
+
+function setRightClick(enabled) {
+    console.log(`⚙️ [SETTINGS] Right-click ability: ${enabled}`);
+    setKeyBinding('rightClickAbility', enabled);
+    updateSettingsDisplay();
+}
+
+let listeningForKey = null;
+
+function changeKey(action) {
+    if (listeningForKey) return;
+    
+    listeningForKey = action;
+    const btn = event.target;
+    btn.classList.add('listening');
+    btn.innerText = '...לחץ על מקש';
+    
+    console.log(`⚙️ [SETTINGS] Listening for key for: ${action}`);
+    
+    const keyListener = (e) => {
+        e.preventDefault();
+        
+        // Don't allow certain keys
+        if (['Escape', 'F5', 'F11', 'F12'].includes(e.code)) {
+            console.log('⚠️ [SETTINGS] Invalid key');
+            return;
+        }
+        
+        console.log(`⚙️ [SETTINGS] Key captured: ${e.code}`);
+        setKeyBinding(action, e.code);
+        updateSettingsDisplay();
+        
+        btn.classList.remove('listening');
+        btn.innerText = 'שנה מקש';
+        
+        window.removeEventListener('keydown', keyListener);
+        listeningForKey = null;
+    };
+    
+    window.addEventListener('keydown', keyListener);
+}
+
+// Export to window
+window.showSettings = showSettings;
+window.closeSettings = closeSettings;
+window.setControl = setControl;
+window.setRightClick = setRightClick;
+window.changeKey = changeKey;

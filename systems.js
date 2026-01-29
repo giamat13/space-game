@@ -311,7 +311,6 @@ export function useJokerChaos() {
         const en = state.enemies[i];
         if (!en.isChaotic) {
             en.isChaotic = true;
-            en.isInvulnerable = true;
             en.hitsByChaos = {}; // Track hits by other chaotic enemies
             en.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
             en.el.style.border = '2px solid #00f2ff';
@@ -435,7 +434,6 @@ export function handleSpawning(now) {
                 lastShot: now + Math.random() * 500,
                 fireRate: (isOrange ? 600 : 1000) / state.speedMult,
                 isChaotic: isChaotic,
-                isInvulnerable: isChaotic,
                 hitsByChaos: isChaotic ? {} : undefined
             });
         }

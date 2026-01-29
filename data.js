@@ -176,6 +176,38 @@ export function getCookie(name) {
     return null;
 }
 
+// Key Bindings
+export let keyBindings = {
+    shoot: 'Space',
+    ability: 'KeyB',
+    rightClickAbility: true,
+    controlType: 'mouse' // 'mouse' or 'arrows'
+};
+
+export function loadKeyBindings() {
+    console.log('🎮 [KEYS] Loading key bindings...');
+    const saved = getCookie('keyBindings');
+    if (saved) {
+        try {
+            keyBindings = JSON.parse(saved);
+            console.log('✅ [KEYS] Loaded:', keyBindings);
+        } catch (e) {
+            console.error('❌ [KEYS] Error:', e);
+        }
+    }
+}
+
+export function saveKeyBindings() {
+    setCookie('keyBindings', JSON.stringify(keyBindings));
+    console.log('💾 [KEYS] Saved:', keyBindings);
+}
+
+export function setKeyBinding(action, value) {
+    keyBindings[action] = value;
+    saveKeyBindings();
+}
+
+
 // Unlocked Skins Management
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 

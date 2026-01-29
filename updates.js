@@ -75,11 +75,10 @@ export function updateEnemyBullets() {
                         const shooterId = state.enemies.indexOf(shooterEnemy);
                         targetEn.hitsByChaos[shooterId] = (targetEn.hitsByChaos[shooterId] || 0) + 1;
                         
-                        // If hit twice by chaotic enemies, convert to chaotic
+                        // If hit 6 times by chaotic enemies, convert to chaotic
                         const totalHits = Object.values(targetEn.hitsByChaos).reduce((sum, hits) => sum + hits, 0);
-                        if (totalHits >= 2) {
+                        if (totalHits >= 6) {
                             targetEn.isChaotic = true;
-                            targetEn.isInvulnerable = true;
                             targetEn.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
                             targetEn.el.style.border = '2px solid #00f2ff';
                             showFloatingMessage('CONVERTED!', teRect.left, teRect.top, '#00f2ff');
@@ -297,14 +296,6 @@ export function updateEnemies(now) {
             const eRect = en.el.getBoundingClientRect();
             
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
-                // Chaotic enemies are invulnerable - just remove bullet
-                if (en.isInvulnerable) {
-                    createExplosion(bRect.left, bRect.top, '#00f2ff');
-                    bul.el.remove();
-                    state.bullets.splice(bi, 1);
-                    continue;
-                }
-                
                 const damage = bul.damage || 1.0;
                 
                 // Phoenix Feather explosion - damages nearby enemies
