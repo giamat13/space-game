@@ -1,5 +1,5 @@
 import { DOM, state } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients, infectEnemy } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -47,8 +47,8 @@ export function updateEnemyBullets() {
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
         
-        // Friendly fire bullets (from chaotic enemies) should NOT hit player
-        if (!eb.friendly) {
+        // Check collision with player (only non-friendly and non-chaotic bullets)
+        if (!eb.friendly && !eb.chaotic) {
             if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
                 damagePlayer(15);
                 createExplosion(eb.x, eb.y, 'var(--primary)');
@@ -58,51 +58,63 @@ export function updateEnemyBullets() {
             }
         }
         
+        // Chaotic bullets hit normal enemies
+        if (eb.chaotic) {
+            let hitEnemy = false;
+            for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
+                let targetEn = state.enemies[ei];
+                // Only hit non-chaotic enemies
+                if (targetEn.isChaotic) continue;
+                
+                const teRect = targetEn.el.getBoundingClientRect();
+                if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
+                    // Track which chaotic enemy hit this target
+                    const shooterEnemy = state.enemies.find(e => e.el === eb.shooterId);
+                    if (shooterEnemy) {
+                        if (!targetEn.hitsByChaos) targetEn.hitsByChaos = {};
+                        const shooterId = state.enemies.indexOf(shooterEnemy);
+                        targetEn.hitsByChaos[shooterId] = (targetEn.hitsByChaos[shooterId] || 0) + 1;
+                        
+                        // If hit 4 times by chaotic enemies, convert to chaotic
+                        const totalHits = Object.values(targetEn.hitsByChaos).reduce((sum, hits) => sum + hits, 0);
+                        if (totalHits >= 4) {
+                            targetEn.isChaotic = true;
+                            targetEn.isInvulnerable = true;
+                            targetEn.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
+                            targetEn.el.style.border = '2px solid #00f2ff';
+                            showFloatingMessage('CONVERTED!', teRect.left, teRect.top, '#00f2ff');
+                            console.log('🃏 [CHAOS] Enemy converted to chaotic!');
+                        }
+                    }
+                    
+                    createExplosion(eb.x, eb.y, '#00f2ff');
+                    eb.el.remove();
+                    state.enemyBullets.splice(i, 1);
+                    hitEnemy = true;
+                    break;
+                }
+            }
+            if (hitEnemy) continue;
+        }
+        
+        // Friendly fire bullets hit other enemies
         if (eb.friendly) {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
+                    targetEn.hp -= 1;
+                    targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
                     
-                    // Track hits for infection spreading
-                    if (eb.shooterId && targetEn.el.dataset.enemyId) {
-                        if (!targetEn.hitsByEnemy) targetEn.hitsByEnemy = {};
-                        if (!targetEn.hitsByEnemy[eb.shooterId]) {
-                            targetEn.hitsByEnemy[eb.shooterId] = 0;
-                        }
-                        targetEn.hitsByEnemy[eb.shooterId]++;
-                        
-                        // Infect if hit 5 times by same enemy
-                        if (targetEn.hitsByEnemy[eb.shooterId] >= 5 && !targetEn.chaotic) {
-                            infectEnemy(targetEn);
-                            showFloatingMessage('🃏 INFECTED!', teRect.left, teRect.top - 20, '#ffff00');
-                        }
-                    }
-                    
-                    // Immortal chaotic enemies can NEVER die from any source
-                    if (targetEn.immortal) {
-                        targetEn.hp -= 1;
-                        targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
-                        if (targetEn.hp <= 0) {
-                            targetEn.hpFill.style.background = '#ffff00';
-                            targetEn.hp = 0; // Keep at 0 HP but don't kill
-                            showFloatingMessage('♾️ IMMORTAL!', teRect.left, teRect.top - 20, '#ffff00');
-                        }
-                    } else {
-                        targetEn.hp -= 1;
-                        targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-                        
-                        // Kill non-immortal enemies
-                        if (targetEn.hp <= 0) {
-                            const isElite = targetEn.type === 'orange';
-                            const points = isElite ? 75 : 25; // Reduced points for friendly fire kills
-                            state.score += points;
-                            DOM.scoreEl.innerText = state.score;
-                            createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
-                            targetEn.el.remove();
-                            state.enemies.splice(ei, 1);
-                        }
+                    if (targetEn.hp <= 0) {
+                        const isElite = targetEn.type === 'orange';
+                        const points = isElite ? 75 : 25;
+                        state.score += points;
+                        DOM.scoreEl.innerText = state.score;
+                        createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                        targetEn.el.remove();
+                        state.enemies.splice(ei, 1);
                     }
                     
                     createExplosion(eb.x, eb.y, 'white');
@@ -115,6 +127,7 @@ export function updateEnemyBullets() {
             if (hitEnemy) continue;
         }
         
+        // Remove if out of bounds
         if(eb.y > DOM.wrapper.clientHeight || eb.y < -100 || eb.x < -50 || eb.x > DOM.wrapper.clientWidth + 50) {
             eb.el.remove();
             state.enemyBullets.splice(i, 1);
@@ -269,7 +282,10 @@ export function updateEnemies(now) {
         }
         
         if(en.y > DOM.wrapper.clientHeight - 30) {
-            damagePlayer(30);
+            // Only damage player if not chaotic
+            if (!en.isChaotic) {
+                damagePlayer(30);
+            }
             en.el.remove();
             state.enemies.splice(i, 1);
             continue;
@@ -281,6 +297,14 @@ export function updateEnemies(now) {
             const eRect = en.el.getBoundingClientRect();
             
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
+                // Chaotic enemies are invulnerable - just remove bullet
+                if (en.isInvulnerable) {
+                    createExplosion(bRect.left, bRect.top, '#00f2ff');
+                    bul.el.remove();
+                    state.bullets.splice(bi, 1);
+                    continue;
+                }
+                
                 const damage = bul.damage || 1.0;
                 
                 // Phoenix Feather explosion - damages nearby enemies
@@ -316,7 +340,7 @@ export function updateEnemies(now) {
                             targetEn.hp -= damage;
                             targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
                             
-                            if (targetEn.hp <= 0 && !targetEn.immortal) {
+                            if (targetEn.hp <= 0) {
                                 const isElite = targetEn.type === 'orange';
                                 const points = isElite ? 150 : 50;
                                 state.score += points;
@@ -347,8 +371,7 @@ export function updateEnemies(now) {
                 bul.el.remove();
                 state.bullets.splice(bi, 1);
                 
-                // Immortal chaotic enemies can't die from player bullets
-                if(en.hp <= 0 && !en.immortal) {
+                if(en.hp <= 0) {
                     const isElite = en.type === 'orange';
                     const points = isElite ? 150 : 50;
                     const oldScore = state.score;
@@ -379,10 +402,6 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
-                } else if (en.hp <= 0 && en.immortal) {
-                    // Chaotic enemy at 0 HP - show they're immortal
-                    en.hpFill.style.background = '#ffff00';
-                    showFloatingMessage("IMMORTAL!", eRect.left, eRect.top - 20, '#ffff00');
                 }
                 break;
             }
