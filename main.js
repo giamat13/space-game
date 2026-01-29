@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, infectEnemy } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -264,11 +264,20 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode should end (but enemies stay immortal)
-    if (state.jokerAbility.chaosMode && now >= state.jokerAbility.chaosModeEnd) {
-        state.jokerAbility.chaosMode = false;
-        state.jokerAbility.infectionActive = false;
-        console.log('⏰ [JOKER] Chaos mode ended - but infected enemies remain immortal!');
+    // Check if chaos mode should end
+    if (state.jokerAbility.active && now >= state.jokerAbility.endTime) {
+        console.log('🃏 [JOKER] Chaos mode ended');
+        state.jokerAbility.active = false;
+        // Remove chaos effect from remaining enemies
+        for (let i = 0; i < state.enemies.length; i++) {
+            const en = state.enemies[i];
+            if (en.isChaotic) {
+                en.isChaotic = false;
+                en.isInvulnerable = false;
+                en.el.style.filter = '';
+                en.el.style.border = '';
+            }
+        }
     }
     
     if (currentSkinKey === 'vortex') {
@@ -564,16 +573,8 @@ window.spawn = function(type) {
             maxHP: maxHP,
             speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
             lastShot: Date.now() + Math.random() * 500,
-            fireRate: (isOrange ? 600 : 1000) / state.speedMult,
-            chaotic: false,
-            immortal: false,
-            hitsByEnemy: {}
+            fireRate: (isOrange ? 600 : 1000) / state.speedMult
         });
-        
-        if (state.jokerAbility.infectionActive) {
-            const newEnemy = state.enemies[state.enemies.length - 1];
-            infectEnemy(newEnemy);
-        }
         console.log(`👾 [DEBUG] Spawned ${type} enemy`);
     }
     

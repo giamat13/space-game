@@ -135,7 +135,7 @@ export const SKINS = {
         bulletDamage: 3.0,
         maxHP: 600,
         isFire: true,
-        description: '🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
+        description: '🃏 CHAOS MODE (45s CD) | 🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
     }
 };
 
@@ -296,9 +296,8 @@ export const state = {
         ready: true,
         cooldown: 45000,
         lastUsed: 0,
-        chaosMode: false,
-        chaosModeEnd: 0,
-        infectionActive: false
+        active: false,
+        endTime: 0
     }
 };
 
@@ -335,8 +334,7 @@ export function resetState() {
     state.phoenixAbility.lastUsed = 0;
     state.jokerAbility.ready = true;
     state.jokerAbility.lastUsed = 0;
-    state.jokerAbility.chaosMode = false;
-    state.jokerAbility.chaosModeEnd = 0;
-    state.jokerAbility.infectionActive = false;
+    state.jokerAbility.active = false;
+    state.jokerAbility.endTime = 0;
     console.log('✅ [STATE] Reset complete');
 }

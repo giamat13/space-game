@@ -455,8 +455,3 @@ button:hover {
     0%, 100% { opacity: 0.8; }
     50% { opacity: 1; }
 }
-
-@keyframes chaoticPulse {
-    0%, 100% { transform: scale(1); filter: hue-rotate(180deg) saturate(200%) brightness(1.2); }
-    50% { transform: scale(1.05); filter: hue-rotate(180deg) saturate(200%) brightness(1.4); }
-}
