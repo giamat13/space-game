@@ -111,7 +111,8 @@ export function enemyShoot(en) {
     if (en.chaotic) {
         const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
         if (nonChaoticEnemies.length === 0) {
-            // No non-chaotic enemies, don't shoot at all
+            // No non-chaotic enemies, reset last shot to check again very soon
+            en.lastShot = Date.now() - (en.fireRate * 0.9); // Will check again in just 10% of fire rate
             return;
         }
     }
