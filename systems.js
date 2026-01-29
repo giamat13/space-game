@@ -107,72 +107,99 @@ export function shoot() {
 export function enemyShoot(en) {
     if (!state.active) return;
     
-    // If this enemy is chaotic, check if there are non-chaotic enemies to shoot
+    // Calculate shooter position
+    const shooterX = parseFloat(en.el.style.left) + 20;
+    const shooterY = en.y + 40;
+    
+    // Decide on target
+    let targetX, targetY;
+    let shouldShoot = true;
+    let isFriendlyFire = false;
+    
+    // CHAOTIC ENEMIES - only shoot at non-chaotic enemies
     if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
+        const nonChaoticEnemies = state.enemies.filter(enemy => {
+            return enemy.el !== en.el && !enemy.chaotic;
+        });
+        
         if (nonChaoticEnemies.length === 0) {
-            // No non-chaotic enemies, don't shoot at all
-            return;
+            // No targets available, skip shooting but check again soon
+            en.lastShot = Date.now() - (en.fireRate * 0.9);
+            shouldShoot = false;
+        } else {
+            // Pick random non-chaotic enemy
+            const target = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
+            targetX = parseFloat(target.el.style.left) + 25;
+            targetY = target.y + 25;
+            isFriendlyFire = true;
+        }
+    } 
+    // NORMAL ENEMIES - mostly shoot at player, 5% chance friendly fire
+    else {
+        if (Math.random() < 0.05 && state.enemies.length > 1) {
+            // 5% chance to shoot another enemy
+            const otherEnemies = state.enemies.filter(enemy => enemy.el !== en.el);
+            const target = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+            targetX = parseFloat(target.el.style.left) + 25;
+            targetY = target.y + 25;
+            isFriendlyFire = true;
+        } else {
+            // Shoot at player
+            targetX = state.playerX + 25;
+            targetY = DOM.wrapper.clientHeight - 55;
+            isFriendlyFire = false;
         }
     }
     
-    const eb = document.createElement('div');
-    eb.className = 'enemy-bullet';
-    if (en.type === 'orange') eb.style.background = 'var(--elite)';
+    // If we decided not to shoot, exit now
+    if (!shouldShoot) return;
     
-    const enLeft = parseFloat(en.el.style.left) + 20;
-    const enTop = en.y + 40;
+    // Create bullet element
+    const bullet = document.createElement('div');
+    bullet.className = 'enemy-bullet';
     
-    let targetX, targetY;
-    let targetEnemy = null;
-    
-    // If this enemy is chaotic, ALWAYS target non-chaotic enemies
+    // Set bullet appearance based on type
     if (en.chaotic) {
-        const nonChaoticEnemies = state.enemies.filter(e => e.el !== en.el && !e.chaotic);
-        targetEnemy = nonChaoticEnemies[Math.floor(Math.random() * nonChaoticEnemies.length)];
-        targetX = parseFloat(targetEnemy.el.style.left) + 25;
-        targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
-        eb.style.background = '#ffff00';
-        eb.style.boxShadow = '0 0 20px #ffff00';
-    } else if (Math.random() < 0.05 && state.enemies.length > 1) {
-        // Non-chaotic enemies have 5% chance to friendly fire
-        const otherEnemies = state.enemies.filter(e => e.el !== en.el);
-        targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
-        targetX = parseFloat(targetEnemy.el.style.left) + 25;
-        targetY = targetEnemy.y + 25;
-        eb.dataset.friendlyFire = "true";
-        eb.dataset.shooterId = en.el.dataset.enemyId;
-    } else {
-        // Normal enemies shoot at player
-        targetX = state.playerX + 25;
-        targetY = DOM.wrapper.clientHeight - 55;
+        bullet.style.background = '#ffff00';
+        bullet.style.boxShadow = '0 0 20px #ffff00';
+    } else if (en.type === 'orange') {
+        bullet.style.background = 'var(--elite)';
     }
     
-    const dx = targetX - enLeft;
-    const dy = targetY - enTop;
-    const distance = Math.sqrt(dx*dx + dy*dy);
+    // Mark friendly fire bullets
+    if (isFriendlyFire) {
+        bullet.dataset.friendlyFire = "true";
+        bullet.dataset.shooterId = en.el.dataset.enemyId || ('enemy_' + Date.now() + '_' + Math.random());
+        if (!en.el.dataset.enemyId) {
+            en.el.dataset.enemyId = bullet.dataset.shooterId;
+        }
+    }
+    
+    // Calculate trajectory
+    const dx = targetX - shooterX;
+    const dy = targetY - shooterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
     const speed = (en.type === 'orange' ? 7 : 5.5) * state.speedMult;
     const vx = (dx / distance) * speed;
     const vy = (dy / distance) * speed;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
     
-    eb.style.left = enLeft + 'px';
-    eb.style.top = enTop + 'px';
-    eb.style.transform = `rotate(${angle - 90}deg)`;
+    // Position and rotate bullet
+    bullet.style.left = shooterX + 'px';
+    bullet.style.top = shooterY + 'px';
+    bullet.style.transform = `rotate(${angle - 90}deg)`;
     
-    DOM.wrapper.appendChild(eb);
+    // Add to DOM and state
+    DOM.wrapper.appendChild(bullet);
     state.enemyBullets.push({ 
-        el: eb, 
-        x: enLeft, 
-        y: enTop, 
+        el: bullet, 
+        x: shooterX, 
+        y: shooterY, 
         vx: vx, 
         vy: vy, 
-        friendly: !!eb.dataset.friendlyFire,
-        shooterId: eb.dataset.shooterId,
-        targetEnemy: targetEnemy
+        friendly: isFriendlyFire,
+        shooterId: bullet.dataset.shooterId
     });
 }
 
