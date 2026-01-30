@@ -186,6 +186,12 @@ export let keyBindings = {
     controlType: 'mouse' // 'mouse' or 'arrows'
 };
 
+// Game Rules
+export let gameRules = {
+    enemiesShootThroughAsteroids: true,
+    playerShootThroughAsteroids: false
+};
+
 export function loadKeyBindings() {
     console.log('🎮 [KEYS] Loading key bindings...');
     const saved = getCookie('keyBindings');
@@ -207,6 +213,29 @@ export function saveKeyBindings() {
 export function setKeyBinding(action, value) {
     keyBindings[action] = value;
     saveKeyBindings();
+}
+
+export function loadGameRules() {
+    console.log('📜 [RULES] Loading game rules...');
+    const saved = getCookie('gameRules');
+    if (saved) {
+        try {
+            gameRules = JSON.parse(saved);
+            console.log('✅ [RULES] Loaded:', gameRules);
+        } catch (e) {
+            console.error('❌ [RULES] Error:', e);
+        }
+    }
+}
+
+export function saveGameRules() {
+    setCookie('gameRules', JSON.stringify(gameRules));
+    console.log('💾 [RULES] Saved:', gameRules);
+}
+
+export function setGameRule(rule, value) {
+    gameRules[rule] = value;
+    saveGameRules();
 }
 
 
