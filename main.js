@@ -2,7 +2,6 @@ import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlo
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
-import { saveScoreToFirebase, getLeaderboardFromFirebase } from './firebase-leaderboard.js';
 
 // ===== INITIALIZATION =====
 
@@ -14,25 +13,19 @@ console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
 
-async function showLeaderboard() {
+function showLeaderboard() {
     console.log('🏆 [LEADERBOARD] Opening leaderboard...');
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('leaderboard-container').style.display = 'block';
-    
-    // Show loading message
-    const content = document.getElementById('leaderboard-content');
-    content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
-    
-    await displayLeaderboard('overall');
+    displayLeaderboard('overall');
     
     // Setup tab listeners
     const tabs = document.querySelectorAll('.lb-tab');
-    tabs.forEach((tab) => {
-        tab.onclick = async function() {
+    tabs.forEach(tab => {
+        tab.onclick = function() {
             document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
-            content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
-            await displayLeaderboard(this.dataset.tab);
+            displayLeaderboard(this.dataset.tab);
         };
     });
 }
@@ -43,18 +36,9 @@ function closeLeaderboard() {
     document.getElementById('main-menu').style.display = 'block';
 }
 
-async function displayLeaderboard(category) {
+function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
-    
-    // Try to load from Firebase first
-    let leaderboard = await getLeaderboardFromFirebase(category, 10);
-    
-    // Fallback to local leaderboard
-    if (leaderboard.length === 0) {
-        console.log('📊 [DISPLAY] No Firebase data, using local leaderboard');
-        leaderboard = getLeaderboard(category);
-    }
-    
+    const leaderboard = getLeaderboard(category);
     const content = document.getElementById('leaderboard-content');
     
     if (!content) {
@@ -67,65 +51,47 @@ async function displayLeaderboard(category) {
         return;
     }
     
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-    const html = leaderboard.map((entry, index) => {
-        const playerName = entry.playerName || 'Anonymous';
-        return `
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    const html = leaderboard.map((entry, index) => `
         <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index] || (index + 1)}</div>
+            <div class="lb-rank">${medals[index]}</div>
             <div class="lb-info">
                 <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
                 <div class="lb-details">
-                    ${playerName} • שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
+                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
                 </div>
             </div>
         </div>
-    `;
-    }).join('');
+    `).join('');
     
     content.innerHTML = html;
-    console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
-
-// Export to window for HTML onclick
-window.showLeaderboard = showLeaderboard;
-window.closeLeaderboard = closeLeaderboard;
 
 // ===== SKIN SELECTION =====
 
 function updateSkinOptions() {
     console.log('🎨 [SKINS] Updating skin options...');
     const options = document.querySelectorAll('.skin-option');
-    console.log(`🎨 [SKINS] Found ${options.length} skin options`);
     
-    options.forEach((option, index) => {
+    options.forEach(option => {
         const skinKey = option.dataset.skin;
         const unlockLevel = parseInt(option.dataset.unlockLevel) || 0;
         const maxLevel = getMaxLevel();
         
-        console.log(`🎨 [SKINS] Processing skin ${index}: ${skinKey} (unlock level: ${unlockLevel}, max level: ${maxLevel})`);
-        
         if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
-            console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             unlockSkin(skinKey);
             option.classList.add('newly-unlocked');
             setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
         }
         
         if (isSkinUnlocked(skinKey)) {
-            console.log(`✅ [SKINS] ${skinKey} is unlocked, making clickable`);
             option.classList.remove('locked');
-            option.onclick = () => {
-                console.log(`👆 [SKIN CLICK] User clicked skin: ${skinKey}`);
-                selectSkin(skinKey, option);
-            };
+            option.onclick = () => selectSkin(skinKey, option);
         } else {
-            console.log(`🔒 [SKINS] ${skinKey} is locked`);
             option.classList.add('locked');
             option.onclick = null;
         }
     });
-    console.log('✅ [SKINS] Skin options updated');
 }
 
 function selectSkin(key, element) {
@@ -137,11 +103,7 @@ function selectSkin(key, element) {
     setCurrentSkin(key);
     document.querySelectorAll('.skin-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
-    console.log(`✅ [SELECT] Skin ${key} selected successfully`);
 }
-
-// Export to window for HTML onclick
-window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
@@ -166,7 +128,7 @@ function initGame() {
     updateHPUI();
     DOM.overlay.style.display = 'none';
     
-    // Show/hide special ability button based on skin and reset cooldown display
+    // Show/hide special ability button based on skin
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
@@ -194,9 +156,6 @@ function initGame() {
     updatePlayerPos();
     requestAnimationFrame(update);
 }
-
-// Export to window for HTML onclick
-window.initGame = initGame;
 
 // ===== LEVEL UP SYSTEM =====
 
@@ -228,9 +187,7 @@ function handleLevelUp() {
             }
         });
         
-        if (unlocked) {
-            updateSkinOptions();
-        }
+        if (unlocked) updateSkinOptions();
         
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
     }
@@ -263,11 +220,8 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode duration ended (but don't revert enemies)
     if (state.jokerAbility.active && now >= state.jokerAbility.endTime) {
-        console.log('🃏 [JOKER] Chaos mode duration ended (enemies stay chaotic)');
         state.jokerAbility.active = false;
-        // Don't remove chaos effect - enemies stay chaotic forever!
     }
     
     if (currentSkinKey === 'vortex') {
@@ -349,7 +303,6 @@ window.addEventListener('mousemove', (e) => {
     if(!state.active || keyBindings.controlType !== 'mouse') return;
     movePlayer(e.clientX);
     
-    // Track mouse position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.clientX - rect.left;
     state.lastMouseY = e.clientY - rect.top;
@@ -361,7 +314,6 @@ window.addEventListener('touchmove', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
-    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
@@ -372,7 +324,6 @@ window.addEventListener('touchstart', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
-    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
@@ -383,18 +334,15 @@ let arrowKeysPressed = { left: false, right: false, up: false, down: false, shoo
 let mousePressed = false;
 
 window.addEventListener('keydown', (e) => {
-    // Handle shooting key - track if it's pressed
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
-        shoot(); // Shoot immediately on press
+        shoot();
     }
     
-    // Handle special ability for all control types
     if (state.active && e.code === keyBindings.ability) {
         activateSpecialAbility();
     }
     
-    // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
     
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -408,7 +356,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
-    // Track shoot key release
     if (e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = false;
     }
@@ -418,11 +365,9 @@ window.addEventListener('keyup', (e) => {
     if (e.code === 'ArrowRight' || e.code === 'KeyD') arrowKeysPressed.right = false;
 });
 
-// Arrow movement update
 function updateArrowMovement() {
     if (!state.active) return;
     
-    // Handle arrow key movement
     if (keyBindings.controlType === 'arrows') {
         const speed = 8;
         if (arrowKeysPressed.left) {
@@ -435,12 +380,10 @@ function updateArrowMovement() {
         }
     }
     
-    // Continuous shooting when shoot key is held (works in both modes)
     if (arrowKeysPressed.shoot) {
         shoot();
     }
     
-    // Continuous shooting when mouse button is held (mouse mode only)
     if (keyBindings.controlType === 'mouse' && mousePressed) {
         shoot();
     }
@@ -460,7 +403,7 @@ window.addEventListener('mouseup', (e) => {
 // Special ability button click
 document.getElementById('special-ability-btn').addEventListener('click', activateSpecialAbility);
 
-// Prevent context menu on right click, use it for special ability instead
+// Prevent context menu on right click
 window.addEventListener('contextmenu', (e) => {
     if (state.active && keyBindings.rightClickAbility) {
         e.preventDefault();
@@ -468,15 +411,82 @@ window.addEventListener('contextmenu', (e) => {
     }
 });
 
-// ===== GAME OVER WITH FIREBASE =====
+// ===== SETTINGS MENU =====
 
-// Update damagePlayer in systems.js to save to Firebase on game over
-// We'll need to modify systems.js to import and use saveScoreToFirebase
+function showSettings() {
+    console.log('⚙️ [SETTINGS] Opening settings...');
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('settings-container').style.display = 'block';
+    updateSettingsDisplay();
+}
+
+function closeSettings() {
+    console.log('⚙️ [SETTINGS] Closing settings...');
+    document.getElementById('settings-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
+}
+
+function updateSettingsDisplay() {
+    document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
+    document.getElementById('control-arrows').classList.toggle('active', keyBindings.controlType === 'arrows');
+    document.getElementById('rightclick-on').classList.toggle('active', keyBindings.rightClickAbility === true);
+    document.getElementById('rightclick-off').classList.toggle('active', keyBindings.rightClickAbility === false);
+    document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
+    document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
+}
+
+function formatKeyName(code) {
+    if (code === 'Space') return 'Space';
+    if (code.startsWith('Key')) return code.replace('Key', '');
+    if (code.startsWith('Digit')) return code.replace('Digit', '');
+    if (code.startsWith('Arrow')) return code.replace('Arrow', '') + ' Arrow';
+    return code;
+}
+
+function setControl(type) {
+    setKeyBinding('controlType', type);
+    updateSettingsDisplay();
+}
+
+function setRightClick(enabled) {
+    setKeyBinding('rightClickAbility', enabled);
+    updateSettingsDisplay();
+}
+
+let listeningForKey = null;
+
+function changeKey(action) {
+    if (listeningForKey) return;
+    
+    listeningForKey = action;
+    const btn = event.target;
+    btn.classList.add('listening');
+    btn.innerText = '...לחץ על מקש';
+    
+    const keyListener = (e) => {
+        e.preventDefault();
+        
+        if (['Escape', 'F5', 'F11', 'F12'].includes(e.code)) {
+            console.log('⚠️ [SETTINGS] Invalid key');
+            return;
+        }
+        
+        setKeyBinding(action, e.code);
+        updateSettingsDisplay();
+        
+        btn.classList.remove('listening');
+        btn.innerText = 'שנה מקש';
+        
+        window.removeEventListener('keydown', keyListener);
+        listeningForKey = null;
+    };
+    
+    window.addEventListener('keydown', keyListener);
+}
 
 // ===== INITIALIZATION =====
 
 // Generate stars
-console.log('⭐ [INIT] Generating stars...');
 for(let i=0; i<40; i++) {
     const s = document.createElement('div');
     s.className = 'star';
@@ -487,18 +497,29 @@ for(let i=0; i<40; i++) {
     s.style.animationDuration = (Math.random()*4+2)+'s';
     DOM.wrapper.appendChild(s);
 }
-console.log('✅ [INIT] 40 stars generated');
 
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
-console.log('✅ [INIT] Player sprite set to classic skin');
-console.log('🎮 [INIT] All systems ready!');
+
+// Setup button event listeners
+document.getElementById('show-leaderboard-btn').addEventListener('click', showLeaderboard);
+document.getElementById('close-leaderboard-btn').addEventListener('click', closeLeaderboard);
+document.getElementById('start-game-btn').addEventListener('click', initGame);
+document.getElementById('show-settings-btn').addEventListener('click', showSettings);
+document.getElementById('close-settings-btn').addEventListener('click', closeSettings);
+document.getElementById('control-mouse').addEventListener('click', () => setControl('mouse'));
+document.getElementById('control-arrows').addEventListener('click', () => setControl('arrows'));
+document.getElementById('rightclick-on').addEventListener('click', () => setRightClick(true));
+document.getElementById('rightclick-off').addEventListener('click', () => setRightClick(false));
+document.getElementById('change-shoot-key').addEventListener('click', () => changeKey('shoot'));
+document.getElementById('change-ability-key').addEventListener('click', () => changeKey('ability'));
+
+console.log('✅ [INIT] All systems ready!');
 
 // ===== DEBUG COMMANDS =====
 
 window.debugUnlockSkin = function(skinKey) {
     if (!SKINS[skinKey]) {
         console.error(`❌ [DEBUG] Skin "${skinKey}" does not exist!`);
-        console.log('📋 [DEBUG] Available skins:', Object.keys(SKINS).join(', '));
         return false;
     }
     
@@ -517,14 +538,10 @@ window.debugUnlockAllSkins = function() {
     console.log('🔓 [DEBUG] Unlocking all skins...');
     let count = 0;
     Object.keys(SKINS).forEach(skinKey => {
-        const result = unlockSkin(skinKey);
-        if (result) {
-            count++;
-        }
+        if (unlockSkin(skinKey)) count++;
     });
     updateSkinOptions();
     console.log(`✅ [DEBUG] Unlocked ${count} new skins!`);
-    console.log('📋 [DEBUG] All unlocked skins:', Object.keys(SKINS).join(', '));
 };
 
 window.debugListSkins = function() {
@@ -539,12 +556,12 @@ window.debugListSkins = function() {
 window.setLvl = function(lvlNum) {
     const level = parseInt(lvlNum);
     if (isNaN(level) || level < 1) {
-        console.error('❌ [DEBUG] Invalid level! Please provide a number >= 1');
+        console.error('❌ [DEBUG] Invalid level!');
         return false;
     }
     
     if (!state.active) {
-        console.error('❌ [DEBUG] Game must be active! Start a game first.');
+        console.error('❌ [DEBUG] Game must be active!');
         return false;
     }
     
@@ -553,26 +570,17 @@ window.setLvl = function(lvlNum) {
     state.score = state.lastLevelScore;
     DOM.levelEl.innerText = level;
     DOM.scoreEl.innerText = state.score;
-    
-    // Update game difficulty based on level
     state.speedMult = 1 + ((level - 1) * 0.2);
     state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
     
-    console.log(`✅ [DEBUG] Level set to ${level}`);
-    console.log(`📊 [DEBUG] Score set to: ${state.score}`);
-    console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
-    console.log(`📊 [DEBUG] Spawn rate: ${state.spawnRate}ms`);
-    
-    // Save max level if higher
     saveMaxLevel(level);
-    
+    console.log(`✅ [DEBUG] Level set to ${level}`);
     return true;
 };
 
-
 window.spawn = function(type) {
     if (!state.active) {
-        console.error('❌ [DEBUG] Game must be active! Start a game first.');
+        console.error('❌ [DEBUG] Game must be active!');
         return false;
     }
     
@@ -580,7 +588,7 @@ window.spawn = function(type) {
     const lowerType = type.toLowerCase();
     
     if (!validTypes.includes(lowerType)) {
-        console.error(`❌ [DEBUG] Invalid type! Valid types: ${validTypes.join(', ')}`);
+        console.error(`❌ [DEBUG] Invalid type! Valid: ${validTypes.join(', ')}`);
         return false;
     }
     
@@ -649,101 +657,3 @@ window.spawn = function(type) {
     
     return true;
 };
-
-console.log('🛠️ [DEBUG] Debug commands available:');
-console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
-console.log('  - debugUnlockAllSkins() - Unlock all skins');
-console.log('  - debugListSkins() - Show all available skins');
-console.log('  - setLvl(number) - Set current level (game must be active)');
-console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "elite"');
-
-// ===== SETTINGS MENU =====
-
-function showSettings() {
-    console.log('⚙️ [SETTINGS] Opening settings...');
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('settings-container').style.display = 'block';
-    updateSettingsDisplay();
-}
-
-function closeSettings() {
-    console.log('⚙️ [SETTINGS] Closing settings...');
-    document.getElementById('settings-container').style.display = 'none';
-    document.getElementById('main-menu').style.display = 'block';
-}
-
-function updateSettingsDisplay() {
-    // Update control type buttons
-    document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
-    document.getElementById('control-arrows').classList.toggle('active', keyBindings.controlType === 'arrows');
-    
-    // Update right-click buttons
-    document.getElementById('rightclick-on').classList.toggle('active', keyBindings.rightClickAbility === true);
-    document.getElementById('rightclick-off').classList.toggle('active', keyBindings.rightClickAbility === false);
-    
-    // Update key displays
-    document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
-    document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
-}
-
-function formatKeyName(code) {
-    if (code === 'Space') return 'Space';
-    if (code.startsWith('Key')) return code.replace('Key', '');
-    if (code.startsWith('Digit')) return code.replace('Digit', '');
-    if (code.startsWith('Arrow')) return code.replace('Arrow', '') + ' Arrow';
-    return code;
-}
-
-function setControl(type) {
-    console.log(`⚙️ [SETTINGS] Control type set to: ${type}`);
-    setKeyBinding('controlType', type);
-    updateSettingsDisplay();
-}
-
-function setRightClick(enabled) {
-    console.log(`⚙️ [SETTINGS] Right-click ability: ${enabled}`);
-    setKeyBinding('rightClickAbility', enabled);
-    updateSettingsDisplay();
-}
-
-let listeningForKey = null;
-
-function changeKey(action) {
-    if (listeningForKey) return;
-    
-    listeningForKey = action;
-    const btn = event.target;
-    btn.classList.add('listening');
-    btn.innerText = '...לחץ על מקש';
-    
-    console.log(`⚙️ [SETTINGS] Listening for key for: ${action}`);
-    
-    const keyListener = (e) => {
-        e.preventDefault();
-        
-        // Don't allow certain keys
-        if (['Escape', 'F5', 'F11', 'F12'].includes(e.code)) {
-            console.log('⚠️ [SETTINGS] Invalid key');
-            return;
-        }
-        
-        console.log(`⚙️ [SETTINGS] Key captured: ${e.code}`);
-        setKeyBinding(action, e.code);
-        updateSettingsDisplay();
-        
-        btn.classList.remove('listening');
-        btn.innerText = 'שנה מקש';
-        
-        window.removeEventListener('keydown', keyListener);
-        listeningForKey = null;
-    };
-    
-    window.addEventListener('keydown', keyListener);
-}
-
-// Export to window
-window.showSettings = showSettings;
-window.closeSettings = closeSettings;
-window.setControl = setControl;
-window.setRightClick = setRightClick;
-window.changeKey = changeKey;

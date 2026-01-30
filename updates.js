@@ -9,7 +9,6 @@ export function updateBullets() {
         let b = state.bullets[i];
         
         if (b.isFeather) {
-            // Phoenix feathers move in a direction
             const currentLeft = parseFloat(b.el.style.left) || state.playerX + 23;
             const currentTop = parseFloat(b.el.style.top) || (DOM.wrapper.clientHeight - b.y);
             
@@ -19,14 +18,12 @@ export function updateBullets() {
             b.el.style.left = newLeft + 'px';
             b.el.style.top = newTop + 'px';
             
-            // Remove if out of bounds
             if (newTop < -50 || newTop > DOM.wrapper.clientHeight + 50 || 
                 newLeft < -50 || newLeft > DOM.wrapper.clientWidth + 50) {
                 b.el.remove();
                 state.bullets.splice(i, 1);
             }
         } else {
-            // Regular bullets
             b.y += bulletSpeed;
             b.el.style.bottom = b.y + 'px';
             if(b.y > DOM.wrapper.clientHeight) {
@@ -47,7 +44,6 @@ export function updateEnemyBullets() {
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = DOM.player.getBoundingClientRect();
         
-        // Check collision with player (only non-friendly and non-chaotic bullets)
         if (!eb.friendly && !eb.chaotic) {
             if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
                 damagePlayer(15);
@@ -58,25 +54,19 @@ export function updateEnemyBullets() {
             }
         }
         
-        // Chaotic bullets hit normal enemies
         if (eb.chaotic) {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
-                // Only hit non-chaotic enemies, and don't hit the shooter itself
                 if (targetEn.isChaotic || targetEn.el === eb.shooterId) continue;
                 
                 const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
-                    // Damage the target enemy
                     targetEn.hp -= 1;
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
                     
-                    console.log(`💥 [CHAOTIC HIT] Normal enemy hit! HP: ${targetEn.hp}/${targetEn.maxHP}`);
-                    
                     createExplosion(eb.x, eb.y, '#00f2ff');
                     
-                    // Kill enemy if HP reaches 0
                     if (targetEn.hp <= 0) {
                         const isElite = targetEn.type === 'orange';
                         const points = isElite ? 75 : 25;
@@ -86,7 +76,6 @@ export function updateEnemyBullets() {
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
-                        console.log(`☠️ [CHAOTIC KILL] Normal enemy killed! +${points} points`);
                     }
                     
                     eb.el.remove();
@@ -98,7 +87,6 @@ export function updateEnemyBullets() {
             if (hitEnemy) continue;
         }
         
-        // Friendly fire bullets hit other enemies
         if (eb.friendly) {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
@@ -128,7 +116,6 @@ export function updateEnemyBullets() {
             if (hitEnemy) continue;
         }
         
-        // Remove if out of bounds
         if(eb.y > DOM.wrapper.clientHeight || eb.y < -100 || eb.x < -50 || eb.x > DOM.wrapper.clientWidth + 50) {
             eb.el.remove();
             state.enemyBullets.splice(i, 1);
@@ -154,7 +141,6 @@ export function updateBurgers() {
             bgr.el.remove();
             state.burgers.splice(i, 1);
             
-            // Check if player ate burger at full HP
             if (wasFullHP) {
                 state.burgersEatenAtFullHP++;
                 
@@ -283,7 +269,6 @@ export function updateEnemies(now) {
         }
         
         if(en.y > DOM.wrapper.clientHeight - 30) {
-            // Only damage player if not chaotic
             if (!en.isChaotic) {
                 damagePlayer(30);
             }
@@ -300,9 +285,7 @@ export function updateEnemies(now) {
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
                 const damage = bul.damage || 1.0;
                 
-                // Phoenix Feather explosion - damages nearby enemies
                 if (bul.isFeather) {
-                    // Create big explosion
                     for(let e=0; e<30; e++) {
                         const p = document.createElement('div');
                         p.className = 'particle';
@@ -320,7 +303,6 @@ export function updateEnemies(now) {
                         ], 700).onfinish = () => p.remove();
                     }
                     
-                    // Damage all enemies in radius (150px)
                     const explosionRadius = 150;
                     for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                         let targetEn = state.enemies[ei];
@@ -353,7 +335,6 @@ export function updateEnemies(now) {
                 en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
                 
-                // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
                     createExplosion(bRect.left, bRect.top, '#ff4500');
                     createExplosion(bRect.left, bRect.top, '#ffa500');

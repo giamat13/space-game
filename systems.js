@@ -1,5 +1,4 @@
 import { DOM, state, INGREDIENT_TYPES } from './data.js';
-import { saveScoreToFirebase } from './firebase-leaderboard.js';
 
 // ===== PLAYER SYSTEMS =====
 
@@ -22,14 +21,11 @@ export function movePlayer(clientX) {
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
-    console.log(`💥 [DAMAGE] -${amount} HP | Now: ${state.playerHP}/${state.playerMaxHP}`);
     
-    // Check if player should lose weight
     if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
         state.isPlayerFat = false;
         state.burgersEatenAtFullHP = 0;
         DOM.player.style.transform = 'scale(1)';
-        console.log('🏃 [FAT] Weight lost! Back to normal');
         showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
     }
     
@@ -39,45 +35,24 @@ export function damagePlayer(amount) {
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     
-if(state.playerHP <= 0) {
-    console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
-    state.active = false;
-    
-    // Import currentSkinKey first
-    import('./data.js').then(dataModule => {
-        const skinKey = dataModule.currentSkinKey;
+    if(state.playerHP <= 0) {
+        state.active = false;
         
-        // Save to local storage
-        dataModule.saveScore(skinKey, state.score, state.level);
-        console.log('✅ [GAME OVER] Score saved locally');
+        import('./data.js').then(module => {
+            module.saveScore(module.currentSkinKey, state.score, state.level);
+        });
         
-        // Save to Firebase
-        saveScoreToFirebase(skinKey, state.score, state.level, 'Anonymous')
-            .then(success => {
-                if (success) {
-                    console.log('✅ [FIREBASE] Score saved to cloud!');
-                } else {
-                    console.log('⚠️ [FIREBASE] Failed to save, but local saved');
-                }
-            })
-            .catch(err => {
-                console.error('❌ [FIREBASE] Save error:', err);
-            });
-    }).catch(err => {
-        console.error('❌ [GAME OVER] Save error:', err);
-    });
-    
-    DOM.overlay.style.display = 'flex';
-    document.getElementById('title').innerText = "Game Over";
-    document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
-    document.getElementById('leaderboard-container').style.display = 'none';
-    document.getElementById('main-menu').style.display = 'block';
+        DOM.overlay.style.display = 'flex';
+        document.getElementById('title').innerText = "Game Over";
+        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        document.getElementById('leaderboard-container').style.display = 'none';
+        document.getElementById('main-menu').style.display = 'block';
+    }
 }
 
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
-    console.log(`💚 [HEAL] +${percent}% | Now: ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -133,9 +108,7 @@ export function enemyShoot(en) {
     
     let targetX, targetY;
     
-    // Chaotic enemies always target normal enemies
     if (en.isChaotic) {
-        // Target any normal enemy regardless of position
         const normalEnemies = state.enemies.filter(e => !e.isChaotic && e.el !== en.el);
         if (normalEnemies.length > 0) {
             const targetEnemy = normalEnemies[Math.floor(Math.random() * normalEnemies.length)];
@@ -144,21 +117,16 @@ export function enemyShoot(en) {
             eb.dataset.chaoticShot = "true";
             eb.style.background = '#00f2ff';
             eb.style.boxShadow = '0 0 10px #00f2ff';
-            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} shooting at normal enemy at Y=${targetEnemy.y.toFixed(0)}`);
         } else {
-            // No normal enemies, don't shoot
-            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} has no normal enemies to target`);
             return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
-        // 5% chance to friendly fire (only for normal enemies)
         const otherEnemies = state.enemies.filter(e => e.el !== en.el);
         const targetEnemy = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
         targetX = parseFloat(targetEnemy.el.style.left) + 25;
         targetY = targetEnemy.y + 25;
         eb.dataset.friendlyFire = "true";
     } else {
-        // Normal shot at player
         targetX = state.playerX + 25;
         targetY = DOM.wrapper.clientHeight - 55;
     }
@@ -222,8 +190,6 @@ export function showFloatingMessage(text, x, y, color) {
 // ===== SPECIAL ABILITIES =====
 
 export function usePhoenixFeathers() {
-    console.log('🔥 [PHOENIX] Activating feathers!');
-    
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -257,11 +223,9 @@ export function usePhoenixFeathers() {
     }
     
     showFloatingMessage('PHOENIX FEATHERS!', playerCenterX - 60, playerY - 50, '#ff6b35');
-    console.log('✅ [PHOENIX] 3 Feathers launched');
 }
 
 export function useVortexLaser() {
-    console.log('⚡ [VORTEX] Activating laser!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -312,35 +276,28 @@ export function useVortexLaser() {
     if (killCount > 0) {
         showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
-    
-    console.log(`✅ [VORTEX] Killed: ${killCount}`);
 }
 
 export function useJokerChaos() {
-    console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
-    // Set chaos mode active for 10 seconds
     state.jokerAbility.active = true;
     state.jokerAbility.endTime = Date.now() + 10000;
     
-    // Convert all existing enemies to chaos
     let convertedCount = 0;
     for (let i = 0; i < state.enemies.length; i++) {
         const en = state.enemies[i];
         if (!en.isChaotic) {
             en.isChaotic = true;
-            en.hitsByChaos = {}; // Track hits by other chaotic enemies
+            en.hitsByChaos = {};
             en.el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
             en.el.style.border = '2px solid #00f2ff';
-            // Add delay before chaotic can shoot to avoid immediate collision
-            en.lastShot = Date.now() + 1000; // 1 second delay before first shot
+            en.lastShot = Date.now() + 1000;
             convertedCount++;
         }
     }
     
-    // Visual effect - chaos wave
     const chaosWave = document.createElement('div');
     chaosWave.style.position = 'absolute';
     chaosWave.style.left = playerCenterX + 'px';
@@ -363,7 +320,6 @@ export function useJokerChaos() {
     }).onfinish = () => chaosWave.remove();
     
     showFloatingMessage('CHAOS MODE ACTIVATED!', playerCenterX - 90, playerY - 50, '#00f2ff');
-    console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic`);
 }
 
 // ===== SPAWNING SYSTEMS =====
@@ -438,7 +394,6 @@ export function handleSpawning(now) {
             el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
             DOM.wrapper.appendChild(el);
             
-            // Check if chaos mode is active
             const isChaotic = state.jokerAbility && state.jokerAbility.active;
             if (isChaotic) {
                 el.style.filter = 'hue-rotate(180deg) brightness(1.3)';

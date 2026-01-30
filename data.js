@@ -160,7 +160,6 @@ export function setCookie(name, value, days = 365) {
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
     const expires = "expires=" + date.toUTCString();
     document.cookie = name + "=" + value + ";" + expires + ";path=/";
-    console.log(`🍪 [COOKIE] Saved ${name}`);
 }
 
 export function getCookie(name) {
@@ -181,16 +180,14 @@ export let keyBindings = {
     shoot: 'Space',
     ability: 'KeyB',
     rightClickAbility: true,
-    controlType: 'mouse' // 'mouse' or 'arrows'
+    controlType: 'mouse'
 };
 
 export function loadKeyBindings() {
-    console.log('🎮 [KEYS] Loading key bindings...');
     const saved = getCookie('keyBindings');
     if (saved) {
         try {
             keyBindings = JSON.parse(saved);
-            console.log('✅ [KEYS] Loaded:', keyBindings);
         } catch (e) {
             console.error('❌ [KEYS] Error:', e);
         }
@@ -199,7 +196,6 @@ export function loadKeyBindings() {
 
 export function saveKeyBindings() {
     setCookie('keyBindings', JSON.stringify(keyBindings));
-    console.log('💾 [KEYS] Saved:', keyBindings);
 }
 
 export function setKeyBinding(action, value) {
@@ -207,17 +203,14 @@ export function setKeyBinding(action, value) {
     saveKeyBindings();
 }
 
-
 // Unlocked Skins Management
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
 export function loadUnlockedSkins() {
-    console.log('📂 [SKINS] Loading unlocked skins...');
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
             unlockedSkins = JSON.parse(saved);
-            console.log(`✅ [SKINS] Loaded:`, unlockedSkins);
         } catch (e) {
             console.error('❌ [SKINS] Error:', e);
         }
@@ -228,7 +221,6 @@ export function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
-        console.log(`🎉 [SKINS] Unlocked: ${skinKey}`);
         return true;
     }
     return false;
@@ -248,7 +240,6 @@ export function saveMaxLevel(level) {
     const currentMax = getMaxLevel();
     if (level > currentMax) {
         setCookie('maxLevel', level.toString());
-        console.log(`📈 [LEVEL] New max: ${level}`);
     }
 }
 
@@ -267,8 +258,6 @@ export function getLeaderboard(skinKey = 'overall') {
 }
 
 export function saveScore(skinKey, score, level) {
-    console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}`);
-    
     let skinLeaderboard = getLeaderboard(skinKey);
     const newEntry = { score, level, date: new Date().toLocaleDateString('he-IL') };
     skinLeaderboard.push(newEntry);
@@ -334,7 +323,6 @@ export const state = {
 };
 
 export function resetState() {
-    console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
     state.score = 0;
     state.level = 1;
@@ -368,5 +356,4 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerAbility.endTime = 0;
-    console.log('✅ [STATE] Reset complete');
 }

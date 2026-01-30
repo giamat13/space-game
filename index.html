@@ -39,7 +39,7 @@
                     <button class="lb-tab" data-tab="joker">joker</button>
                 </div>
                 <div id="leaderboard-content"></div>
-                <button onclick="closeLeaderboard()" style="margin-top: 15px;">חזרה</button>
+                <button id="close-leaderboard-btn" style="margin-top: 15px;">חזרה</button>
             </div>
 
             <div id="main-menu">
@@ -100,9 +100,9 @@
                 </div>
             </div>
 
-            <button onclick="initGame()">Start Mission</button>
-            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
-            <button onclick="showSettings()" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;">⚙️ הגדרות</button>
+            <button id="start-game-btn">Start Mission</button>
+            <button id="show-leaderboard-btn" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
+            <button id="show-settings-btn" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;">⚙️ הגדרות</button>
             </div>
             
             <div id="settings-container" style="display: none;">
@@ -111,8 +111,8 @@
                 <div class="settings-group">
                     <label>שליטה בספינה:</label>
                     <div class="button-group">
-                        <button id="control-mouse" class="setting-btn active" onclick="setControl('mouse')">🖱️ עכבר</button>
-                        <button id="control-arrows" class="setting-btn" onclick="setControl('arrows')">⬅️➡️ חצים</button>
+                        <button id="control-mouse" class="setting-btn active">🖱️ עכבר</button>
+                        <button id="control-arrows" class="setting-btn">⬅️➡️ חצים</button>
                     </div>
                 </div>
                 
@@ -120,7 +120,7 @@
                     <label>מקש ירי:</label>
                     <div class="key-display">
                         <span id="shoot-key-display">Space</span>
-                        <button onclick="changeKey('shoot')" class="change-key-btn">שנה מקש</button>
+                        <button id="change-shoot-key" class="change-key-btn">שנה מקש</button>
                     </div>
                     <small style="opacity: 0.7;">לחץ על "שנה מקש" ואז לחץ על המקש הרצוי</small>
                 </div>
@@ -129,59 +129,27 @@
                     <label>מקש יכולת מיוחדת:</label>
                     <div class="key-display">
                         <span id="ability-key-display">B</span>
-                        <button onclick="changeKey('ability')" class="change-key-btn">שנה מקש</button>
+                        <button id="change-ability-key" class="change-key-btn">שנה מקש</button>
                     </div>
                 </div>
                 
                 <div class="settings-group">
                     <label>קליק ימני ליכולת מיוחדת:</label>
                     <div class="button-group">
-                        <button id="rightclick-on" class="setting-btn active" onclick="setRightClick(true)">✅ פעיל</button>
-                        <button id="rightclick-off" class="setting-btn" onclick="setRightClick(false)">❌ כבוי</button>
+                        <button id="rightclick-on" class="setting-btn active">✅ פעיל</button>
+                        <button id="rightclick-off" class="setting-btn">❌ כבוי</button>
                     </div>
                 </div>
                 
-                <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>
+                <button id="close-settings-btn" style="margin-top: 20px;">חזרה</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, where } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
-
-        // Your Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBwIgrmexMA14opCYdDyEWcZ11tQyCp8kY",
-            authDomain: "space-game-kf.firebaseapp.com",
-            projectId: "space-game-kf",
-            storageBucket: "space-game-kf.firebasestorage.app",
-            messagingSenderId: "501931958870",
-            appId: "1:501931958870:web:96b1b7216b5a33430c51f7",
-            measurementId: "G-XBPPJV0FBE"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // Make Firebase available globally
-        window.firebaseDB = db;
-        window.firebaseModules = {
-            collection,
-            addDoc,
-            query,
-            orderBy,
-            limit,
-            getDocs,
-            where
-        };
-
-        console.log('🔥 Firebase initialized successfully!');
-    </script>
-
+    <!-- Load all scripts as modules in correct order -->
+    <script type="module" src="data.js"></script>
+    <script type="module" src="systems.js"></script>
+    <script type="module" src="updates.js"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>

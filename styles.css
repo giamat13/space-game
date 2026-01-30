@@ -551,11 +551,6 @@ button:hover {
     animation: pulse 1s infinite;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
 .settings-group small {
     display: block;
     margin-top: 8px;
