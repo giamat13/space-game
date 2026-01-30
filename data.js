@@ -4,6 +4,8 @@ export const DOM = {
     player: document.getElementById('player'),
     playerSpriteContainer: document.getElementById('player-sprite-container'),
     playerHpFill: document.getElementById('player-hp'),
+    topHpBar: document.getElementById('top-hp-bar'),
+    hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
     overlay: document.getElementById('overlay')

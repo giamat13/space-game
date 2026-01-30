@@ -10,6 +10,17 @@ export function updateHPUI() {
     const percent = (Math.max(0, state.playerHP) / state.playerMaxHP) * 100;
     DOM.playerHpFill.style.width = percent + '%';
     DOM.playerHpFill.style.background = percent < 30 ? 'var(--danger)' : 'var(--health)';
+    
+    // Update top HP bar
+    if (DOM.topHpBar) {
+        DOM.topHpBar.style.width = percent + '%';
+        DOM.topHpBar.style.background = percent < 30 ? 'var(--danger)' : 'var(--health)';
+    }
+    
+    // Update HP text
+    if (DOM.hpText) {
+        DOM.hpText.innerText = `${Math.max(0, Math.round(state.playerHP))}/${state.playerMaxHP}`;
+    }
 }
 
 export function movePlayer(clientX) {
@@ -262,11 +273,12 @@ export function useVortexLaser() {
     
     let killCount = 0;
     
+    // Kill enemies and GIVE POINTS
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
         const isElite = en.type === 'orange';
         const points = isElite ? 150 : 50;
-        state.score += points;
+        state.score += points; // ✅ ADD POINTS
         const eRect = en.el.getBoundingClientRect();
         createExplosion(eRect.left + 25, eRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
         en.el.remove();
@@ -274,6 +286,7 @@ export function useVortexLaser() {
         killCount++;
     }
     
+    // Kill asteroids (no points for asteroids)
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
         const ast = state.asteroids[i];
         const aRect = ast.el.getBoundingClientRect();
@@ -283,6 +296,7 @@ export function useVortexLaser() {
         killCount++;
     }
     
+    // Destroy enemy bullets
     for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
         const eb = state.enemyBullets[i];
         createExplosion(eb.x, eb.y, '#ff0000');
@@ -290,13 +304,13 @@ export function useVortexLaser() {
         state.enemyBullets.splice(i, 1);
     }
     
-    DOM.scoreEl.innerText = state.score;
+    DOM.scoreEl.innerText = state.score; // Update score display
     
     if (killCount > 0) {
         showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
     
-    console.log(`✅ [VORTEX] Killed: ${killCount}`);
+    console.log(`✅ [VORTEX] Killed: ${killCount}, Score: ${state.score}`);
 }
 
 export function useJokerChaos() {
@@ -308,8 +322,9 @@ export function useJokerChaos() {
     state.jokerAbility.active = true;
     state.jokerAbility.endTime = Date.now() + 10000;
     
-    // Convert all existing enemies to chaos
+    // Convert all existing enemies to chaos and GIVE 75% POINTS
     let convertedCount = 0;
+    let pointsGained = 0;
     for (let i = 0; i < state.enemies.length; i++) {
         const en = state.enemies[i];
         if (!en.isChaotic) {
@@ -319,9 +334,20 @@ export function useJokerChaos() {
             en.el.style.border = '2px solid #00f2ff';
             // Add delay before chaotic can shoot to avoid immediate collision
             en.lastShot = Date.now() + 1000; // 1 second delay before first shot
+            
+            // ✅ GIVE 75% OF POINTS
+            const isElite = en.type === 'orange';
+            const fullPoints = isElite ? 150 : 50;
+            const partialPoints = Math.floor(fullPoints * 0.75); // 75%
+            state.score += partialPoints;
+            pointsGained += partialPoints;
+            
             convertedCount++;
         }
     }
+    
+    // Update score display
+    DOM.scoreEl.innerText = state.score;
     
     // Visual effect - chaos wave
     const chaosWave = document.createElement('div');
@@ -345,8 +371,8 @@ export function useJokerChaos() {
         easing: 'ease-out'
     }).onfinish = () => chaosWave.remove();
     
-    showFloatingMessage('CHAOS MODE ACTIVATED!', playerCenterX - 90, playerY - 50, '#00f2ff');
-    console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic`);
+    showFloatingMessage(`CHAOS! +${pointsGained} PTS`, playerCenterX - 90, playerY - 50, '#00f2ff');
+    console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic, +${pointsGained} points, Total: ${state.score}`);
 }
 
 // ===== SPAWNING SYSTEMS =====
