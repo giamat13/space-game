@@ -192,6 +192,48 @@ export let gameRules = {
     playerShootThroughAsteroids: false
 };
 
+// Device Mode
+export let deviceMode = {
+    isMobile: false,
+    isAutoDetected: true
+};
+
+// Auto-detect mobile on load
+export function detectMobileDevice() {
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isSmallScreen = window.innerWidth <= 768;
+    deviceMode.isMobile = isTouchDevice && isSmallScreen;
+    deviceMode.isAutoDetected = true;
+    console.log(`📱 [DEVICE] Auto-detected: ${deviceMode.isMobile ? 'Mobile' : 'Desktop'}`);
+}
+
+// Mobile Mode Detection
+export let isMobileMode = false;
+
+export function detectMobileMode() {
+    // Check for touch support
+    const hasTouchScreen = ('ontouchstart' in window) || 
+                          (navigator.maxTouchPoints > 0) || 
+                          (navigator.msMaxTouchPoints > 0);
+    
+    // Check for small screen
+    const isSmallScreen = window.innerWidth <= 768;
+    
+    // Check user agent (additional check)
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    isMobileMode = hasTouchScreen && (isSmallScreen || isMobileUserAgent);
+    
+    console.log(`📱 [MOBILE] Detection complete:`, {
+        hasTouchScreen,
+        isSmallScreen,
+        isMobileUserAgent,
+        result: isMobileMode ? 'MOBILE MODE' : 'DESKTOP MODE'
+    });
+    
+    return isMobileMode;
+}
+
 export function loadKeyBindings() {
     console.log('🎮 [KEYS] Loading key bindings...');
     const saved = getCookie('keyBindings');
@@ -236,6 +278,36 @@ export function saveGameRules() {
 export function setGameRule(rule, value) {
     gameRules[rule] = value;
     saveGameRules();
+}
+
+export function loadDeviceMode() {
+    console.log('📱 [DEVICE] Loading device mode...');
+    const saved = getCookie('deviceMode');
+    if (saved) {
+        try {
+            const savedMode = JSON.parse(saved);
+            deviceMode.isMobile = savedMode.isMobile;
+            deviceMode.isAutoDetected = savedMode.isAutoDetected || false;
+            console.log('✅ [DEVICE] Loaded:', deviceMode);
+        } catch (e) {
+            console.error('❌ [DEVICE] Error:', e);
+            detectMobileDevice();
+        }
+    } else {
+        detectMobileDevice();
+    }
+}
+
+export function saveDeviceMode() {
+    setCookie('deviceMode', JSON.stringify(deviceMode));
+    console.log('💾 [DEVICE] Saved:', deviceMode);
+}
+
+export function setDeviceMode(isMobile, isManual = true) {
+    deviceMode.isMobile = isMobile;
+    deviceMode.isAutoDetected = !isManual;
+    saveDeviceMode();
+    console.log(`📱 [DEVICE] Set to: ${isMobile ? 'Mobile' : 'Desktop'} (${isManual ? 'Manual' : 'Auto'})`);
 }
 
 
