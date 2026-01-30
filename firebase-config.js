@@ -5,15 +5,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, Timestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // ===== FIREBASE CONFIG =====
-// ⚠️ IMPORTANT: Replace these values with your Firebase project configuration!
-// Get these from Firebase Console → Project Settings → Your apps
+// ✅ Firebase project: space-game-kf
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBwIgrmexMA14opCYdDyEWcZ11tQyCp8kY",
+    authDomain: "space-game-kf.firebaseapp.com",
+    projectId: "space-game-kf",
+    storageBucket: "space-game-kf.firebasestorage.app",
+    messagingSenderId: "501931958870",
+    appId: "1:501931958870:web:3f39d156fb7efc720c51f7",
+    measurementId: "G-3W9HBFFW69"
 };
 
 // Check if Firebase is configured
