@@ -1,4 +1,5 @@
 import { DOM, state, INGREDIENT_TYPES } from './data.js';
+import { saveScoreToFirebase } from './firebase-leaderboard.js';
 
 // ===== PLAYER SYSTEMS =====
 
