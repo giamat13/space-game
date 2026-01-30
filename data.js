@@ -1,4 +1,4 @@
-import firebaseService from './firebase-config.js';
+import { firebaseService } from './firebase-config.js';
 
 // DOM Elements
 export const DOM = {
@@ -11,7 +11,7 @@ export const DOM = {
     overlay: document.getElementById('overlay')
 };
 
-// Skin Configuration  
+// Skin Configuration
 export const SKINS = {
     classic: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #00f2ff);">
@@ -156,12 +156,13 @@ export function setCurrentSkin(key) {
     currentSkinKey = key;
 }
 
-// Cookie Management (fallback)
+// Cookie Management (Backup system)
 export function setCookie(name, value, days = 365) {
     const date = new Date();
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
     const expires = "expires=" + date.toUTCString();
     document.cookie = name + "=" + value + ";" + expires + ";path=/";
+    console.log(`🍪 [COOKIE] Saved ${name}`);
 }
 
 export function getCookie(name) {
@@ -187,17 +188,27 @@ export let keyBindings = {
 
 export async function loadKeyBindings() {
     console.log('🎮 [KEYS] Loading key bindings...');
-    const progress = await firebaseService.loadUserProgress();
-    if (progress && progress.keyBindings) {
-        keyBindings = progress.keyBindings;
-        console.log('✅ [KEYS] Loaded from Firebase');
-        return;
+    
+    // Try Firebase first
+    if (firebaseService.isAvailable) {
+        try {
+            const data = await firebaseService.loadUserProgress();
+            if (data && data.keyBindings) {
+                keyBindings = data.keyBindings;
+                console.log('✅ [KEYS] Loaded from Firebase:', keyBindings);
+                return;
+            }
+        } catch (e) {
+            console.log('⚠️ [KEYS] Firebase failed, trying cookies...');
+        }
     }
+    
+    // Fallback to cookies
     const saved = getCookie('keyBindings');
     if (saved) {
         try {
             keyBindings = JSON.parse(saved);
-            console.log('✅ [KEYS] Loaded from cookies');
+            console.log('✅ [KEYS] Loaded from cookies:', keyBindings);
         } catch (e) {
             console.error('❌ [KEYS] Error:', e);
         }
@@ -205,9 +216,15 @@ export async function loadKeyBindings() {
 }
 
 export async function saveKeyBindings() {
-    await firebaseService.saveUserProgress({ keyBindings });
+    console.log('💾 [KEYS] Saving:', keyBindings);
+    
+    // Save to cookies (backup)
     setCookie('keyBindings', JSON.stringify(keyBindings));
-    console.log('💾 [KEYS] Saved');
+    
+    // Save to Firebase
+    if (firebaseService.isAvailable) {
+        await firebaseService.saveUserProgress({ keyBindings });
+    }
 }
 
 export function setKeyBinding(action, value) {
@@ -215,22 +232,32 @@ export function setKeyBinding(action, value) {
     saveKeyBindings();
 }
 
-// Unlocked Skins
+// Unlocked Skins Management
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
 export async function loadUnlockedSkins() {
-    console.log('📂 [SKINS] Loading...');
-    const progress = await firebaseService.loadUserProgress();
-    if (progress && progress.unlockedSkins) {
-        unlockedSkins = progress.unlockedSkins;
-        console.log('✅ [SKINS] Loaded from Firebase');
-        return;
+    console.log('📂 [SKINS] Loading unlocked skins...');
+    
+    // Try Firebase first
+    if (firebaseService.isAvailable) {
+        try {
+            const data = await firebaseService.loadUserProgress();
+            if (data && data.unlockedSkins) {
+                unlockedSkins = data.unlockedSkins;
+                console.log('✅ [SKINS] Loaded from Firebase:', unlockedSkins);
+                return;
+            }
+        } catch (e) {
+            console.log('⚠️ [SKINS] Firebase failed, trying cookies...');
+        }
     }
+    
+    // Fallback to cookies
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
             unlockedSkins = JSON.parse(saved);
-            console.log('✅ [SKINS] Loaded from cookies');
+            console.log('✅ [SKINS] Loaded from cookies:', unlockedSkins);
         } catch (e) {
             console.error('❌ [SKINS] Error:', e);
         }
@@ -240,8 +267,15 @@ export async function loadUnlockedSkins() {
 export async function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
-        await firebaseService.saveUserProgress({ unlockedSkins });
+        
+        // Save to cookies (backup)
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
+        
+        // Save to Firebase
+        if (firebaseService.isAvailable) {
+            await firebaseService.saveUserProgress({ unlockedSkins });
+        }
+        
         console.log(`🎉 [SKINS] Unlocked: ${skinKey}`);
         return true;
     }
@@ -252,10 +286,21 @@ export function isSkinUnlocked(skinKey) {
     return unlockedSkins.includes(skinKey);
 }
 
-// Max Level
+// Max Level Reached
 export async function getMaxLevel() {
-    const progress = await firebaseService.loadUserProgress();
-    if (progress && progress.maxLevel) return progress.maxLevel;
+    // Try Firebase first
+    if (firebaseService.isAvailable) {
+        try {
+            const data = await firebaseService.loadUserProgress();
+            if (data && data.maxLevel) {
+                return data.maxLevel;
+            }
+        } catch (e) {
+            console.log('⚠️ [LEVEL] Firebase failed, using cookies...');
+        }
+    }
+    
+    // Fallback to cookies
     const saved = getCookie('maxLevel');
     return saved ? parseInt(saved) : 1;
 }
@@ -263,23 +308,20 @@ export async function getMaxLevel() {
 export async function saveMaxLevel(level) {
     const currentMax = await getMaxLevel();
     if (level > currentMax) {
-        await firebaseService.saveUserProgress({ maxLevel: level });
+        // Save to cookies (backup)
         setCookie('maxLevel', level.toString());
+        
+        // Save to Firebase
+        if (firebaseService.isAvailable) {
+            await firebaseService.saveUserProgress({ maxLevel: level });
+        }
+        
         console.log(`📈 [LEVEL] New max: ${level}`);
     }
 }
 
-// Leaderboard
-export async function getLeaderboard(skinKey = 'overall') {
-    try {
-        const firebaseScores = await firebaseService.getGlobalLeaderboard(skinKey, 10);
-        if (firebaseScores && firebaseScores.length > 0) {
-            console.log(`✅ [LEADERBOARD] Loaded ${firebaseScores.length} from Firebase`);
-            return firebaseScores;
-        }
-    } catch (error) {
-        console.error('❌ [LEADERBOARD] Firebase error:', error);
-    }
+// Leaderboard Management
+export function getLeaderboard(skinKey = 'overall') {
     const cookieName = `leaderboard_${skinKey}`;
     const saved = getCookie(cookieName);
     if (saved) {
@@ -294,23 +336,26 @@ export async function getLeaderboard(skinKey = 'overall') {
 
 export async function saveScore(skinKey, score, level) {
     console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}`);
-    await firebaseService.saveScore(skinKey, score, level);
     
-    let skinLeaderboard = await getLeaderboard(skinKey);
-    skinLeaderboard = skinLeaderboard.filter(s => !s.userId);
+    // Save to local cookies (for personal leaderboard)
+    let skinLeaderboard = getLeaderboard(skinKey);
     const newEntry = { score, level, date: new Date().toLocaleDateString('he-IL') };
     skinLeaderboard.push(newEntry);
     skinLeaderboard.sort((a, b) => b.score - a.score);
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
     
-    let overallLeaderboard = await getLeaderboard('overall');
-    overallLeaderboard = overallLeaderboard.filter(s => !s.userId);
+    let overallLeaderboard = getLeaderboard('overall');
     const overallEntry = { score, level, skin: skinKey, date: new Date().toLocaleDateString('he-IL') };
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
+    
+    // Save to Firebase (global leaderboard)
+    if (firebaseService.isAvailable) {
+        await firebaseService.saveScore(skinKey, score, level);
+    }
 }
 
 // Game State
@@ -363,7 +408,7 @@ export const state = {
 };
 
 export function resetState() {
-    console.log('🔄 [STATE] Resetting...');
+    console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
     state.score = 0;
     state.level = 1;
