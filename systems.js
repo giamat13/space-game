@@ -39,23 +39,39 @@ export function damagePlayer(amount) {
     DOM.wrapper.appendChild(flash);
     setTimeout(() => flash.remove(), 300);
     
-    if(state.playerHP <= 0) {
-        console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
-        state.active = false;
+if(state.playerHP <= 0) {
+    console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
+    state.active = false;
+    
+    // Import currentSkinKey first
+    import('./data.js').then(dataModule => {
+        const skinKey = dataModule.currentSkinKey;
         
-        import('./data.js').then(module => {
-            module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log('✅ [GAME OVER] Score saved');
-        }).catch(err => {
-            console.error('❌ [GAME OVER] Save error:', err);
-        });
+        // Save to local storage
+        dataModule.saveScore(skinKey, state.score, state.level);
+        console.log('✅ [GAME OVER] Score saved locally');
         
-        DOM.overlay.style.display = 'flex';
-        document.getElementById('title').innerText = "Game Over";
-        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
-        document.getElementById('leaderboard-container').style.display = 'none';
-        document.getElementById('main-menu').style.display = 'block';
-    }
+        // Save to Firebase
+        saveScoreToFirebase(skinKey, state.score, state.level, 'Anonymous')
+            .then(success => {
+                if (success) {
+                    console.log('✅ [FIREBASE] Score saved to cloud!');
+                } else {
+                    console.log('⚠️ [FIREBASE] Failed to save, but local saved');
+                }
+            })
+            .catch(err => {
+                console.error('❌ [FIREBASE] Save error:', err);
+            });
+    }).catch(err => {
+        console.error('❌ [GAME OVER] Save error:', err);
+    });
+    
+    DOM.overlay.style.display = 'flex';
+    document.getElementById('title').innerText = "Game Over";
+    document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+    document.getElementById('leaderboard-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
 }
 
 export function healPlayer(percent) {
