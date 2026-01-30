@@ -2,12 +2,23 @@ import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlo
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
+import { initFirebase, submitGlobalScore, getGlobalLeaderboard, subscribeToLeaderboard, isFirebaseEnabled } from './firebase-config.js';
 
 // ===== INITIALIZATION =====
 
 console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
 loadKeyBindings();
+
+// Initialize Firebase
+console.log('🔥 [INIT] Initializing Firebase...');
+const firebaseReady = initFirebase();
+if (firebaseReady) {
+    console.log('✅ [INIT] Firebase ready - Global leaderboard enabled!');
+} else {
+    console.log('⚠️ [INIT] Firebase not configured - Using local leaderboard only');
+}
+
 updateSkinOptions();
 console.log('✅ [INIT] Game loaded successfully');
 
@@ -36,9 +47,8 @@ function closeLeaderboard() {
     document.getElementById('main-menu').style.display = 'block';
 }
 
-function displayLeaderboard(category) {
+async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
-    const leaderboard = getLeaderboard(category);
     const content = document.getElementById('leaderboard-content');
     
     if (!content) {
@@ -46,25 +56,48 @@ function displayLeaderboard(category) {
         return;
     }
     
+    // Show loading message
+    content.innerHTML = '<div class="lb-empty">⏳ טוען...</div>';
+    
+    let leaderboard = [];
+    let isGlobal = false;
+    
+    // Get leaderboard based on category
+    if (category === 'global') {
+        isGlobal = true;
+        if (isFirebaseEnabled()) {
+            leaderboard = await getGlobalLeaderboard('all');
+        } else {
+            content.innerHTML = '<div class="lb-empty">🌐 לוח שיאים עולמי לא זמין<br>יש להגדיר Firebase</div>';
+            return;
+        }
+    } else {
+        // Get local leaderboard
+        leaderboard = getLeaderboard(category);
+    }
+    
     if (leaderboard.length === 0) {
         content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
         return;
     }
     
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-    const html = leaderboard.map((entry, index) => `
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    
+    const html = leaderboard.slice(0, 10).map((entry, index) => `
         <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index]}</div>
+            <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
+                ${isGlobal && entry.playerName ? `<div class="lb-player">${entry.playerName}</div>` : ''}
                 <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
                 <div class="lb-details">
-                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
+                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin]?.name || entry.skin}` : ''} • ${entry.date}
                 </div>
             </div>
         </div>
     `).join('');
     
     content.innerHTML = html;
+    console.log(`✅ [DISPLAY] Displayed ${Math.min(10, leaderboard.length)} entries`);
 }
 
 // ===== SKIN SELECTION =====

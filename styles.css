@@ -373,6 +373,13 @@ button:hover {
     color: var(--primary);
 }
 
+.lb-player {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 3px;
+}
+
 .lb-details {
     font-size: 0.75rem;
     color: rgba(255,255,255,0.6);

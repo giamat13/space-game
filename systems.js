@@ -38,8 +38,33 @@ export function damagePlayer(amount) {
     if(state.playerHP <= 0) {
         state.active = false;
         
-        import('./data.js').then(module => {
+        // Save score locally
+        import('./data.js').then(async module => {
             module.saveScore(module.currentSkinKey, state.score, state.level);
+            
+            // Try to submit to global leaderboard
+            try {
+                const { isFirebaseEnabled, submitGlobalScore } = await import('./firebase-config.js');
+                
+                if (isFirebaseEnabled()) {
+                    // Prompt for player name
+                    const playerName = prompt('🏆 שיא חדש! הכנס את שמך ללוח השיאים העולמי:', 'Anonymous');
+                    if (playerName) {
+                        const success = await submitGlobalScore(
+                            playerName.trim() || 'Anonymous',
+                            module.currentSkinKey,
+                            state.score,
+                            state.level
+                        );
+                        
+                        if (success) {
+                            console.log('✅ [GLOBAL] Score submitted to global leaderboard!');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('⚠️ [GLOBAL] Could not submit to global leaderboard:', error);
+            }
         });
         
         DOM.overlay.style.display = 'flex';

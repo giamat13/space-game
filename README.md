@@ -72,6 +72,26 @@
 * **systems.js** - מערכות השחקן, ירי, אפקטים ויצירת אויבים
 * **updates.js** - לולאת העדכון הראשית - תנועת כדורים, אויבים, התנגשויות
 * **main.js** - קובץ הראשי שמחבר הכל ומטפל באירועים
+* **firebase-config.js** - הגדרות Firebase ולוח שיאים עולמי
+
+---
+
+## 🌍 לוח שיאים עולמי
+
+המשחק תומך בלוח שיאים עולמי באמצעות Firebase!
+
+### אופן פעולה:
+- **ללא Firebase:** המשחק עובד רגיל עם לוח שיאים מקומי (cookies)
+- **עם Firebase:** לוח שיאים עולמי שכל השחקנים יכולים לראות!
+
+### איך מפעילים?
+ראה את הקובץ **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** למדריך מפורט בעברית 🔥
+
+**TL;DR:**
+1. צור פרויקט ב-[Firebase Console](https://console.firebase.google.com)
+2. הפעל Realtime Database
+3. הדבק את ההגדרות ב-`firebase-config.js`
+4. זהו! הלוח העולמי יעבוד אוטומטית
 
 ---
 
