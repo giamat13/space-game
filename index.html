@@ -31,7 +31,6 @@
             <div id="leaderboard-container" style="display: none;">
                 <div class="leaderboard-tabs">
                     <button class="lb-tab active" data-tab="overall">🏆 כללי</button>
-                    <button class="lb-tab" data-tab="global" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: #667eea;">🌍 עולמי</button>
                     <button class="lb-tab" data-tab="classic">Classic</button>
                     <button class="lb-tab" data-tab="interceptor">Interceptor</button>
                     <button class="lb-tab" data-tab="tanker">Tanker</button>
@@ -40,7 +39,7 @@
                     <button class="lb-tab" data-tab="joker">joker</button>
                 </div>
                 <div id="leaderboard-content"></div>
-                <button id="close-leaderboard-btn" style="margin-top: 15px;">חזרה</button>
+                <button onclick="closeLeaderboard()" style="margin-top: 15px;">חזרה</button>
             </div>
 
             <div id="main-menu">
@@ -101,9 +100,9 @@
                 </div>
             </div>
 
-            <button id="start-game-btn">Start Mission</button>
-            <button id="show-leaderboard-btn" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
-            <button id="show-settings-btn" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;">⚙️ הגדרות</button>
+            <button onclick="initGame()">Start Mission</button>
+            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;">🏆 לוח שיאים</button>
+            <button onclick="showSettings()" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;">⚙️ הגדרות</button>
             </div>
             
             <div id="settings-container" style="display: none;">
@@ -112,8 +111,8 @@
                 <div class="settings-group">
                     <label>שליטה בספינה:</label>
                     <div class="button-group">
-                        <button id="control-mouse" class="setting-btn active">🖱️ עכבר</button>
-                        <button id="control-arrows" class="setting-btn">⬅️➡️ חצים</button>
+                        <button id="control-mouse" class="setting-btn active" onclick="setControl('mouse')">🖱️ עכבר</button>
+                        <button id="control-arrows" class="setting-btn" onclick="setControl('arrows')">⬅️➡️ חצים</button>
                     </div>
                 </div>
                 
@@ -121,7 +120,7 @@
                     <label>מקש ירי:</label>
                     <div class="key-display">
                         <span id="shoot-key-display">Space</span>
-                        <button id="change-shoot-key" class="change-key-btn">שנה מקש</button>
+                        <button onclick="changeKey('shoot')" class="change-key-btn">שנה מקש</button>
                     </div>
                     <small style="opacity: 0.7;">לחץ על "שנה מקש" ואז לחץ על המקש הרצוי</small>
                 </div>
@@ -130,27 +129,23 @@
                     <label>מקש יכולת מיוחדת:</label>
                     <div class="key-display">
                         <span id="ability-key-display">B</span>
-                        <button id="change-ability-key" class="change-key-btn">שנה מקש</button>
+                        <button onclick="changeKey('ability')" class="change-key-btn">שנה מקש</button>
                     </div>
                 </div>
                 
                 <div class="settings-group">
                     <label>קליק ימני ליכולת מיוחדת:</label>
                     <div class="button-group">
-                        <button id="rightclick-on" class="setting-btn active">✅ פעיל</button>
-                        <button id="rightclick-off" class="setting-btn">❌ כבוי</button>
+                        <button id="rightclick-on" class="setting-btn active" onclick="setRightClick(true)">✅ פעיל</button>
+                        <button id="rightclick-off" class="setting-btn" onclick="setRightClick(false)">❌ כבוי</button>
                     </div>
                 </div>
                 
-                <button id="close-settings-btn" style="margin-top: 20px;">חזרה</button>
+                <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>
             </div>
         </div>
     </div>
 
-    <!-- Load all scripts as modules in correct order -->
-    <script type="module" src="data.js"></script>
-    <script type="module" src="systems.js"></script>
-    <script type="module" src="updates.js"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>

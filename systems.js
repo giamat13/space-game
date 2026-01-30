@@ -1,7 +1,5 @@
 import { DOM, state, INGREDIENT_TYPES } from './data.js';
 
-// ===== PLAYER SYSTEMS =====
-
 export function updatePlayerPos() {
     DOM.player.style.left = state.playerX + 'px';
 }
@@ -21,11 +19,13 @@ export function movePlayer(clientX) {
 
 export function damagePlayer(amount) {
     state.playerHP -= amount;
+    console.log(\`💥 [DAMAGE] -\${amount} HP | Now: \${state.playerHP}/\${state.playerMaxHP}\`);
     
     if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
         state.isPlayerFat = false;
         state.burgersEatenAtFullHP = 0;
         DOM.player.style.transform = 'scale(1)';
+        console.log('🏃 [FAT] Weight lost! Back to normal');
         showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
     }
     
@@ -36,40 +36,19 @@ export function damagePlayer(amount) {
     setTimeout(() => flash.remove(), 300);
     
     if(state.playerHP <= 0) {
+        console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
         
-        // Save score locally
-        import('./data.js').then(async module => {
+        import('./data.js').then(module => {
             module.saveScore(module.currentSkinKey, state.score, state.level);
-            
-            // Try to submit to global leaderboard
-            try {
-                const { isFirebaseEnabled, submitGlobalScore } = await import('./firebase-config.js');
-                
-                if (isFirebaseEnabled()) {
-                    // Prompt for player name
-                    const playerName = prompt('🏆 שיא חדש! הכנס את שמך ללוח השיאים העולמי:', 'Anonymous');
-                    if (playerName) {
-                        const success = await submitGlobalScore(
-                            playerName.trim() || 'Anonymous',
-                            module.currentSkinKey,
-                            state.score,
-                            state.level
-                        );
-                        
-                        if (success) {
-                            console.log('✅ [GLOBAL] Score submitted to global leaderboard!');
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log('⚠️ [GLOBAL] Could not submit to global leaderboard:', error);
-            }
+            console.log('✅ [GAME OVER] Score saved');
+        }).catch(err => {
+            console.error('❌ [GAME OVER] Save error:', err);
         });
         
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
-        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        document.getElementById('sub-title').innerHTML = \`הספינה שלך הושמדה!<br>ניקוד סופי: \${state.score}<br>שלב: \${state.level}\`;
         document.getElementById('leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
     }
@@ -78,11 +57,10 @@ export function damagePlayer(amount) {
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
+    console.log(\`💚 [HEAL] +\${percent}% | Now: \${state.playerHP}/\${state.playerMaxHP}\`);
     updateHPUI();
-    showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
+    showFloatingMessage(\`REPAIR +\${percent}%\`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
-
-// ===== SHOOTING SYSTEMS =====
 
 export function shoot() {
     if(!state.active) return;
@@ -167,7 +145,7 @@ export function enemyShoot(en) {
     
     eb.style.left = enLeft + 'px';
     eb.style.top = enTop + 'px';
-    eb.style.transform = `rotate(${angle - 90}deg)`;
+    eb.style.transform = \`rotate(\${angle - 90}deg)\`;
     
     DOM.wrapper.appendChild(eb);
     state.enemyBullets.push({ 
@@ -182,8 +160,6 @@ export function enemyShoot(en) {
     });
 }
 
-// ===== VISUAL EFFECTS =====
-
 export function createExplosion(x, y, color) {
     for(let i=0; i<15; i++) {
         const p = document.createElement('div');
@@ -196,7 +172,7 @@ export function createExplosion(x, y, color) {
         const dist = Math.random() * 60 + 10;
         p.animate([
             { opacity: 1 }, 
-            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
+            { transform: \`translate(\${Math.cos(angle)*dist}px, \${Math.sin(angle)*dist}px)\`, opacity: 0 }
         ], 500).onfinish = () => p.remove();
     }
 }
@@ -212,9 +188,9 @@ export function showFloatingMessage(text, x, y, color) {
     setTimeout(() => msg.remove(), 1000);
 }
 
-// ===== SPECIAL ABILITIES =====
-
 export function usePhoenixFeathers() {
+    console.log('🔥 [PHOENIX] Activating feathers!');
+    
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -227,10 +203,10 @@ export function usePhoenixFeathers() {
             feather.className = 'phoenix-feather';
             feather.style.left = playerCenterX + 'px';
             feather.style.bottom = '90px';
-            feather.innerHTML = `<svg viewBox="0 0 20 40" style="width:100%; height:100%;">
+            feather.innerHTML = \`<svg viewBox="0 0 20 40" style="width:100%; height:100%;">
                 <path d="M10 0 L15 15 L10 40 L5 15 Z" fill="#ff6b35" />
                 <path d="M10 5 L12 12 L10 20 L8 12 Z" fill="#ffd700" />
-            </svg>`;
+            </svg>\`;
             DOM.wrapper.appendChild(feather);
             
             const spread = (i - 1) * 15;
@@ -251,6 +227,7 @@ export function usePhoenixFeathers() {
 }
 
 export function useVortexLaser() {
+    console.log('⚡ [VORTEX] Activating laser!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -261,7 +238,7 @@ export function useVortexLaser() {
         laser.className = 'laser-beam';
         laser.style.left = playerCenterX + 'px';
         laser.style.bottom = '90px';
-        laser.style.transform = `rotate(${angle}deg)`;
+        laser.style.transform = \`rotate(\${angle}deg)\`;
         DOM.wrapper.appendChild(laser);
         setTimeout(() => laser.remove(), 300);
     }
@@ -299,11 +276,12 @@ export function useVortexLaser() {
     DOM.scoreEl.innerText = state.score;
     
     if (killCount > 0) {
-        showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
+        showFloatingMessage(\`VORTEX LASER: \${killCount} KILLS!\`, playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
 }
 
 export function useJokerChaos() {
+    console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -347,15 +325,13 @@ export function useJokerChaos() {
     showFloatingMessage('CHAOS MODE ACTIVATED!', playerCenterX - 90, playerY - 50, '#00f2ff');
 }
 
-// ===== SPAWNING SYSTEMS =====
-
 export function spawnIngredients(x, y) {
     INGREDIENT_TYPES.forEach(type => {
         const ing = document.createElement('div');
         ing.className = 'ingredient';
         ing.style.left = x + 'px';
         ing.style.top = y + 'px';
-        ing.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="${type.color}"/></svg>`;
+        ing.innerHTML = \`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="\${type.color}"/></svg>\`;
         DOM.wrapper.appendChild(ing);
         state.ingredients.push({
             el: ing,
@@ -377,14 +353,14 @@ export function handleSpawning(now) {
             el.className = 'burger';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `
+            el.innerHTML = \`
                 <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
                 <svg viewBox="0 0 100 100">
                     <path d="M10 50 Q50 10 90 50 Z" fill="#e67e22"/>
                     <rect x="10" y="50" width="80" height="10" fill="#6d4c41"/>
                     <rect x="10" y="60" width="80" height="5" fill="#f1c40f"/>
                     <path d="M10 65 L90 65 L80 85 L20 85 Z" fill="#e67e22"/>
-                </svg>`;
+                </svg>\`;
             DOM.wrapper.appendChild(el);
             state.burgers.push({
                 el: el, 
@@ -398,7 +374,7 @@ export function handleSpawning(now) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#333" stroke="#555" stroke-width="3"/><circle cx="40" cy="40" r="5" fill="#222"/><circle cx="60" cy="70" r="8" fill="#222"/></svg>`;
+            el.innerHTML = \`<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#333" stroke="#555" stroke-width="3"/><circle cx="40" cy="40" r="5" fill="#222"/><circle cx="60" cy="70" r="8" fill="#222"/></svg>\`;
             DOM.wrapper.appendChild(el);
             state.asteroids.push({ 
                 el: el, 
@@ -413,10 +389,10 @@ export function handleSpawning(now) {
             const type = isOrange ? 'orange' : 'red';
             const maxHP = isOrange ? (Math.floor(Math.random() * 3) + 3) : (Math.floor(Math.random() * 3) + 1);
             const colorCode = isOrange ? '#ff9900' : '#ff0000';
-            el.className = `enemy-ship ${type}`;
+            el.className = \`enemy-ship \${type}\`;
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
+            el.innerHTML = \`<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="\${colorCode}" stroke="#fff" stroke-width="2"/></svg>\`;
             DOM.wrapper.appendChild(el);
             
             const isChaotic = state.jokerAbility && state.jokerAbility.active;

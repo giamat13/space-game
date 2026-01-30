@@ -1,8 +1,6 @@
 import { DOM, state } from './data.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
 
-// ===== UPDATE BULLETS =====
-
 export function updateBullets() {
     const bulletSpeed = 15 * state.currentSkinStats.bulletSpeed;
     for (let i = state.bullets.length - 1; i >= 0; i--) {
@@ -123,8 +121,6 @@ export function updateEnemyBullets() {
     }
 }
 
-// ===== UPDATE BURGERS =====
-
 export function updateBurgers() {
     for (let i = state.burgers.length - 1; i >= 0; i--) {
         let bgr = state.burgers[i];
@@ -188,8 +184,6 @@ export function updateBurgers() {
     }
 }
 
-// ===== UPDATE INGREDIENTS =====
-
 export function updateIngredients() {
     for (let i = state.ingredients.length - 1; i >= 0; i--) {
         let ing = state.ingredients[i];
@@ -216,8 +210,6 @@ export function updateIngredients() {
         }
     }
 }
-
-// ===== UPDATE ASTEROIDS =====
 
 export function updateAsteroids() {
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
@@ -254,8 +246,6 @@ export function updateAsteroids() {
         }
     }
 }
-
-// ===== UPDATE ENEMIES =====
 
 export function updateEnemies(now) {
     for (let i = state.enemies.length - 1; i >= 0; i--) {

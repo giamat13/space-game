@@ -296,7 +296,6 @@ button:hover {
     to { opacity: 0; }
 }
 
-/* Leaderboard Styles */
 #leaderboard-container {
     width: 100%;
     max-width: 400px;
@@ -373,13 +372,6 @@ button:hover {
     color: var(--primary);
 }
 
-.lb-player {
-    font-size: 0.95rem;
-    font-weight: bold;
-    color: #ffd700;
-    margin-bottom: 3px;
-}
-
 .lb-details {
     font-size: 0.75rem;
     color: rgba(255,255,255,0.6);
@@ -393,7 +385,6 @@ button:hover {
     font-size: 0.9rem;
 }
 
-/* Special Ability Button */
 #special-ability-btn {
     position: fixed;
     bottom: 120px;
@@ -463,7 +454,6 @@ button:hover {
     50% { opacity: 1; }
 }
 
-/* Settings Styles */
 #settings-container {
     text-align: center;
     max-width: 400px;

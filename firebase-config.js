@@ -1,211 +1,135 @@
-// Firebase Configuration and Global Leaderboard
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, set, get, push, query, orderByChild, limitToLast, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+import { 
+    getFirestore, 
+    collection, 
+    doc, 
+    setDoc, 
+    getDoc, 
+    getDocs,
+    query,
+    orderBy,
+    limit,
+    where
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// ===== FIREBASE CONFIGURATION =====
-// TODO: Replace with your Firebase project configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBwIgrmexMA14opCYdDyEWcZ11tQyCp8kY",
+    authDomain: "space-game-kf.firebaseapp.com",
+    projectId: "space-game-kf",
+    storageBucket: "space-game-kf.firebasestorage.app",
+    messagingSenderId: "501931958870",
+    appId: "1:501931958870:web:96b1b7216b5a33430c51f7",
+    measurementId: "G-XBPPJV0FBE"
 };
 
 // Initialize Firebase
-let app, database;
-let firebaseEnabled = false;
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
 
-export function initFirebase() {
-    try {
-        // Check if config is filled
-        if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-            console.log('⚠️ [FIREBASE] Firebase not configured. Using local leaderboard only.');
+console.log('🔥 [FIREBASE] Initialized successfully');
+
+// Generate unique user ID if not exists
+function getUserId() {
+    let userId = localStorage.getItem('spaceDefenderUserId');
+    if (!userId) {
+        userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('spaceDefenderUserId', userId);
+        console.log('🆔 [FIREBASE] New user ID created:', userId);
+    }
+    return userId;
+}
+
+export const firebaseService = {
+    db,
+    analytics,
+    userId: getUserId(),
+    
+    async saveUserProgress(data) {
+        try {
+            const userRef = doc(db, 'users', this.userId);
+            await setDoc(userRef, {
+                ...data,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+            console.log('✅ [FIREBASE] User progress saved');
+            return true;
+        } catch (error) {
+            console.error('❌ [FIREBASE] Error saving progress:', error);
             return false;
         }
-        
-        app = initializeApp(firebaseConfig);
-        database = getDatabase(app);
-        firebaseEnabled = true;
-        console.log('✅ [FIREBASE] Connected successfully');
-        return true;
-    } catch (error) {
-        console.error('❌ [FIREBASE] Connection error:', error);
-        return false;
-    }
-}
-
-// ===== GLOBAL LEADERBOARD FUNCTIONS =====
-
-/**
- * Submit score to global leaderboard
- * @param {string} playerName - Player's display name
- * @param {string} skinKey - Skin used
- * @param {number} score - Final score
- * @param {number} level - Level reached
- */
-export async function submitGlobalScore(playerName, skinKey, score, level) {
-    if (!firebaseEnabled) {
-        console.log('ℹ️ [FIREBASE] Not enabled, skipping global submit');
-        return false;
-    }
+    },
     
-    try {
-        const timestamp = Date.now();
-        const scoreData = {
-            playerName: playerName || 'Anonymous',
-            skin: skinKey,
-            score: score,
-            level: level,
-            timestamp: timestamp,
-            date: new Date().toLocaleDateString('he-IL')
-        };
-        
-        // Add to global leaderboard
-        const globalRef = ref(database, 'leaderboard/global');
-        await push(globalRef, scoreData);
-        
-        // Add to skin-specific leaderboard
-        const skinRef = ref(database, `leaderboard/skins/${skinKey}`);
-        await push(skinRef, scoreData);
-        
-        console.log('✅ [FIREBASE] Score submitted:', scoreData);
-        return true;
-    } catch (error) {
-        console.error('❌ [FIREBASE] Submit error:', error);
-        return false;
-    }
-}
-
-/**
- * Get global leaderboard (top 100)
- * @param {string} skinFilter - Optional: filter by skin ('all' for global)
- * @returns {Promise<Array>} Top scores
- */
-export async function getGlobalLeaderboard(skinFilter = 'all') {
-    if (!firebaseEnabled) {
-        console.log('ℹ️ [FIREBASE] Not enabled, returning empty');
-        return [];
-    }
+    async loadUserProgress() {
+        try {
+            const userRef = doc(db, 'users', this.userId);
+            const docSnap = await getDoc(userRef);
+            
+            if (docSnap.exists()) {
+                console.log('✅ [FIREBASE] User progress loaded');
+                return docSnap.data();
+            } else {
+                console.log('ℹ️ [FIREBASE] No saved progress found');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ [FIREBASE] Error loading progress:', error);
+            return null;
+        }
+    },
     
-    try {
-        let leaderboardRef;
-        
-        if (skinFilter === 'all') {
-            leaderboardRef = query(
-                ref(database, 'leaderboard/global'),
-                orderByChild('score'),
-                limitToLast(100)
-            );
-        } else {
-            leaderboardRef = query(
-                ref(database, `leaderboard/skins/${skinFilter}`),
-                orderByChild('score'),
-                limitToLast(100)
-            );
-        }
-        
-        const snapshot = await get(leaderboardRef);
-        
-        if (!snapshot.exists()) {
-            return [];
-        }
-        
-        const scores = [];
-        snapshot.forEach((child) => {
-            scores.push({
-                id: child.key,
-                ...child.val()
+    async saveScore(skinKey, score, level) {
+        try {
+            const scoreRef = doc(collection(db, 'leaderboards'));
+            await setDoc(scoreRef, {
+                userId: this.userId,
+                skinKey,
+                score,
+                level,
+                timestamp: new Date().toISOString(),
+                date: new Date().toLocaleDateString('he-IL')
             });
-        });
-        
-        // Sort descending by score
-        scores.sort((a, b) => b.score - a.score);
-        
-        console.log(`✅ [FIREBASE] Retrieved ${scores.length} scores for ${skinFilter}`);
-        return scores;
-    } catch (error) {
-        console.error('❌ [FIREBASE] Get leaderboard error:', error);
-        return [];
-    }
-}
-
-/**
- * Subscribe to real-time leaderboard updates
- * @param {Function} callback - Called when leaderboard updates
- * @param {string} skinFilter - Optional: filter by skin
- */
-export function subscribeToLeaderboard(callback, skinFilter = 'all') {
-    if (!firebaseEnabled) {
-        console.log('ℹ️ [FIREBASE] Not enabled, skipping subscription');
-        return () => {}; // Return empty unsubscribe function
-    }
-    
-    try {
-        let leaderboardRef;
-        
-        if (skinFilter === 'all') {
-            leaderboardRef = query(
-                ref(database, 'leaderboard/global'),
-                orderByChild('score'),
-                limitToLast(100)
-            );
-        } else {
-            leaderboardRef = query(
-                ref(database, `leaderboard/skins/${skinFilter}`),
-                orderByChild('score'),
-                limitToLast(100)
-            );
+            console.log('✅ [FIREBASE] Score saved to leaderboard');
+            return true;
+        } catch (error) {
+            console.error('❌ [FIREBASE] Error saving score:', error);
+            return false;
         }
-        
-        const unsubscribe = onValue(leaderboardRef, (snapshot) => {
-            if (!snapshot.exists()) {
-                callback([]);
-                return;
+    },
+    
+    async getGlobalLeaderboard(skinKey = 'overall', limitCount = 10) {
+        try {
+            const leaderboardRef = collection(db, 'leaderboards');
+            let q;
+            
+            if (skinKey === 'overall') {
+                q = query(leaderboardRef, orderBy('score', 'desc'), limit(limitCount));
+            } else {
+                q = query(
+                    leaderboardRef, 
+                    where('skinKey', '==', skinKey),
+                    orderBy('score', 'desc'), 
+                    limit(limitCount)
+                );
             }
             
-            const scores = [];
-            snapshot.forEach((child) => {
-                scores.push({
-                    id: child.key,
-                    ...child.val()
-                });
+            const querySnapshot = await getDocs(q);
+            let scores = [];
+            
+            querySnapshot.forEach((doc) => {
+                scores.push(doc.data());
             });
             
-            scores.sort((a, b) => b.score - a.score);
-            callback(scores);
-        });
-        
-        console.log('✅ [FIREBASE] Subscribed to leaderboard updates');
-        return unsubscribe;
-    } catch (error) {
-        console.error('❌ [FIREBASE] Subscribe error:', error);
-        return () => {};
+            console.log(`✅ [FIREBASE] Loaded ${scores.length} scores for ${skinKey}`);
+            return scores;
+        } catch (error) {
+            console.error('❌ [FIREBASE] Error loading leaderboard:', error);
+            return [];
+        }
     }
-}
+};
 
-/**
- * Get player's rank in global leaderboard
- * @param {number} score - Player's score
- * @param {string} skinFilter - Optional: filter by skin
- * @returns {Promise<number>} Player's rank (1-based)
- */
-export async function getPlayerRank(score, skinFilter = 'all') {
-    if (!firebaseEnabled) return 0;
-    
-    try {
-        const leaderboard = await getGlobalLeaderboard(skinFilter);
-        const rank = leaderboard.findIndex(entry => entry.score <= score) + 1;
-        return rank || leaderboard.length + 1;
-    } catch (error) {
-        console.error('❌ [FIREBASE] Get rank error:', error);
-        return 0;
-    }
-}
-
-// Check if Firebase is enabled
-export function isFirebaseEnabled() {
-    return firebaseEnabled;
-}
+export default firebaseService;

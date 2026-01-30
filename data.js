@@ -1,3 +1,5 @@
+import firebaseService from './firebase-config.js';
+
 // DOM Elements
 export const DOM = {
     wrapper: document.getElementById('game-wrapper'),
@@ -9,7 +11,7 @@ export const DOM = {
     overlay: document.getElementById('overlay')
 };
 
-// Skin Configuration
+// Skin Configuration  
 export const SKINS = {
     classic: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #00f2ff);">
@@ -154,7 +156,7 @@ export function setCurrentSkin(key) {
     currentSkinKey = key;
 }
 
-// Cookie Management
+// Cookie Management (fallback)
 export function setCookie(name, value, days = 365) {
     const date = new Date();
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
@@ -183,19 +185,29 @@ export let keyBindings = {
     controlType: 'mouse'
 };
 
-export function loadKeyBindings() {
+export async function loadKeyBindings() {
+    console.log('🎮 [KEYS] Loading key bindings...');
+    const progress = await firebaseService.loadUserProgress();
+    if (progress && progress.keyBindings) {
+        keyBindings = progress.keyBindings;
+        console.log('✅ [KEYS] Loaded from Firebase');
+        return;
+    }
     const saved = getCookie('keyBindings');
     if (saved) {
         try {
             keyBindings = JSON.parse(saved);
+            console.log('✅ [KEYS] Loaded from cookies');
         } catch (e) {
             console.error('❌ [KEYS] Error:', e);
         }
     }
 }
 
-export function saveKeyBindings() {
+export async function saveKeyBindings() {
+    await firebaseService.saveUserProgress({ keyBindings });
     setCookie('keyBindings', JSON.stringify(keyBindings));
+    console.log('💾 [KEYS] Saved');
 }
 
 export function setKeyBinding(action, value) {
@@ -203,24 +215,34 @@ export function setKeyBinding(action, value) {
     saveKeyBindings();
 }
 
-// Unlocked Skins Management
+// Unlocked Skins
 export let unlockedSkins = ['classic', 'interceptor', 'tanker'];
 
-export function loadUnlockedSkins() {
+export async function loadUnlockedSkins() {
+    console.log('📂 [SKINS] Loading...');
+    const progress = await firebaseService.loadUserProgress();
+    if (progress && progress.unlockedSkins) {
+        unlockedSkins = progress.unlockedSkins;
+        console.log('✅ [SKINS] Loaded from Firebase');
+        return;
+    }
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
             unlockedSkins = JSON.parse(saved);
+            console.log('✅ [SKINS] Loaded from cookies');
         } catch (e) {
             console.error('❌ [SKINS] Error:', e);
         }
     }
 }
 
-export function unlockSkin(skinKey) {
+export async function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
+        await firebaseService.saveUserProgress({ unlockedSkins });
         setCookie('unlockedSkins', JSON.stringify(unlockedSkins));
+        console.log(`🎉 [SKINS] Unlocked: ${skinKey}`);
         return true;
     }
     return false;
@@ -230,21 +252,34 @@ export function isSkinUnlocked(skinKey) {
     return unlockedSkins.includes(skinKey);
 }
 
-// Max Level Reached
-export function getMaxLevel() {
+// Max Level
+export async function getMaxLevel() {
+    const progress = await firebaseService.loadUserProgress();
+    if (progress && progress.maxLevel) return progress.maxLevel;
     const saved = getCookie('maxLevel');
     return saved ? parseInt(saved) : 1;
 }
 
-export function saveMaxLevel(level) {
-    const currentMax = getMaxLevel();
+export async function saveMaxLevel(level) {
+    const currentMax = await getMaxLevel();
     if (level > currentMax) {
+        await firebaseService.saveUserProgress({ maxLevel: level });
         setCookie('maxLevel', level.toString());
+        console.log(`📈 [LEVEL] New max: ${level}`);
     }
 }
 
-// Leaderboard Management
-export function getLeaderboard(skinKey = 'overall') {
+// Leaderboard
+export async function getLeaderboard(skinKey = 'overall') {
+    try {
+        const firebaseScores = await firebaseService.getGlobalLeaderboard(skinKey, 10);
+        if (firebaseScores && firebaseScores.length > 0) {
+            console.log(`✅ [LEADERBOARD] Loaded ${firebaseScores.length} from Firebase`);
+            return firebaseScores;
+        }
+    } catch (error) {
+        console.error('❌ [LEADERBOARD] Firebase error:', error);
+    }
     const cookieName = `leaderboard_${skinKey}`;
     const saved = getCookie(cookieName);
     if (saved) {
@@ -257,15 +292,20 @@ export function getLeaderboard(skinKey = 'overall') {
     return [];
 }
 
-export function saveScore(skinKey, score, level) {
-    let skinLeaderboard = getLeaderboard(skinKey);
+export async function saveScore(skinKey, score, level) {
+    console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}`);
+    await firebaseService.saveScore(skinKey, score, level);
+    
+    let skinLeaderboard = await getLeaderboard(skinKey);
+    skinLeaderboard = skinLeaderboard.filter(s => !s.userId);
     const newEntry = { score, level, date: new Date().toLocaleDateString('he-IL') };
     skinLeaderboard.push(newEntry);
     skinLeaderboard.sort((a, b) => b.score - a.score);
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
     
-    let overallLeaderboard = getLeaderboard('overall');
+    let overallLeaderboard = await getLeaderboard('overall');
+    overallLeaderboard = overallLeaderboard.filter(s => !s.userId);
     const overallEntry = { score, level, skin: skinKey, date: new Date().toLocaleDateString('he-IL') };
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
@@ -323,6 +363,7 @@ export const state = {
 };
 
 export function resetState() {
+    console.log('🔄 [STATE] Resetting...');
     state.active = true;
     state.score = 0;
     state.level = 1;
@@ -356,4 +397,5 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerAbility.endTime = 0;
+    console.log('✅ [STATE] Reset complete');
 }
