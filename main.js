@@ -2,6 +2,7 @@ import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlo
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
+import { saveScoreToFirebase, getLeaderboardFromFirebase } from './firebase-leaderboard.js';
 
 // ===== INITIALIZATION =====
 
@@ -13,43 +14,47 @@ console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
 
-function showLeaderboard() {
+async function showLeaderboard() {
     console.log('🏆 [LEADERBOARD] Opening leaderboard...');
-    console.log('🏆 [LEADERBOARD] Hiding main menu');
     document.getElementById('main-menu').style.display = 'none';
-    console.log('🏆 [LEADERBOARD] Showing leaderboard container');
     document.getElementById('leaderboard-container').style.display = 'block';
-    console.log('🏆 [LEADERBOARD] Displaying overall category');
-    displayLeaderboard('overall');
+    
+    // Show loading message
+    const content = document.getElementById('leaderboard-content');
+    content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
+    
+    await displayLeaderboard('overall');
     
     // Setup tab listeners
-    console.log('🏆 [LEADERBOARD] Setting up tab listeners');
     const tabs = document.querySelectorAll('.lb-tab');
-    console.log(`🏆 [LEADERBOARD] Found ${tabs.length} tabs`);
-    tabs.forEach((tab, index) => {
-        console.log(`🏆 [LEADERBOARD] Setting up tab ${index}: ${tab.dataset.tab}`);
-        tab.onclick = function() {
-            console.log(`👆 [TAB CLICK] User clicked tab: ${this.dataset.tab}`);
+    tabs.forEach((tab) => {
+        tab.onclick = async function() {
             document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
-            console.log(`👆 [TAB CLICK] Displaying leaderboard for: ${this.dataset.tab}`);
-            displayLeaderboard(this.dataset.tab);
+            content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
+            await displayLeaderboard(this.dataset.tab);
         };
     });
-    console.log('✅ [LEADERBOARD] Leaderboard opened successfully');
 }
 
 function closeLeaderboard() {
     console.log('❌ [LEADERBOARD] Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
-    console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
-function displayLeaderboard(category) {
+async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
-    const leaderboard = getLeaderboard(category);
-    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
+    
+    // Try to load from Firebase first
+    let leaderboard = await getLeaderboardFromFirebase(category, 10);
+    
+    // Fallback to local leaderboard
+    if (leaderboard.length === 0) {
+        console.log('📊 [DISPLAY] No Firebase data, using local leaderboard');
+        leaderboard = getLeaderboard(category);
+    }
+    
     const content = document.getElementById('leaderboard-content');
     
     if (!content) {
@@ -58,22 +63,20 @@ function displayLeaderboard(category) {
     }
     
     if (leaderboard.length === 0) {
-        console.log('⚠️ [DISPLAY] No entries found, showing empty message');
         content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
         return;
     }
     
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-    console.log('📊 [DISPLAY] Generating HTML for entries...');
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     const html = leaderboard.map((entry, index) => {
-        console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
+        const playerName = entry.playerName || 'Anonymous';
         return `
         <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index]}</div>
+            <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
                 <div class="lb-details">
-                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
+                    ${playerName} • שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
                 </div>
             </div>
         </div>
@@ -85,13 +88,8 @@ function displayLeaderboard(category) {
 }
 
 // Export to window for HTML onclick
-console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
 window.closeLeaderboard = closeLeaderboard;
-console.log('✅ [EXPORT] Functions exported:', {
-    showLeaderboard: typeof window.showLeaderboard,
-    closeLeaderboard: typeof window.closeLeaderboard
-});
 
 // ===== SKIN SELECTION =====
 
@@ -199,7 +197,6 @@ function initGame() {
 
 // Export to window for HTML onclick
 window.initGame = initGame;
-console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
 // ===== LEVEL UP SYSTEM =====
 
@@ -470,6 +467,11 @@ window.addEventListener('contextmenu', (e) => {
         activateSpecialAbility();
     }
 });
+
+// ===== GAME OVER WITH FIREBASE =====
+
+// Update damagePlayer in systems.js to save to Firebase on game over
+// We'll need to modify systems.js to import and use saveScoreToFirebase
 
 // ===== INITIALIZATION =====
 
