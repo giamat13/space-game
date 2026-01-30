@@ -67,13 +67,25 @@ function displayLeaderboard(category) {
     console.log('📊 [DISPLAY] Generating HTML for entries...');
     const html = leaderboard.map((entry, index) => {
         console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
+        
+        // Get skin name, or use the skin key if skin doesn't exist in SKINS
+        let skinName = '';
+        if (entry.skin) {
+            if (SKINS[entry.skin]) {
+                skinName = `• ${SKINS[entry.skin].name}`;
+            } else {
+                skinName = `• ${entry.skin}`; // Fallback to skin key if skin doesn't exist
+                console.warn(`⚠️ [DISPLAY] Unknown skin: ${entry.skin}`);
+            }
+        }
+        
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index]}</div>
             <div class="lb-info">
                 <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
                 <div class="lb-details">
-                    שלב ${entry.level} ${entry.skin ? `• ${SKINS[entry.skin].name}` : ''} • ${entry.date}
+                    שלב ${entry.level} ${skinName} • ${entry.date}
                 </div>
             </div>
         </div>
