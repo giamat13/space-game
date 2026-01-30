@@ -1,4 +1,4 @@
-import { DOM, state } from './data.js';
+import { DOM, state, gameRules } from './data.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
 
 // ===== UPDATE BULLETS =====
@@ -56,6 +56,23 @@ export function updateEnemyBullets() {
                 state.enemyBullets.splice(i, 1);
                 continue;
             }
+        }
+        
+        // Check collision with asteroids (if enemies can't shoot through them)
+        if (!gameRules.enemiesShootThroughAsteroids) {
+            let hitAsteroid = false;
+            for (let ai = state.asteroids.length - 1; ai >= 0; ai--) {
+                let ast = state.asteroids[ai];
+                const aRect = ast.el.getBoundingClientRect();
+                if(!(ebRect.right < aRect.left || ebRect.left > aRect.right || ebRect.bottom < aRect.top || ebRect.top > aRect.bottom)) {
+                    createExplosion(eb.x, eb.y, '#666');
+                    eb.el.remove();
+                    state.enemyBullets.splice(i, 1);
+                    hitAsteroid = true;
+                    break;
+                }
+            }
+            if (hitAsteroid) continue;
         }
         
         // Chaotic bullets hit normal enemies
@@ -251,14 +268,17 @@ export function updateAsteroids() {
             continue;
         }
         
-        for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
-            let bul = state.bullets[bi];
-            const bRect = bul.el.getBoundingClientRect();
-            if(!(bRect.right < aRect.left || bRect.left > aRect.right || bRect.bottom < aRect.top || bRect.top > aRect.bottom)) {
-                createExplosion(bRect.left, bRect.top, '#666');
-                bul.el.remove();
-                state.bullets.splice(bi, 1);
-                break;
+        // Player bullets collide with asteroids (unless playerShootThroughAsteroids is true)
+        if (!gameRules.playerShootThroughAsteroids) {
+            for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
+                let bul = state.bullets[bi];
+                const bRect = bul.el.getBoundingClientRect();
+                if(!(bRect.right < aRect.left || bRect.left > aRect.right || bRect.bottom < aRect.top || bRect.top > aRect.bottom)) {
+                    createExplosion(bRect.left, bRect.top, '#666');
+                    bul.el.remove();
+                    state.bullets.splice(bi, 1);
+                    break;
+                }
             }
         }
         

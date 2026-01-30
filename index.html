@@ -112,7 +112,9 @@
             </div>
             
             <div id="settings-container" style="display: none;">
-                <h2 style="margin-bottom: 20px;">⚙️ הגדרות מקשים</h2>
+                <h2 style="margin-bottom: 20px;">⚙️ הגדרות</h2>
+                
+                <h3 style="color: var(--primary); margin-top: 20px; margin-bottom: 15px;">🎮 שליטה</h3>
                 
                 <div class="settings-group">
                     <label>שליטה בספינה:</label>
@@ -145,6 +147,26 @@
                         <button id="rightclick-on" class="setting-btn active" onclick="setRightClick(true)">✅ פעיל</button>
                         <button id="rightclick-off" class="setting-btn" onclick="setRightClick(false)">❌ כבוי</button>
                     </div>
+                </div>
+                
+                <h3 style="color: var(--primary); margin-top: 30px; margin-bottom: 15px;">📜 כללי משחק</h3>
+                
+                <div class="settings-group">
+                    <label>אויבים יורים דרך סלעים:</label>
+                    <div class="button-group">
+                        <button id="enemies-shoot-asteroids-yes" class="setting-btn active" onclick="setGameRule('enemiesShootThroughAsteroids', true)">✅ כן</button>
+                        <button id="enemies-shoot-asteroids-no" class="setting-btn" onclick="setGameRule('enemiesShootThroughAsteroids', false)">❌ לא</button>
+                    </div>
+                    <small style="opacity: 0.7;">קליעי אויבים עוברים דרך אסטרואידים</small>
+                </div>
+                
+                <div class="settings-group">
+                    <label>השחקן יורה דרך סלעים:</label>
+                    <div class="button-group">
+                        <button id="player-shoot-asteroids-yes" class="setting-btn" onclick="setGameRule('playerShootThroughAsteroids', true)">✅ כן</button>
+                        <button id="player-shoot-asteroids-no" class="setting-btn active" onclick="setGameRule('playerShootThroughAsteroids', false)">❌ לא</button>
+                    </div>
+                    <small style="opacity: 0.7;">הקליעים שלך עוברים דרך אסטרואידים</small>
                 </div>
                 
                 <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>

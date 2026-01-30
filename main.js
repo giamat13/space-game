@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
@@ -8,6 +8,7 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
 loadKeyBindings();
+loadGameRules();
 updateSkinOptions();
 console.log('✅ [INIT] Game loaded successfully');
 
@@ -691,6 +692,13 @@ function updateSettingsDisplay() {
     document.getElementById('rightclick-on').classList.toggle('active', keyBindings.rightClickAbility === true);
     document.getElementById('rightclick-off').classList.toggle('active', keyBindings.rightClickAbility === false);
     
+    // Update game rules buttons
+    document.getElementById('enemies-shoot-asteroids-yes').classList.toggle('active', gameRules.enemiesShootThroughAsteroids === true);
+    document.getElementById('enemies-shoot-asteroids-no').classList.toggle('active', gameRules.enemiesShootThroughAsteroids === false);
+    
+    document.getElementById('player-shoot-asteroids-yes').classList.toggle('active', gameRules.playerShootThroughAsteroids === true);
+    document.getElementById('player-shoot-asteroids-no').classList.toggle('active', gameRules.playerShootThroughAsteroids === false);
+    
     // Update key displays
     document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
     document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
@@ -713,6 +721,12 @@ function setControl(type) {
 function setRightClick(enabled) {
     console.log(`⚙️ [SETTINGS] Right-click ability: ${enabled}`);
     setKeyBinding('rightClickAbility', enabled);
+    updateSettingsDisplay();
+}
+
+function setGameRuleFunc(rule, value) {
+    console.log(`📜 [SETTINGS] Game rule ${rule} set to: ${value}`);
+    setGameRule(rule, value);
     updateSettingsDisplay();
 }
 
@@ -756,4 +770,5 @@ window.showSettings = showSettings;
 window.closeSettings = closeSettings;
 window.setControl = setControl;
 window.setRightClick = setRightClick;
+window.setGameRule = setGameRuleFunc;
 window.changeKey = changeKey;
