@@ -586,3 +586,29 @@ button:hover {
     margin-top: 8px;
     font-size: 11px;
 }
+
+/* Disabled state for mobile mode */
+.settings-group[style*="grayscale"] {
+    position: relative;
+}
+
+.settings-group[style*="grayscale"]::after {
+    content: '🔒 לא זמין במצב טלפון';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.settings-group[style*="grayscale"]:hover::after {
+    opacity: 1;
+}

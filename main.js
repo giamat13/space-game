@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
@@ -9,6 +9,7 @@ console.log('🚀 [INIT] Game loading...');
 loadUnlockedSkins();
 loadKeyBindings();
 loadGameRules();
+loadDeviceMode();
 updateSkinOptions();
 console.log('✅ [INIT] Game loaded successfully');
 
@@ -684,6 +685,36 @@ function closeSettings() {
 }
 
 function updateSettingsDisplay() {
+    // Update device mode buttons
+    const isAuto = deviceMode.isAutoDetected;
+    const isMobile = deviceMode.isMobile;
+    
+    document.getElementById('device-auto').classList.toggle('active', isAuto);
+    document.getElementById('device-mobile').classList.toggle('active', !isAuto && isMobile);
+    document.getElementById('device-desktop').classList.toggle('active', !isAuto && !isMobile);
+    
+    // Show/hide keyboard settings based on device mode
+    const keyboardSettings = [
+        document.getElementById('control-settings'),
+        document.getElementById('shoot-key-settings'),
+        document.getElementById('ability-key-settings'),
+        document.getElementById('rightclick-settings')
+    ];
+    
+    keyboardSettings.forEach(setting => {
+        if (setting) {
+            if (isMobile) {
+                setting.style.opacity = '0.5';
+                setting.style.pointerEvents = 'none';
+                setting.style.filter = 'grayscale(100%)';
+            } else {
+                setting.style.opacity = '1';
+                setting.style.pointerEvents = 'auto';
+                setting.style.filter = 'none';
+            }
+        }
+    });
+    
     // Update control type buttons
     document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
     document.getElementById('control-arrows').classList.toggle('active', keyBindings.controlType === 'arrows');
@@ -730,6 +761,23 @@ function setGameRuleFunc(rule, value) {
     updateSettingsDisplay();
 }
 
+function setDevice(mode) {
+    console.log(`📱 [SETTINGS] Device mode set to: ${mode}`);
+    
+    if (mode === 'auto') {
+        // Re-detect device
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const isSmallScreen = window.innerWidth <= 768;
+        setDeviceMode(isTouchDevice && isSmallScreen, false);
+    } else if (mode === 'mobile') {
+        setDeviceMode(true, true);
+    } else if (mode === 'desktop') {
+        setDeviceMode(false, true);
+    }
+    
+    updateSettingsDisplay();
+}
+
 let listeningForKey = null;
 
 function changeKey(action) {
@@ -771,4 +819,5 @@ window.closeSettings = closeSettings;
 window.setControl = setControl;
 window.setRightClick = setRightClick;
 window.setGameRule = setGameRuleFunc;
+window.setDevice = setDevice;
 window.changeKey = changeKey;
