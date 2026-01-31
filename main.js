@@ -255,6 +255,93 @@ function handleLevelUp() {
 
 // ===== MAIN UPDATE LOOP =====
 
+// ===== SHOOTING TIME REGENERATION =====
+function updateShootingTimeUI() {
+    const shootTimeBar = document.getElementById('shoot-time-bar');
+    const shootTimeSeconds = document.getElementById('shoot-time-seconds');
+    
+    if (shootTimeBar && shootTimeSeconds) {
+        const percent = (state.shootingTime.current / state.shootingTime.max) * 100;
+        shootTimeBar.style.width = percent + '%';
+        
+        const seconds = Math.floor(state.shootingTime.current / 1000);
+        shootTimeSeconds.innerText = seconds;
+        
+        // שנה צבע אם זמן הירי נמוך
+        if (percent < 20) {
+            shootTimeBar.style.background = 'var(--danger)';
+        } else if (percent < 50) {
+            shootTimeBar.style.background = '#ffa500';
+        } else {
+            shootTimeBar.style.background = '#00f2ff';
+        }
+    }
+}
+
+function updateShootingTimeRegen(now) {
+    // אם יש מלא זמן ירי, לא צריך להתחדש
+    if (state.shootingTime.current >= state.shootingTime.max) {
+        state.shootingTime.isRegenerating = false;
+        return;
+    }
+    
+    // התחל התחדשות אם עברו 2 שניות מהירייה האחרונה
+    if (!state.shootingTime.isRegenerating) {
+        if (now - state.shootingTime.lastShootTime > 2000) {
+            state.shootingTime.isRegenerating = true;
+            state.shootingTime.regenStartTime = now;
+            console.log('🔄 [REGEN] Starting shooting time regeneration');
+        }
+        return;
+    }
+    
+    // אם במצב התחדשות, הוסף זמן ירי
+    if (state.shootingTime.isRegenerating) {
+        // התחדשות של 500ms לשנייה (איטית)
+        const timeSinceLastFrame = now - state.shootingTime.regenStartTime;
+        const regenAmount = timeSinceLastFrame * 0.5; // 0.5ms לכל ms = 500ms לשנייה
+        
+        state.shootingTime.current = Math.min(state.shootingTime.max, state.shootingTime.current + regenAmount);
+        state.shootingTime.regenStartTime = now; // Update for next frame
+    }
+}
+
+// ===== HEALTH REGENERATION =====
+function updateHealthRegen(now) {
+    // לא מתחדשים אם בחיים מלאים
+    if (state.playerHP >= state.playerMaxHP) {
+        state.lastHealthRegen = now;
+        return;
+    }
+    
+    // אתחול זמן התחדשות אם לא קיים
+    if (!state.lastHealthRegen) {
+        state.lastHealthRegen = now;
+        return;
+    }
+    
+    // התחדשות איטית מאוד - 1 HP כל 3 שניות
+    if (now - state.lastHealthRegen > 3000) {
+        state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 1);
+        state.lastHealthRegen = now;
+        updateHPUI();
+        console.log(`💚 [REGEN] Health regenerated: ${state.playerHP}/${state.playerMaxHP}`);
+    }
+}
+
+// ===== ADD SHOOTING TIME FUNCTION =====
+window.addShootingTime = function(seconds) {
+    const milliseconds = seconds * 1000;
+    const oldTime = state.shootingTime.current;
+    state.shootingTime.current = Math.min(state.shootingTime.max, state.shootingTime.current + milliseconds);
+    const actualAdded = state.shootingTime.current - oldTime;
+    console.log(`⏱️ [SHOOTING TIME] +${seconds}s added (${actualAdded}ms), Total: ${(state.shootingTime.current/1000).toFixed(1)}s`);
+    
+    // עדכן את הזמן האחרון כדי לא להפריע להתחדשות
+    state.shootingTime.lastShootTime = Date.now();
+    state.shootingTime.isRegenerating = false;
+};
+
 function update() {
     if(!state.active) return;
     const now = Date.now();
@@ -262,6 +349,9 @@ function update() {
     handleLevelUp();
     handleSpawning(now);
     updateAbilityCooldown(now);
+    updateShootingTimeRegen(now);
+    updateShootingTimeUI();
+    updateHealthRegen(now);
     updateArrowMovement();
     
     updateBurgers();

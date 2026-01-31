@@ -440,7 +440,8 @@ export const state = {
         lastShootTime: 0, // מתי ירינו לאחרונה
         isRegenerating: false, // האם במצב התחדשות
         regenStartTime: 0 // מתי התחילה ההתחדשות
-    }
+    },
+    lastHealthRegen: 0 // זמן ההתחדשות האחרונה של חיים
 };
 
 export function resetState() {
@@ -482,5 +483,6 @@ export function resetState() {
     state.shootingTime.lastShootTime = Date.now();
     state.shootingTime.isRegenerating = false;
     state.shootingTime.regenStartTime = 0;
+    state.lastHealthRegen = Date.now();
     console.log('✅ [STATE] Reset complete');
 }
