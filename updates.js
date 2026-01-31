@@ -99,6 +99,12 @@ export function updateEnemyBullets() {
                         const points = isElite ? 75 : 25;
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
+                        
+                        // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
+                        if (window.addShootingTime) {
+                            window.addShootingTime(isElite ? 20 : 10);
+                        }
+                        
                         createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
@@ -130,6 +136,12 @@ export function updateEnemyBullets() {
                         const points = isElite ? 75 : 25;
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
+                        
+                        // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
+                        if (window.addShootingTime) {
+                            window.addShootingTime(isElite ? 20 : 10);
+                        }
+                        
                         createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
@@ -358,6 +370,12 @@ export function updateEnemies(now) {
                                 const points = isElite ? 150 : 50;
                                 state.score += points;
                                 DOM.scoreEl.innerText = state.score;
+                                
+                                // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
+                                if (window.addShootingTime) {
+                                    window.addShootingTime(isElite ? 20 : 10);
+                                }
+                                
                                 createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                                 targetEn.el.remove();
                                 state.enemies.splice(ei, 1);
@@ -390,6 +408,12 @@ export function updateEnemies(now) {
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
+                    
+                    // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
+                    if (window.addShootingTime) {
+                        window.addShootingTime(isElite ? 20 : 10);
+                    }
+                    
                     const crossedHealThreshold = Math.floor(state.score / 300) > Math.floor(oldScore / 300);
                     
                     if (isElite) {

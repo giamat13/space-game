@@ -79,10 +79,23 @@ export function healPlayer(percent) {
 // ===== SHOOTING SYSTEMS =====
 
 export function shoot() {
-    if(!state.active) return;
+    if(!state.active) return false;
+    
+    // ✅ CHECK SHOOTING TIME
+    if (state.shootingTime.current < 100) {
+        console.log('⚠️ [SHOOT] No ammo time left!');
+        return false;
+    }
+    
     const now = Date.now();
     const adjustedCooldown = state.shotCooldown / state.currentSkinStats.fireRate;
-    if (now - state.lastShot < adjustedCooldown) return;
+    if (now - state.lastShot < adjustedCooldown) return false;
+    
+    // ✅ DEDUCT SHOOTING TIME (100ms per bullet)
+    state.shootingTime.current -= 100;
+    state.shootingTime.lastShootTime = now;
+    state.shootingTime.isRegenerating = false; // Stop regeneration when shooting
+    
     state.lastShot = now;
 
     const b = document.createElement('div');
@@ -113,6 +126,8 @@ export function shoot() {
         y: 80,
         damage: state.currentSkinStats.bulletDamage
     });
+    
+    return true;
 }
 
 export function enemyShoot(en) {
