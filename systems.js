@@ -1,5 +1,74 @@
 import { DOM, state, INGREDIENT_TYPES } from './data.js';
 
+// ===== SHOOTING TIME SYSTEM =====
+
+export function updateShootingTimeUI() {
+    if (!DOM.shootingTimeFill || !DOM.shootingTimeText) {
+        console.warn('⚠️ [SHOOTING TIME] UI elements not found');
+        return;
+    }
+    
+    const percent = (Math.max(0, state.shootingTime) / state.maxShootingTime) * 100;
+    DOM.shootingTimeFill.style.width = percent + '%';
+    
+    // Color based on time remaining
+    if (percent < 20) {
+        DOM.shootingTimeFill.style.background = '#ff4444';
+    } else if (percent < 50) {
+        DOM.shootingTimeFill.style.background = '#ffa500';
+    } else {
+        DOM.shootingTimeFill.style.background = '#00f2ff';
+    }
+    
+    DOM.shootingTimeText.innerText = `${Math.max(0, Math.round(state.shootingTime))}s`;
+    
+    console.log(`⏱️ [SHOOTING TIME] Updated: ${state.shootingTime.toFixed(1)}s / ${state.maxShootingTime}s (${percent.toFixed(0)}%)`);
+}
+
+export function addShootingTime(seconds) {
+    const oldTime = state.shootingTime;
+    state.shootingTime = Math.min(state.maxShootingTime, state.shootingTime + seconds);
+    console.log(`⏱️ [SHOOTING TIME] +${seconds}s | ${oldTime.toFixed(1)}s → ${state.shootingTime.toFixed(1)}s`);
+    updateShootingTimeUI();
+}
+
+export function consumeShootingTime() {
+    if (state.shootingTime <= 0) {
+        console.log('⏱️ [SHOOTING TIME] No time remaining! Cannot shoot.');
+        return false;
+    }
+    
+    state.shootingTime -= 0.1;
+    state.lastShootTime = Date.now();
+    console.log(`⏱️ [SHOOTING TIME] -0.1s | Now: ${state.shootingTime.toFixed(1)}s`);
+    updateShootingTimeUI();
+    return true;
+}
+
+export function updateShootingTimeRegen(now) {
+    // Don't regenerate if at max
+    if (state.shootingTime >= state.maxShootingTime) {
+        return;
+    }
+    
+    // Check if enough time has passed since last shot (2 second delay)
+    const timeSinceLastShot = now - state.lastShootTime;
+    if (timeSinceLastShot < state.regenStartDelay) {
+        return;
+    }
+    
+    // Regenerate at slow rate (0.5 seconds per second = 0.5/60 per frame at 60fps)
+    const regenAmount = state.regenRate / 60;
+    state.shootingTime = Math.min(state.maxShootingTime, state.shootingTime + regenAmount);
+    
+    // Only log occasionally to avoid spam
+    if (Math.random() < 0.01) { // ~1% chance per frame
+        console.log(`⏱️ [SHOOTING TIME] Regenerating: ${state.shootingTime.toFixed(1)}s / ${state.maxShootingTime}s`);
+    }
+    
+    updateShootingTimeUI();
+}
+
 // ===== PLAYER SYSTEMS =====
 
 export function updatePlayerPos() {
@@ -79,22 +148,16 @@ export function healPlayer(percent) {
 // ===== SHOOTING SYSTEMS =====
 
 export function shoot() {
-    if(!state.active) return false;
-    
-    // ✅ CHECK SHOOTING TIME
-    if (state.shootingTime.current < 100) {
-        console.log('⚠️ [SHOOT] No ammo time left!');
-        return false;
-    }
-    
+    if(!state.active) return;
     const now = Date.now();
     const adjustedCooldown = state.shotCooldown / state.currentSkinStats.fireRate;
-    if (now - state.lastShot < adjustedCooldown) return false;
+    if (now - state.lastShot < adjustedCooldown) return;
     
-    // ✅ DEDUCT SHOOTING TIME (100ms per bullet)
-    state.shootingTime.current -= 100;
-    state.shootingTime.lastShootTime = now;
-    state.shootingTime.isRegenerating = false; // Stop regeneration when shooting
+    // Check if we have shooting time
+    if (!consumeShootingTime()) {
+        console.log('⏱️ [SHOOT] Blocked: No shooting time remaining!');
+        return;
+    }
     
     state.lastShot = now;
 
@@ -127,7 +190,7 @@ export function shoot() {
         damage: state.currentSkinStats.bulletDamage
     });
     
-    return true;
+    console.log(`🔫 [SHOOT] Bullet fired! Shooting time: ${state.shootingTime.toFixed(1)}s`);
 }
 
 export function enemyShoot(en) {

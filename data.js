@@ -8,7 +8,9 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
-    overlay: document.getElementById('overlay')
+    overlay: document.getElementById('overlay'),
+    shootingTimeFill: document.getElementById('shooting-time-bar'),
+    shootingTimeText: document.getElementById('shooting-time-text')
 };
 
 // Skin Configuration
@@ -434,14 +436,12 @@ export const state = {
         active: false,
         endTime: 0
     },
-    shootingTime: {
-        current: 15000, // זמן יריה נוכחי במילישניות (15 שניות בהתחלה)
-        max: 60000, // מקסימום 60 שניות
-        lastShootTime: 0, // מתי ירינו לאחרונה
-        isRegenerating: false, // האם במצב התחדשות
-        regenStartTime: 0 // מתי התחילה ההתחדשות
-    },
-    lastHealthRegen: 0 // זמן ההתחדשות האחרונה של חיים
+    // Shooting Time System
+    shootingTime: 15,
+    maxShootingTime: 60,
+    lastShootTime: 0,
+    regenStartDelay: 2000, // 2 seconds delay before regen starts
+    regenRate: 0.5 // 0.5 seconds per second (slow regen)
 };
 
 export function resetState() {
@@ -479,10 +479,11 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerAbility.endTime = 0;
-    state.shootingTime.current = 15000;
-    state.shootingTime.lastShootTime = Date.now();
-    state.shootingTime.isRegenerating = false;
-    state.shootingTime.regenStartTime = 0;
-    state.lastHealthRegen = Date.now();
+    
+    // Reset Shooting Time System
+    state.shootingTime = 15;
+    state.lastShootTime = 0;
+    console.log('⏱️ [SHOOTING TIME] Reset to 15 seconds');
+    
     console.log('✅ [STATE] Reset complete');
 }

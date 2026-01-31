@@ -1,5 +1,5 @@
 import { DOM, state, gameRules } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients, addShootingTime } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -97,19 +97,20 @@ export function updateEnemyBullets() {
                     if (targetEn.hp <= 0) {
                         const isElite = targetEn.type === 'orange';
                         const points = isElite ? 75 : 25;
+                        const shootingTimeBonus = isElite ? 20 : 10;
+                        
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
                         
-                        // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
-                        if (window.addShootingTime) {
-                            window.addShootingTime(isElite ? 20 : 10);
-                        }
+                        // ⏱️ Add shooting time bonus
+                        addShootingTime(shootingTimeBonus);
+                        console.log(`⏱️ [BONUS] +${shootingTimeBonus}s shooting time from ${isElite ? 'elite' : 'normal'} enemy kill`);
                         
                         createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
-                        console.log(`☠️ [CHAOTIC KILL] Normal enemy killed! +${points} points`);
+                        console.log(`☠️ [CHAOTIC KILL] Normal enemy killed! +${points} points, +${shootingTimeBonus}s time`);
                     }
                     
                     eb.el.remove();
@@ -134,13 +135,14 @@ export function updateEnemyBullets() {
                     if (targetEn.hp <= 0) {
                         const isElite = targetEn.type === 'orange';
                         const points = isElite ? 75 : 25;
+                        const shootingTimeBonus = isElite ? 20 : 10;
+                        
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
                         
-                        // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
-                        if (window.addShootingTime) {
-                            window.addShootingTime(isElite ? 20 : 10);
-                        }
+                        // ⏱️ Add shooting time bonus
+                        addShootingTime(shootingTimeBonus);
+                        console.log(`⏱️ [BONUS] +${shootingTimeBonus}s shooting time from friendly fire kill`);
                         
                         createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                         targetEn.el.remove();
@@ -368,13 +370,14 @@ export function updateEnemies(now) {
                             if (targetEn.hp <= 0) {
                                 const isElite = targetEn.type === 'orange';
                                 const points = isElite ? 150 : 50;
+                                const shootingTimeBonus = isElite ? 20 : 10;
+                                
                                 state.score += points;
                                 DOM.scoreEl.innerText = state.score;
                                 
-                                // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
-                                if (window.addShootingTime) {
-                                    window.addShootingTime(isElite ? 20 : 10);
-                                }
+                                // ⏱️ Add shooting time bonus
+                                addShootingTime(shootingTimeBonus);
+                                console.log(`⏱️ [BONUS] +${shootingTimeBonus}s shooting time from feather AoE kill`);
                                 
                                 createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
                                 targetEn.el.remove();
@@ -405,14 +408,15 @@ export function updateEnemies(now) {
                 if(en.hp <= 0) {
                     const isElite = en.type === 'orange';
                     const points = isElite ? 150 : 50;
+                    const shootingTimeBonus = isElite ? 20 : 10;
+                    
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
                     
-                    // ✅ ADD SHOOTING TIME - Elite gives 20s, normal gives 10s
-                    if (window.addShootingTime) {
-                        window.addShootingTime(isElite ? 20 : 10);
-                    }
+                    // ⏱️ Add shooting time bonus
+                    addShootingTime(shootingTimeBonus);
+                    console.log(`⏱️ [BONUS] +${shootingTimeBonus}s shooting time from ${isElite ? 'elite' : 'normal'} enemy kill`);
                     
                     const crossedHealThreshold = Math.floor(state.score / 300) > Math.floor(oldScore / 300);
                     
