@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, updateShootingTimeUI, updateShootingTimeRegen } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 
@@ -70,13 +70,12 @@ function displayLeaderboard(category) {
     const html = leaderboard.map((entry, index) => {
         console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
         
-        // Get skin name, or use the skin key if skin doesn't exist in SKINS
         let skinName = '';
         if (entry.skin) {
             if (SKINS[entry.skin]) {
                 skinName = `• ${SKINS[entry.skin].name}`;
             } else {
-                skinName = `• ${entry.skin}`; // Fallback to skin key if skin doesn't exist
+                skinName = `• ${entry.skin}`;
                 console.warn(`⚠️ [DISPLAY] Unknown skin: ${entry.skin}`);
             }
         }
@@ -98,14 +97,8 @@ function displayLeaderboard(category) {
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
 
-// Export to window for HTML onclick
-console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
 window.closeLeaderboard = closeLeaderboard;
-console.log('✅ [EXPORT] Functions exported:', {
-    showLeaderboard: typeof window.showLeaderboard,
-    closeLeaderboard: typeof window.closeLeaderboard
-});
 
 // ===== SKIN SELECTION =====
 
@@ -156,15 +149,14 @@ function selectSkin(key, element) {
     console.log(`✅ [SELECT] Skin ${key} selected successfully`);
 }
 
-// Export to window for HTML onclick
 window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
 function initGame() {
+    console.log('🎮 [INIT] Initializing game...');
     resetState();
     
-    // Reset player size to normal
     DOM.player.style.transform = 'scale(1)';
     
     const skin = SKINS[currentSkinKey];
@@ -180,9 +172,13 @@ function initGame() {
     DOM.scoreEl.innerText = '0';
     DOM.levelEl.innerText = '1';
     updateHPUI();
+    
+    // ⏱️ Initialize Shooting Time UI
+    updateShootingTimeUI();
+    console.log('⏱️ [INIT] Shooting time UI initialized');
+    
     DOM.overlay.style.display = 'none';
     
-    // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
@@ -208,10 +204,10 @@ function initGame() {
     
     updateSkinOptions();
     updatePlayerPos();
+    console.log('🎮 [INIT] Game initialized, starting update loop');
     requestAnimationFrame(update);
 }
 
-// Export to window for HTML onclick
 window.initGame = initGame;
 console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
@@ -264,6 +260,9 @@ function update() {
     updateAbilityCooldown(now);
     updateArrowMovement();
     
+    // ⏱️ Update shooting time regeneration
+    updateShootingTimeRegen(now);
+    
     updateBurgers();
     updateIngredients();
     updateBullets();
@@ -280,11 +279,9 @@ function updateAbilityCooldown(now) {
     const abilityBtn = document.getElementById('special-ability-btn');
     if (!abilityBtn) return;
     
-    // Check if chaos mode duration ended (but don't revert enemies)
     if (state.jokerAbility.active && now >= state.jokerAbility.endTime) {
         console.log('🃏 [JOKER] Chaos mode duration ended (enemies stay chaotic)');
         state.jokerAbility.active = false;
-        // Don't remove chaos effect - enemies stay chaotic forever!
     }
     
     if (currentSkinKey === 'vortex') {
@@ -361,12 +358,10 @@ function activateSpecialAbility() {
 
 // ===== EVENT LISTENERS =====
 
-// Mouse/Arrow control
 window.addEventListener('mousemove', (e) => {
     if(!state.active || keyBindings.controlType !== 'mouse') return;
     movePlayer(e.clientX);
     
-    // Track mouse position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.clientX - rect.left;
     state.lastMouseY = e.clientY - rect.top;
@@ -378,7 +373,6 @@ window.addEventListener('touchmove', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
-    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
@@ -389,29 +383,24 @@ window.addEventListener('touchstart', (e) => {
     movePlayer(e.touches[0].clientX);
     shoot();
     
-    // Track touch position for Phoenix feathers
     const rect = DOM.wrapper.getBoundingClientRect();
     state.lastMouseX = e.touches[0].clientX - rect.left;
     state.lastMouseY = e.touches[0].clientY - rect.top;
 }, { passive: false });
 
-// Arrow key controls
 let arrowKeysPressed = { left: false, right: false, up: false, down: false, shoot: false };
 let mousePressed = false;
 
 window.addEventListener('keydown', (e) => {
-    // Handle shooting key - track if it's pressed
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
-        shoot(); // Shoot immediately on press
+        shoot();
     }
     
-    // Handle special ability for all control types
     if (state.active && e.code === keyBindings.ability) {
         activateSpecialAbility();
     }
     
-    // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
     
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -425,7 +414,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
-    // Track shoot key release
     if (e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = false;
     }
@@ -435,11 +423,9 @@ window.addEventListener('keyup', (e) => {
     if (e.code === 'ArrowRight' || e.code === 'KeyD') arrowKeysPressed.right = false;
 });
 
-// Arrow movement update
 function updateArrowMovement() {
     if (!state.active) return;
     
-    // Handle arrow key movement
     if (keyBindings.controlType === 'arrows') {
         const speed = 8;
         if (arrowKeysPressed.left) {
@@ -452,12 +438,10 @@ function updateArrowMovement() {
         }
     }
     
-    // Continuous shooting when shoot key is held (works in both modes)
     if (arrowKeysPressed.shoot) {
         shoot();
     }
     
-    // Continuous shooting when mouse button is held (mouse mode only)
     if (keyBindings.controlType === 'mouse' && mousePressed) {
         shoot();
     }
@@ -474,10 +458,8 @@ window.addEventListener('mouseup', (e) => {
     mousePressed = false;
 });
 
-// Special ability button click
 document.getElementById('special-ability-btn').addEventListener('click', activateSpecialAbility);
 
-// Prevent context menu on right click, use it for special ability instead
 window.addEventListener('contextmenu', (e) => {
     if (state.active && keyBindings.rightClickAbility) {
         e.preventDefault();
@@ -487,7 +469,6 @@ window.addEventListener('contextmenu', (e) => {
 
 // ===== INITIALIZATION =====
 
-// Generate stars
 console.log('⭐ [INIT] Generating stars...');
 for(let i=0; i<40; i++) {
     const s = document.createElement('div');
@@ -566,7 +547,6 @@ window.setLvl = function(lvlNum) {
     DOM.levelEl.innerText = level;
     DOM.scoreEl.innerText = state.score;
     
-    // Update game difficulty based on level
     state.speedMult = 1 + ((level - 1) * 0.2);
     state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
     
@@ -575,12 +555,10 @@ window.setLvl = function(lvlNum) {
     console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
     console.log(`📊 [DEBUG] Spawn rate: ${state.spawnRate}ms`);
     
-    // Save max level if higher
     saveMaxLevel(level);
     
     return true;
 };
-
 
 window.spawn = function(type) {
     if (!state.active) {
@@ -685,7 +663,6 @@ function closeSettings() {
 }
 
 function updateSettingsDisplay() {
-    // Update device mode buttons
     const isAuto = deviceMode.isAutoDetected;
     const isMobile = deviceMode.isMobile;
     
@@ -693,7 +670,6 @@ function updateSettingsDisplay() {
     document.getElementById('device-mobile').classList.toggle('active', !isAuto && isMobile);
     document.getElementById('device-desktop').classList.toggle('active', !isAuto && !isMobile);
     
-    // Show/hide keyboard settings based on device mode
     const keyboardSettings = [
         document.getElementById('control-settings'),
         document.getElementById('shoot-key-settings'),
@@ -715,22 +691,18 @@ function updateSettingsDisplay() {
         }
     });
     
-    // Update control type buttons
     document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
     document.getElementById('control-arrows').classList.toggle('active', keyBindings.controlType === 'arrows');
     
-    // Update right-click buttons
     document.getElementById('rightclick-on').classList.toggle('active', keyBindings.rightClickAbility === true);
     document.getElementById('rightclick-off').classList.toggle('active', keyBindings.rightClickAbility === false);
     
-    // Update game rules buttons
     document.getElementById('enemies-shoot-asteroids-yes').classList.toggle('active', gameRules.enemiesShootThroughAsteroids === true);
     document.getElementById('enemies-shoot-asteroids-no').classList.toggle('active', gameRules.enemiesShootThroughAsteroids === false);
     
     document.getElementById('player-shoot-asteroids-yes').classList.toggle('active', gameRules.playerShootThroughAsteroids === true);
     document.getElementById('player-shoot-asteroids-no').classList.toggle('active', gameRules.playerShootThroughAsteroids === false);
     
-    // Update key displays
     document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
     document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
 }
@@ -765,7 +737,6 @@ function setDevice(mode) {
     console.log(`📱 [SETTINGS] Device mode set to: ${mode}`);
     
     if (mode === 'auto') {
-        // Re-detect device
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         const isSmallScreen = window.innerWidth <= 768;
         setDeviceMode(isTouchDevice && isSmallScreen, false);
@@ -793,7 +764,6 @@ function changeKey(action) {
     const keyListener = (e) => {
         e.preventDefault();
         
-        // Don't allow certain keys
         if (['Escape', 'F5', 'F11', 'F12'].includes(e.code)) {
             console.log('⚠️ [SETTINGS] Invalid key');
             return;
@@ -813,7 +783,6 @@ function changeKey(action) {
     window.addEventListener('keydown', keyListener);
 }
 
-// Export to window
 window.showSettings = showSettings;
 window.closeSettings = closeSettings;
 window.setControl = setControl;
@@ -821,3 +790,5 @@ window.setRightClick = setRightClick;
 window.setGameRule = setGameRuleFunc;
 window.setDevice = setDevice;
 window.changeKey = changeKey;
+
+console.log('✅ [MAIN] All systems initialized with shooting time system');

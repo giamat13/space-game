@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מגיני החלל: מערכת סקינים</title>
+    <title>מגיני החלל: מערכת זמן ירי</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -18,6 +18,14 @@
                 </div>
             </div>
             <div class="stat-box">Level: <span id="level">1</span></div>
+        </div>
+
+        <!-- ⏱️ SHOOTING TIME DISPLAY (Right side) -->
+        <div id="shooting-time-ui" class="stat-box shooting-time-box">
+            <div>⏱️ Shoot: <span id="shooting-time-text">15s</span></div>
+            <div class="shooting-time-bar-container">
+                <div id="shooting-time-bar" class="shooting-time-bar-fill"></div>
+            </div>
         </div>
 
         <div id="player">
