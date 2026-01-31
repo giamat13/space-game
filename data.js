@@ -8,9 +8,7 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
-    overlay: document.getElementById('overlay'),
-    shootTimeBar: document.getElementById('shoot-time-bar'),
-    shootTimeText: document.getElementById('shoot-time-text')
+    overlay: document.getElementById('overlay')
 };
 
 // Skin Configuration
