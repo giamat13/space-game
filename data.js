@@ -8,7 +8,9 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
-    overlay: document.getElementById('overlay')
+    overlay: document.getElementById('overlay'),
+    shootTimeBar: document.getElementById('shoot-time-bar'),
+    shootTimeText: document.getElementById('shoot-time-text')
 };
 
 // Skin Configuration
@@ -433,6 +435,13 @@ export const state = {
         lastUsed: 0,
         active: false,
         endTime: 0
+    },
+    shootingTime: {
+        current: 15000, // זמן יריה נוכחי במילישניות (15 שניות בהתחלה)
+        max: 60000, // מקסימום 60 שניות
+        lastShootTime: 0, // מתי ירינו לאחרונה
+        isRegenerating: false, // האם במצב התחדשות
+        regenStartTime: 0 // מתי התחילה ההתחדשות
     }
 };
 
@@ -471,5 +480,9 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerAbility.endTime = 0;
+    state.shootingTime.current = 15000;
+    state.shootingTime.lastShootTime = Date.now();
+    state.shootingTime.isRegenerating = false;
+    state.shootingTime.regenStartTime = 0;
     console.log('✅ [STATE] Reset complete');
 }
