@@ -1,4 +1,4 @@
-// ===== FIREBASE AUTH MODULE =====
+// ===== FIREBASE AUTH MODULE v2 =====
 // Handles: Google login, Email/Password login, Account Linking
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -14,6 +14,7 @@ import {
     linkWithCredential,
     EmailAuthProvider,
     signOut,
+    updateProfile,
     fetchSignInMethodsForEmail
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
@@ -66,29 +67,26 @@ async function syncUserData(user) {
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
 
+        const data = {
+            uid: user.uid,
+            email: user.email || null,
+            displayName: user.displayName || null,
+            providers: user.providerData.map(p => p.providerId),
+            lastLogin: serverTimestamp()
+        };
+
         if (!userSnap.exists()) {
-            // New user — create record
-            await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email || null,
-                displayName: user.displayName || null,
-                providers: user.providerData.map(p => p.providerId),
-                createdAt: serverTimestamp(),
-                lastLogin: serverTimestamp()
-            });
-            console.log('✅ [FIRESTORE] New user created');
+            data.createdAt = serverTimestamp();
+            console.log('✅ [FIRESTORE] יוצר משתמש חדש');
         } else {
-            // Existing user — update last login & providers
-            await updateDoc(userRef, {
-                providers: user.providerData.map(p => p.providerId),
-                lastLogin: serverTimestamp(),
-                email: user.email || null,
-                displayName: user.displayName || null
-            });
-            console.log('✅ [FIRESTORE] User updated');
+            console.log('✅ [FIRESTORE] מעדכן משתמש קיים');
         }
+
+        // setDoc עם merge:true — עובד גם ליצירה וגם לעדכון
+        await setDoc(userRef, data, { merge: true });
+
     } catch (e) {
-        console.error('❌ [FIRESTORE] Error:', e);
+        console.error('❌ [FIRESTORE] שגיאה:', e.message);
     }
 }
 
@@ -107,18 +105,20 @@ export async function signInWithGoogle() {
 
 // ===== EMAIL/PASSWORD SIGN UP =====
 export async function signUpWithEmail(email, password, displayName) {
+    if (!displayName || !displayName.trim()) {
+        showAuthError('שם משתמש הוא שדה חובה');
+        return;
+    }
     try {
         showAuthLoading('יוצר חשבון...');
         const result = await createUserWithEmailAndPassword(auth, email, password);
 
-        // Save display name to Firestore immediately
-        if (displayName) {
-            const userRef = doc(db, 'users', result.user.uid);
-            await updateDoc(userRef, { displayName });
-        }
+        // עדכן displayName ב-Auth עצמו
+        await updateProfile(result.user, { displayName: displayName.trim() });
 
+        // Firestore ייווצר דרך onAuthStateChanged אחרי שהמשתמש מחובר
         closeAuthModal();
-        showAuthNotification('חשבון נוצר בהצלחה! 🎉', 'success');
+        showAuthNotification(`ברוך הבא, ${displayName.trim()}! 🎉`, 'success');
         logEvent(analytics, 'sign_up', { method: 'email' });
     } catch (error) {
         handleAuthError(error);
@@ -393,7 +393,7 @@ function createAuthModal() {
                     הרשמה עם Google
                 </button>
                 <div class="auth-divider"><span>או</span></div>
-                <input id="register-name" type="text" placeholder="שם (אופציונלי)" class="auth-input" />
+                <input id="register-name" type="text" placeholder="שם משתמש *" class="auth-input" />
                 <input id="register-email" type="email" placeholder="אימייל" class="auth-input" dir="ltr" />
                 <input id="register-password" type="password" placeholder="סיסמה (מינימום 6 תווים)" class="auth-input" dir="ltr" />
                 <button class="auth-btn-primary" onclick="window.authEmailRegister()">הרשמה</button>
@@ -470,6 +470,7 @@ window.authEmailRegister = async () => {
     const name = document.getElementById('register-name')?.value?.trim();
     const email = document.getElementById('register-email')?.value?.trim();
     const password = document.getElementById('register-password')?.value;
+    if (!name) { showAuthError('שם משתמש הוא שדה חובה'); return; }
     if (!email || !password) { showAuthError('נא מלא אימייל וסיסמה'); return; }
     await signUpWithEmail(email, password, name);
 };
