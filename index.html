@@ -6,6 +6,15 @@
     <title>מגיני החלל: מערכת סקינים</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-KDX7TXWLFL"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-KDX7TXWLFL');
+    </script>
 </head>
 <body>
     <div id="game-wrapper">
@@ -18,6 +27,12 @@
                 </div>
             </div>
             <div class="stat-box">Level: <span id="level">1</span></div>
+        </div>
+
+        <!-- Auth Bar (top right) -->
+        <div id="auth-bar">
+            <div id="auth-user-info"></div>
+            <button id="auth-btn" onclick="window.showAuthModal && window.showAuthModal('login')">🔐 כניסה</button>
         </div>
 
         <div id="player">
@@ -187,5 +202,6 @@
     </div>
 
     <script type="module" src="main.js"></script>
+    <script type="module" src="firebase-auth.js"></script>
 </body>
 </html>
