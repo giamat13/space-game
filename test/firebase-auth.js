@@ -481,5 +481,4 @@ window.authLinkEmail = async () => {
     await linkEmail(email, password);
 };
 
-// Export public API
-export { showAuthModal, closeAuthModal, showAccountModal };
+// (showAuthModal, closeAuthModal, showAccountModal already exported above as named exports)
