@@ -6,6 +6,25 @@
     <title>מגיני החלל: מערכת סקינים</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDiV4TU6uwOHBX3T4DECM51OZWwPNSZIdw",
+            authDomain: "space-game-ii.firebaseapp.com",
+            projectId: "space-game-ii",
+            storageBucket: "space-game-ii.firebasestorage.app",
+            messagingSenderId: "972181615049",
+            appId: "1:972181615049:web:1e7790e50c1507c76cb818",
+            measurementId: "G-KDX7TXWLFL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+    </script>
 </head>
 <body>
     <div id="game-wrapper">
