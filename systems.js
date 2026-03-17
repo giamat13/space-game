@@ -54,8 +54,12 @@ export function damagePlayer(amount) {
         state.active = false;
         
         import('./data.js').then(module => {
-            module.saveScore(module.currentSkinKey, state.score, state.level);
-            console.log('✅ [GAME OVER] Score saved');
+            // Get username from auth module
+            import('./auth.js').then(authModule => {
+                const userName = authModule.currentUser?.displayName || 'Anonymous';
+                module.saveScore(module.currentSkinKey, state.score, state.level, userName);
+                console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
+            });
         }).catch(err => {
             console.error('❌ [GAME OVER] Save error:', err);
         });

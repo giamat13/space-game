@@ -2,10 +2,14 @@ import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlo
 import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
+import { initAuth, currentUser, isAuthenticated } from './auth.js';
+import { initFirestoreSync } from './firestore-sync.js';
 
 // ===== INITIALIZATION =====
 
 console.log('🚀 [INIT] Game loading...');
+initAuth(); // Initialize Firebase Auth
+initFirestoreSync(); // Initialize Firestore sync
 loadUnlockedSkins();
 loadKeyBindings();
 loadGameRules();
@@ -48,10 +52,8 @@ function closeLeaderboard() {
     console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
-function displayLeaderboard(category) {
+async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
-    const leaderboard = getLeaderboard(category);
-    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
     const content = document.getElementById('leaderboard-content');
     
     if (!content) {
@@ -59,13 +61,36 @@ function displayLeaderboard(category) {
         return;
     }
     
+    // Show loading message
+    content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
+    
+    // Try to get from cloud first
+    let leaderboard = [];
+    try {
+        const { getLeaderboardFromCloud } = await import('./firestore-sync.js');
+        const cloudLeaderboard = await getLeaderboardFromCloud(category);
+        if (cloudLeaderboard && cloudLeaderboard.length > 0) {
+            console.log(`✅ [DISPLAY] Got ${cloudLeaderboard.length} entries from cloud`);
+            leaderboard = cloudLeaderboard;
+        } else {
+            // Fallback to local
+            leaderboard = getLeaderboard(category);
+            console.log(`📊 [DISPLAY] Using local data: ${leaderboard.length} entries`);
+        }
+    } catch (error) {
+        console.log('⚠️ [DISPLAY] Cloud fetch failed, using local data');
+        leaderboard = getLeaderboard(category);
+    }
+    
+    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
+    
     if (leaderboard.length === 0) {
         console.log('⚠️ [DISPLAY] No entries found, showing empty message');
         content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
         return;
     }
     
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     console.log('📊 [DISPLAY] Generating HTML for entries...');
     const html = leaderboard.map((entry, index) => {
         console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
@@ -81,10 +106,16 @@ function displayLeaderboard(category) {
             }
         }
         
+        // Get user name
+        const userName = entry.userName || 'Anonymous';
+        
         return `
         <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index]}</div>
+            <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
+                <div class="lb-player-name" style="font-size: 0.9rem; font-weight: bold; color: var(--primary); margin-bottom: 3px;">
+                    👤 ${userName}
+                </div>
                 <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
                 <div class="lb-details">
                     שלב ${entry.level} ${skinName} • ${entry.date}
