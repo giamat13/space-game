@@ -9,16 +9,17 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      # 1. משיכת הקוד מהמשחק הרגיל למערכת של GitHub Actions
+      # 1. משיכת הקוד מהמשחק הרגיל - עם ביטול מפתח ברירת המחדל כדי שלא יתנגש
       - name: Checkout Regular Game
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false # <--- זה התיקון שמונע את שגיאת 403
 
       # 2. הגדרת ה-Git ודחיפת הקוד למאגר החינוכי
       - name: Push to Educational Repo
         run: |
-          # הגדרת משתמש Git זמני בשביל ה-Commit
+          # הגדרת משתמש Git זמני בשביל הפעולה
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
