@@ -1,0 +1,29 @@
+name: Sync to Educational Repo
+
+on:
+  push:
+    branches:
+      - main # ירוץ בכל פעם שתעשה push לענף הראשי במשחק הרגיל
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. משיכת הקוד מהמשחק הרגיל למערכת של GitHub Actions
+      - name: Checkout Regular Game
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. הגדרת ה-Git ודחיפת הקוד למאגר החינוכי
+      - name: Push to Educational Repo
+        run: |
+          # הגדרת משתמש Git זמני בשביל ה-Commit
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # חיבור המאגר החינוכי בעזרת ה-Token שהגדרת ב-Secrets
+          git remote add edu https://${{ secrets.EDU_REPO_TOKEN }}@github.com/giamat13/space-game-edu.git
+          
+          # דחיפת הקוד (בכוח, כי המאגר החינוכי ריק כרגע)
+          git push edu main:main --force
