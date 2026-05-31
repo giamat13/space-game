@@ -24,7 +24,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # חיבור המאגר החינוכי בעזרת ה-Token
-          git remote add edu https://${{ secrets.EDU_REPO_TOKEN }}@github.com/giamat13/space-game-edu.git
+          git remote add edu https://${{ secrets.EDU_REPO_TOKEN }}@github.com/giamat13/space-game_X_kidlearn.git
           
           # דחיפת ענף main המקומי אל ענף test המרוחק (בכוח)
           git push edu main:test --force
