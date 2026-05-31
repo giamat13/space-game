@@ -550,6 +550,8 @@ button:hover {
 #settings-container {
     text-align: center;
     max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
     padding: 20px;
 }
 
