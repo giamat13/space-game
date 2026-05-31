@@ -155,6 +155,8 @@ body {
 
 .dev-console-output .dev-err { color: #ff5555; }
 .dev-console-output .dev-ok { color: #00ff88; }
+.dev-console-output .dev-log { color: #cccccc; }
+.dev-console-output .dev-warn { color: #ffcc44; }
 
 #player.dragon-invincible {
     animation: dragonPulse 0.4s ease-in-out infinite alternate;
