@@ -880,43 +880,73 @@ function changeKey(action) {
 
 // ===== DEVELOPER CONSOLE =====
 
-function runDevConsole() {
+function appendDevLine(output, text, className) {
+    const line = document.createElement('div');
+    if (className) line.className = className;
+    line.textContent = text;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+    return line;
+}
+
+function formatDevValue(value) {
+    if (value === undefined) return 'undefined';
+    if (value === null) return 'null';
+    if (typeof value === 'object') {
+        try { return JSON.stringify(value); } catch (e) { return String(value); }
+    }
+    return String(value);
+}
+
+async function runDevConsole() {
     const input = document.getElementById('dev-console-input');
     const output = document.getElementById('dev-console-output');
     if (!input || !output) return;
 
     const code = input.value.trim();
-    if (!code) return;
+    if (!code) {
+        appendDevLine(output, '⚠️ אין קוד להרצה', 'dev-err');
+        return;
+    }
 
-    console.log(`💻 [DEV CONSOLE] Running: ${code}`);
+    // Echo the command (just like the browser console)
+    appendDevLine(output, `> ${code}`, null).style.opacity = '0.6';
 
-    // Echo the command, then the result/error (just like the browser console)
-    const echo = document.createElement('div');
-    echo.textContent = `> ${code}`;
-    echo.style.opacity = '0.6';
-    output.appendChild(echo);
+    // Capture console.log/warn/error output so commands that only log
+    // (like the debug commands) actually show their feedback here.
+    const original = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error
+    };
+    const capture = (cls) => (...args) => {
+        const text = args.map(a => (typeof a === 'object' ? formatDevValue(a) : String(a))).join(' ');
+        appendDevLine(output, text, cls);
+    };
+    console.log = (...args) => { original.log(...args); capture('dev-log')(...args); };
+    console.warn = (...args) => { original.warn(...args); capture('dev-warn')(...args); };
+    console.error = (...args) => { original.error(...args); capture('dev-err')(...args); };
 
     try {
         // Run in global scope so window.* debug commands are available
-        const result = (0, eval)(code);
-        const line = document.createElement('div');
-        line.className = 'dev-ok';
-        let text;
-        if (result === undefined) {
-            text = 'undefined';
-        } else if (typeof result === 'object') {
-            try { text = JSON.stringify(result); } catch (e) { text = String(result); }
-        } else {
-            text = String(result);
+        let result = (0, eval)(code);
+
+        // Await promises (several debug commands are async)
+        if (result && typeof result.then === 'function') {
+            result = await result;
         }
-        line.textContent = text;
-        output.appendChild(line);
+
+        appendDevLine(output, formatDevValue(result), 'dev-ok');
     } catch (err) {
-        const line = document.createElement('div');
-        line.className = 'dev-err';
-        line.textContent = `❌ ${err.name}: ${err.message}`;
-        output.appendChild(line);
-        console.error('💻 [DEV CONSOLE] Error:', err);
+        const name = (err && err.name) || 'Error';
+        const message = (err && err.message) || String(err);
+        appendDevLine(output, `❌ ${name}: ${message}`, 'dev-err');
+        original.error('💻 [DEV CONSOLE] Error:', err);
+    } finally {
+        // Always restore the real console
+        console.log = original.log;
+        console.warn = original.warn;
+        console.error = original.error;
     }
 
     output.scrollTop = output.scrollHeight;
