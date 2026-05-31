@@ -122,6 +122,35 @@ body {
     touch-action: none;
 }
 
+#player.dragon-invincible {
+    animation: dragonPulse 0.4s ease-in-out infinite alternate;
+}
+
+#player.dragon-invincible::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 80px;
+    height: 80px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid #ffaa33;
+    box-shadow: 0 0 25px #ff6600, inset 0 0 20px #ffaa33;
+    pointer-events: none;
+    animation: dragonShield 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes dragonPulse {
+    from { filter: drop-shadow(0 0 8px #ffaa33) drop-shadow(0 0 15px #ff6600); }
+    to { filter: drop-shadow(0 0 20px #ffff00) drop-shadow(0 0 35px #ff6600); }
+}
+
+@keyframes dragonShield {
+    from { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+
 .bullet {
     position: absolute;
     width: 4px;

@@ -146,6 +146,18 @@ export const SKINS = {
         maxHP: 600,
         isFire: true,
         description: '🃏 CHAOS MODE (45s CD) | 🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
+    },
+    dragon: {
+        svg: `<img src="dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
+        color: '#ffaa33',
+        unlockLevel: 30,
+        name: 'Dragon',
+        fireRate: 2.2,
+        bulletSpeed: 1.8,
+        bulletDamage: 3.5,
+        maxHP: 800,
+        isFire: true,
+        description: '🐉 DRAGON INFERNO (25s CD) | 🔥 Fire in ALL directions | 🛡️ 10s invincibility | ⚡ Superior in everything'
     }
 };
 
@@ -490,6 +502,12 @@ export const state = {
         lastUsed: 0,
         active: false,
         endTime: 0
+    },
+    dragonAbility: {
+        ready: true,
+        cooldown: 25000,
+        lastUsed: 0,
+        invincibleUntil: 0
     }
 };
 
@@ -528,5 +546,8 @@ export function resetState() {
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerAbility.endTime = 0;
+    state.dragonAbility.ready = true;
+    state.dragonAbility.lastUsed = 0;
+    state.dragonAbility.invincibleUntil = 0;
     console.log('✅ [STATE] Reset complete');
 }

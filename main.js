@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
@@ -230,9 +230,17 @@ function initGame() {
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '🃏';
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+    } else if (currentSkinKey === 'dragon') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerText = '🐉';
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
     }
+
+    // Make sure invincibility visual is cleared on a fresh game
+    DOM.player.classList.remove('dragon-invincible');
     
     const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam');
     elementsToRemove.forEach(e => e.remove());
@@ -350,13 +358,32 @@ function updateAbilityCooldown(now) {
         if (!state.jokerAbility.ready) {
             const elapsed = now - state.jokerAbility.lastUsed;
             const remaining = state.jokerAbility.cooldown - elapsed;
-            
+
             if (remaining <= 0) {
                 state.jokerAbility.ready = true;
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
                 const percent = (remaining / state.jokerAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
+    } else if (currentSkinKey === 'dragon') {
+        // Clear invincibility visual when it expires
+        if (state.dragonAbility.invincibleUntil > 0 && now >= state.dragonAbility.invincibleUntil) {
+            DOM.player.classList.remove('dragon-invincible');
+        }
+
+        if (!state.dragonAbility.ready) {
+            const elapsed = now - state.dragonAbility.lastUsed;
+            const remaining = state.dragonAbility.cooldown - elapsed;
+
+            if (remaining <= 0) {
+                state.dragonAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.dragonAbility.cooldown) * 100;
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
@@ -382,10 +409,17 @@ function activateSpecialAbility() {
         document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
-        
+
         useJokerChaos();
         state.jokerAbility.ready = false;
         state.jokerAbility.lastUsed = Date.now();
+        document.getElementById('special-ability-btn').classList.add('cooldown');
+    } else if (currentSkinKey === 'dragon') {
+        if (!state.dragonAbility.ready) return;
+
+        useDragonFire();
+        state.dragonAbility.ready = false;
+        state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
     }
 }
