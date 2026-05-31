@@ -547,3 +547,4 @@ export function handleSpawning(now) {
         state.lastSpawn = now;
     }
 }
+
