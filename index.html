@@ -267,13 +267,12 @@
 
                 <div class="settings-group" id="dev-console-settings">
                     <label>הרצת קוד (בדיוק כמו ב-F12 → Console):</label>
-                    <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="setLvl(30)&#10;debugUnlockAllSkins()&#10;spawn('elite')"></textarea>
+                    <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="// הקלד קוד כאן"></textarea>
                     <div class="button-group" style="margin-top: 8px;">
                         <button class="setting-btn" onclick="runDevConsole()">▶️ הרץ</button>
                         <button class="setting-btn" onclick="clearDevConsole()">🗑️ נקה</button>
                     </div>
                     <pre id="dev-console-output" class="dev-console-output" dir="ltr"></pre>
-                    <small style="opacity: 0.7;">פקודות זמינות: setLvl(n), spawn('enemy'|'elite'|'asteroid'|'burger'), debugUnlockAllSkins(), debugUnlockSkin('dragon'), debugListSkins()</small>
                 </div>
 
                 <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>
