@@ -309,14 +309,20 @@ function update() {
     handleSpawning(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
-    
-    updateBurgers();
-    updateIngredients();
+
+    // Read the player's rect once per frame; every collision pass reuses it
+    // instead of triggering its own layout reflow.
+    state.playerRect = DOM.player.getBoundingClientRect();
+
+    // Move bullets first so their cached rects are fresh for the collision
+    // passes (burgers/asteroids/enemies) that follow.
     updateBullets();
     updateEnemyBullets();
+    updateBurgers();
+    updateIngredients();
     updateAsteroids();
     updateEnemies(now);
-    
+
     requestAnimationFrame(update);
 }
 

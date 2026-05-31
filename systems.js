@@ -1,4 +1,4 @@
-import { DOM, state, INGREDIENT_TYPES } from './data.js';
+import { DOM, state, INGREDIENT_TYPES, deviceMode } from './data.js';
 
 // ===== PLAYER SYSTEMS =====
 
@@ -38,8 +38,7 @@ export function damagePlayer(amount) {
     }
 
     state.playerHP -= amount;
-    console.log(`💥 [DAMAGE] -${amount} HP | Now: ${state.playerHP}/${state.playerMaxHP}`);
-    
+
     // Check if player should lose weight
     if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
         state.isPlayerFat = false;
@@ -81,7 +80,6 @@ export function damagePlayer(amount) {
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
-    console.log(`💚 [HEAL] +${percent}% | Now: ${state.playerHP}/${state.playerMaxHP}`);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -127,7 +125,12 @@ export function shoot() {
 
 export function enemyShoot(en) {
     if (!state.active) return;
-    
+
+    // Cap live enemy bullets so a screen full of fast-firing enemies in
+    // advanced stages can't snowball into hundreds of moving elements.
+    const ebCap = deviceMode.isMobile ? 70 : 160;
+    if (state.enemyBullets.length >= ebCap) return;
+
     const eb = document.createElement('div');
     eb.className = 'enemy-bullet';
     if (en.type === 'orange') eb.style.background = 'var(--elite)';
@@ -148,10 +151,8 @@ export function enemyShoot(en) {
             eb.dataset.chaoticShot = "true";
             eb.style.background = '#00f2ff';
             eb.style.boxShadow = '0 0 10px #00f2ff';
-            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} shooting at normal enemy at Y=${targetEnemy.y.toFixed(0)}`);
         } else {
             // No normal enemies, don't shoot
-            console.log(`🃏 [CHAOTIC] Enemy at Y=${en.y.toFixed(0)} has no normal enemies to target`);
             return;
         }
     } else if (Math.random() < 0.05 && state.enemies.length > 1) {
@@ -195,20 +196,34 @@ export function enemyShoot(en) {
 
 // ===== VISUAL EFFECTS =====
 
+// Particle budget — caps the number of live particle elements so heavy
+// moments (mass kills, abilities) in advanced stages don't flood the DOM
+// with animated elements and cause lag spikes, especially on mobile.
+let activeParticles = 0;
+function particleCap() { return deviceMode.isMobile ? 70 : 180; }
+
+export function spawnParticle(x, y, color, opts = {}) {
+    if (activeParticles >= particleCap()) return;
+    activeParticles++;
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.background = color;
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    if (opts.size) { p.style.width = opts.size + 'px'; p.style.height = opts.size + 'px'; }
+    DOM.wrapper.appendChild(p);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * (opts.dist || 60) + 10;
+    p.animate([
+        { opacity: 1 },
+        { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
+    ], opts.duration || 500).onfinish = () => { p.remove(); activeParticles--; };
+}
+
 export function createExplosion(x, y, color) {
-    for(let i=0; i<15; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        p.style.background = color;
-        p.style.left = x + 'px';
-        p.style.top = y + 'px';
-        DOM.wrapper.appendChild(p);
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 60 + 10;
-        p.animate([
-            { opacity: 1 }, 
-            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-        ], 500).onfinish = () => p.remove();
+    const count = deviceMode.isMobile ? 6 : 12;
+    for(let i=0; i<count; i++) {
+        spawnParticle(x, y, color);
     }
 }
 
@@ -492,6 +507,11 @@ export function handleSpawning(now) {
                 rotSpeed: Math.random() * 8 - 4 
             });
         } else {
+            // Don't keep spawning enemies once the screen is already saturated —
+            // this prevents the runaway lag spiral in advanced stages.
+            const enemyCap = deviceMode.isMobile ? 35 : 70;
+            if (state.enemies.length >= enemyCap) { state.lastSpawn = now; return; }
+
             const orangeChance = Math.min(0.8, 0.25 + (state.level * 0.05));
             const isOrange = Math.random() < orangeChance; 
             const type = isOrange ? 'orange' : 'red';
