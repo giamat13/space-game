@@ -122,6 +122,40 @@ body {
     touch-action: none;
 }
 
+.dev-console-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #00ff88;
+    border: 2px solid var(--primary);
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.dev-console-output {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 8px;
+    padding: 10px;
+    min-height: 24px;
+    max-height: 160px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ccc;
+}
+
+.dev-console-output .dev-err { color: #ff5555; }
+.dev-console-output .dev-ok { color: #00ff88; }
+
 #player.dragon-invincible {
     animation: dragonPulse 0.4s ease-in-out infinite alternate;
 }

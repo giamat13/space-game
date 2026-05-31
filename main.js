@@ -878,7 +878,58 @@ function changeKey(action) {
     window.addEventListener('keydown', keyListener);
 }
 
+// ===== DEVELOPER CONSOLE =====
+
+function runDevConsole() {
+    const input = document.getElementById('dev-console-input');
+    const output = document.getElementById('dev-console-output');
+    if (!input || !output) return;
+
+    const code = input.value.trim();
+    if (!code) return;
+
+    console.log(`💻 [DEV CONSOLE] Running: ${code}`);
+
+    // Echo the command, then the result/error (just like the browser console)
+    const echo = document.createElement('div');
+    echo.textContent = `> ${code}`;
+    echo.style.opacity = '0.6';
+    output.appendChild(echo);
+
+    try {
+        // Run in global scope so window.* debug commands are available
+        const result = (0, eval)(code);
+        const line = document.createElement('div');
+        line.className = 'dev-ok';
+        let text;
+        if (result === undefined) {
+            text = 'undefined';
+        } else if (typeof result === 'object') {
+            try { text = JSON.stringify(result); } catch (e) { text = String(result); }
+        } else {
+            text = String(result);
+        }
+        line.textContent = text;
+        output.appendChild(line);
+    } catch (err) {
+        const line = document.createElement('div');
+        line.className = 'dev-err';
+        line.textContent = `❌ ${err.name}: ${err.message}`;
+        output.appendChild(line);
+        console.error('💻 [DEV CONSOLE] Error:', err);
+    }
+
+    output.scrollTop = output.scrollHeight;
+}
+
+function clearDevConsole() {
+    const output = document.getElementById('dev-console-output');
+    if (output) output.innerHTML = '';
+}
+
 // Export to window
+window.runDevConsole = runDevConsole;
+window.clearDevConsole = clearDevConsole;
 window.showSettings = showSettings;
 window.closeSettings = closeSettings;
 window.setControl = setControl;
