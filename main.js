@@ -15,6 +15,11 @@ loadKeyBindings();
 loadGameRules();
 loadDeviceMode();
 updateSkinOptions();
+
+// Initialize floating settings button
+document.getElementById('floating-settings-btn').style.display = 'flex';
+document.getElementById('floating-settings-btn').onclick = showSettings;
+
 console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
@@ -49,6 +54,7 @@ function closeLeaderboard() {
     console.log('❌ [LEADERBOARD] Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'flex';
     console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
@@ -212,7 +218,8 @@ function initGame() {
     DOM.levelEl.innerText = '1';
     updateHPUI();
     DOM.overlay.style.display = 'none';
-    
+    document.getElementById('floating-settings-btn').style.display = 'none';
+
     // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
@@ -740,6 +747,7 @@ function showSettings() {
     console.log('⚙️ [SETTINGS] Opening settings...');
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('settings-container').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'none';
     updateSettingsDisplay();
 }
 
@@ -747,6 +755,7 @@ function closeSettings() {
     console.log('⚙️ [SETTINGS] Closing settings...');
     document.getElementById('settings-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'flex';
 }
 
 function updateSettingsDisplay() {
