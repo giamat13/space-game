@@ -30,6 +30,8 @@
             <div class="ability-cooldown"></div>
         </div>
 
+        <button id="floating-settings-btn" style="display: none;">⚙️</button>
+
         <div id="overlay">
             <h1 id="title">SPACE DEFENDER</h1>
             <p id="sub-title">בחר ספינה וצא למשימה</p>
@@ -115,6 +117,7 @@
                     <button class="lb-tab" data-tab="phoenix">Phoenix</button>
                     <button class="lb-tab" data-tab="vortex">Vortex</button>
                     <button class="lb-tab" data-tab="joker">joker</button>
+                    <button class="lb-tab" data-tab="dragon">🐉 Dragon</button>
                 </div>
                 <div id="leaderboard-content"></div>
                 <button onclick="closeLeaderboard()" style="margin-top: 15px;">חזרה</button>
@@ -175,6 +178,14 @@
                     <div class="skin-name">joker</div>
                     <div class="skin-desc">🔥🔥🔥 Fire | ⚡⚡⚡ 2X fire | 💥 3X! | ❤️❤️❤️</div>
                     <div class="skin-lock">🔒 LVL 10</div>
+                </div>
+                <div class="skin-option locked" data-skin="dragon" data-unlock-level="30">
+                    <div class="skin-preview">
+                        <img src="dragon.png" style="width:100%; height:100%; object-fit:contain;" />
+                    </div>
+                    <div class="skin-name">Dragon</div>
+                    <div class="skin-desc">🐉 Fire all around | 🛡️ 10s invincible | ⚡ Best stats</div>
+                    <div class="skin-lock">🔒 LVL 30</div>
                 </div>
             </div>
 
@@ -253,7 +264,19 @@
                     </div>
                     <small style="opacity: 0.7;">הקליעים שלך עוברים דרך אסטרואידים</small>
                 </div>
-                
+
+                <h3 style="color: var(--primary); margin-top: 30px; margin-bottom: 15px;">💻 קונסול מפתחים</h3>
+
+                <div class="settings-group" id="dev-console-settings">
+                    <label>הרצת קוד (בדיוק כמו ב-F12 → Console):</label>
+                    <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="// הקלד קוד כאן"></textarea>
+                    <div class="button-group" style="margin-top: 8px;">
+                        <button class="setting-btn" onclick="runDevConsole()">▶️ הרץ</button>
+                        <button class="setting-btn" onclick="clearDevConsole()">🗑️ נקה</button>
+                    </div>
+                    <pre id="dev-console-output" class="dev-console-output" dir="ltr"></pre>
+                </div>
+
                 <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>
             </div>
         </div>

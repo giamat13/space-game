@@ -8,8 +8,8 @@ export function updateBullets() {
     for (let i = state.bullets.length - 1; i >= 0; i--) {
         let b = state.bullets[i];
         
-        if (b.isFeather) {
-            // Phoenix feathers move in a direction
+        if (b.isFeather || b.directional) {
+            // Phoenix feathers / dragon flames move in a direction
             const currentLeft = parseFloat(b.el.style.left) || state.playerX + 23;
             const currentTop = parseFloat(b.el.style.top) || (DOM.wrapper.clientHeight - b.y);
             

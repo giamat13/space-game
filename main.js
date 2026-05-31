@@ -1,5 +1,5 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
@@ -15,6 +15,11 @@ loadKeyBindings();
 loadGameRules();
 loadDeviceMode();
 updateSkinOptions();
+
+// Initialize floating settings button
+document.getElementById('floating-settings-btn').style.display = 'flex';
+document.getElementById('floating-settings-btn').onclick = showSettings;
+
 console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
@@ -49,6 +54,7 @@ function closeLeaderboard() {
     console.log('❌ [LEADERBOARD] Closing leaderboard...');
     document.getElementById('leaderboard-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'flex';
     console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
 
@@ -212,7 +218,8 @@ function initGame() {
     DOM.levelEl.innerText = '1';
     updateHPUI();
     DOM.overlay.style.display = 'none';
-    
+    document.getElementById('floating-settings-btn').style.display = 'none';
+
     // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
     if (currentSkinKey === 'vortex') {
@@ -230,9 +237,17 @@ function initGame() {
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerText = '🃏';
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+    } else if (currentSkinKey === 'dragon') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerText = '🐉';
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
     }
+
+    // Make sure invincibility visual is cleared on a fresh game
+    DOM.player.classList.remove('dragon-invincible');
     
     const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam');
     elementsToRemove.forEach(e => e.remove());
@@ -350,13 +365,32 @@ function updateAbilityCooldown(now) {
         if (!state.jokerAbility.ready) {
             const elapsed = now - state.jokerAbility.lastUsed;
             const remaining = state.jokerAbility.cooldown - elapsed;
-            
+
             if (remaining <= 0) {
                 state.jokerAbility.ready = true;
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
                 const percent = (remaining / state.jokerAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
+    } else if (currentSkinKey === 'dragon') {
+        // Clear invincibility visual when it expires
+        if (state.dragonAbility.invincibleUntil > 0 && now >= state.dragonAbility.invincibleUntil) {
+            DOM.player.classList.remove('dragon-invincible');
+        }
+
+        if (!state.dragonAbility.ready) {
+            const elapsed = now - state.dragonAbility.lastUsed;
+            const remaining = state.dragonAbility.cooldown - elapsed;
+
+            if (remaining <= 0) {
+                state.dragonAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.dragonAbility.cooldown) * 100;
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
@@ -382,10 +416,17 @@ function activateSpecialAbility() {
         document.getElementById('special-ability-btn').classList.add('cooldown');
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
-        
+
         useJokerChaos();
         state.jokerAbility.ready = false;
         state.jokerAbility.lastUsed = Date.now();
+        document.getElementById('special-ability-btn').classList.add('cooldown');
+    } else if (currentSkinKey === 'dragon') {
+        if (!state.dragonAbility.ready) return;
+
+        useDragonFire();
+        state.dragonAbility.ready = false;
+        state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
     }
 }
@@ -706,6 +747,7 @@ function showSettings() {
     console.log('⚙️ [SETTINGS] Opening settings...');
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('settings-container').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'none';
     updateSettingsDisplay();
 }
 
@@ -713,6 +755,7 @@ function closeSettings() {
     console.log('⚙️ [SETTINGS] Closing settings...');
     document.getElementById('settings-container').style.display = 'none';
     document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'flex';
 }
 
 function updateSettingsDisplay() {
@@ -844,7 +887,88 @@ function changeKey(action) {
     window.addEventListener('keydown', keyListener);
 }
 
+// ===== DEVELOPER CONSOLE =====
+
+function appendDevLine(output, text, className) {
+    const line = document.createElement('div');
+    if (className) line.className = className;
+    line.textContent = text;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+    return line;
+}
+
+function formatDevValue(value) {
+    if (value === undefined) return 'undefined';
+    if (value === null) return 'null';
+    if (typeof value === 'object') {
+        try { return JSON.stringify(value); } catch (e) { return String(value); }
+    }
+    return String(value);
+}
+
+async function runDevConsole() {
+    const input = document.getElementById('dev-console-input');
+    const output = document.getElementById('dev-console-output');
+    if (!input || !output) return;
+
+    const code = input.value.trim();
+    if (!code) {
+        appendDevLine(output, '⚠️ אין קוד להרצה', 'dev-err');
+        return;
+    }
+
+    // Echo the command (just like the browser console)
+    appendDevLine(output, `> ${code}`, null).style.opacity = '0.6';
+
+    // Capture console.log/warn/error output so commands that only log
+    // (like the debug commands) actually show their feedback here.
+    const original = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error
+    };
+    const capture = (cls) => (...args) => {
+        const text = args.map(a => (typeof a === 'object' ? formatDevValue(a) : String(a))).join(' ');
+        appendDevLine(output, text, cls);
+    };
+    console.log = (...args) => { original.log(...args); capture('dev-log')(...args); };
+    console.warn = (...args) => { original.warn(...args); capture('dev-warn')(...args); };
+    console.error = (...args) => { original.error(...args); capture('dev-err')(...args); };
+
+    try {
+        // Run in global scope so window.* debug commands are available
+        let result = (0, eval)(code);
+
+        // Await promises (several debug commands are async)
+        if (result && typeof result.then === 'function') {
+            result = await result;
+        }
+
+        appendDevLine(output, formatDevValue(result), 'dev-ok');
+    } catch (err) {
+        const name = (err && err.name) || 'Error';
+        const message = (err && err.message) || String(err);
+        appendDevLine(output, `❌ ${name}: ${message}`, 'dev-err');
+        original.error('💻 [DEV CONSOLE] Error:', err);
+    } finally {
+        // Always restore the real console
+        console.log = original.log;
+        console.warn = original.warn;
+        console.error = original.error;
+    }
+
+    output.scrollTop = output.scrollHeight;
+}
+
+function clearDevConsole() {
+    const output = document.getElementById('dev-console-output');
+    if (output) output.innerHTML = '';
+}
+
 // Export to window
+window.runDevConsole = runDevConsole;
+window.clearDevConsole = clearDevConsole;
 window.showSettings = showSettings;
 window.closeSettings = closeSettings;
 window.setControl = setControl;

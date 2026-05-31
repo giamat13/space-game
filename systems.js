@@ -31,6 +31,12 @@ export function movePlayer(clientX) {
 }
 
 export function damagePlayer(amount) {
+    // Dragon invincibility - ignore all damage while active
+    if (state.dragonAbility && Date.now() < state.dragonAbility.invincibleUntil) {
+        console.log('🛡️ [DRAGON] Damage blocked by invincibility');
+        return;
+    }
+
     state.playerHP -= amount;
     console.log(`💥 [DAMAGE] -${amount} HP | Now: ${state.playerHP}/${state.playerMaxHP}`);
     
@@ -377,6 +383,52 @@ export function useJokerChaos() {
     
     showFloatingMessage(`CHAOS! +${pointsGained} PTS`, playerCenterX - 90, playerY - 50, '#00f2ff');
     console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic, +${pointsGained} points, Total: ${state.score}`);
+}
+
+export function useDragonFire() {
+    console.log('🐉 [DRAGON] Activating DRAGON INFERNO!');
+    const playerCenterX = state.playerX + 25;
+    const playerTop = DOM.wrapper.clientHeight - 90;
+    const playerY = DOM.wrapper.clientHeight - 90;
+
+    // Become invincible for 10 seconds
+    state.dragonAbility.invincibleUntil = Date.now() + 10000;
+    DOM.player.classList.add('dragon-invincible');
+
+    // Breathe fire in all directions
+    const numFlames = 16;
+    const flameSpeed = 9;
+    for (let i = 0; i < numFlames; i++) {
+        const angle = (i / numFlames) * Math.PI * 2;
+        const flame = document.createElement('div');
+        flame.className = 'bullet';
+        flame.style.width = '12px';
+        flame.style.height = '12px';
+        flame.style.borderRadius = '50%';
+        flame.style.background = 'radial-gradient(circle, #ffff00, #ff6600, #ff0000)';
+        flame.style.boxShadow = '0 0 18px #ff6600, 0 0 10px #ffff00';
+        flame.style.left = playerCenterX + 'px';
+        flame.style.top = playerTop + 'px';
+        flame.dataset.isFire = 'true';
+        DOM.wrapper.appendChild(flame);
+
+        state.bullets.push({
+            el: flame,
+            directional: true,
+            x: playerCenterX,
+            y: 90,
+            vx: Math.cos(angle) * flameSpeed,
+            vy: Math.sin(angle) * flameSpeed,
+            damage: 5.0
+        });
+    }
+
+    // Visual burst at the player
+    createExplosion(playerCenterX, playerY, '#ff6600');
+    createExplosion(playerCenterX, playerY, '#ffaa33');
+
+    showFloatingMessage('🐉 DRAGON INFERNO!', playerCenterX - 80, playerY - 50, '#ff6600');
+    console.log(`✅ [DRAGON] ${numFlames} flames launched + 10s invincibility`);
 }
 
 // ===== SPAWNING SYSTEMS =====
