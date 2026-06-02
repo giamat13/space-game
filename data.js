@@ -152,7 +152,7 @@ export const SKINS = {
     dragon: {
         svg: `<img src="dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
-        unlockLevel: 30,
+        unlockLevel: 15,
         name: 'Dragon',
         fireRate: 2.2,
         bulletSpeed: 1.8,
