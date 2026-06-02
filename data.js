@@ -8,7 +8,9 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
-    overlay: document.getElementById('overlay')
+    overlay: document.getElementById('overlay'),
+    ammoBar: document.getElementById('top-ammo-bar'),
+    ammoText: document.getElementById('ammo-text')
 };
 
 // Import Firestore sync functions
@@ -475,6 +477,10 @@ export const state = {
     asteroids: [],
     burgers: [],
     ingredients: [],
+    lightnings: [],
+    ammo: 10,
+    maxAmmo: 10,
+    lastAmmoRecharge: 0,
     speedMult: 1,
     lastSpawn: 0,
     spawnRate: 1400,
@@ -491,24 +497,24 @@ export const state = {
     },
     specialAbility: {
         ready: true,
-        cooldown: 45000,
+        cooldown: 30000,
         lastUsed: 0
     },
     phoenixAbility: {
         ready: true,
-        cooldown: 30000,
+        cooldown: 15000,
         lastUsed: 0
     },
     jokerAbility: {
         ready: true,
-        cooldown: 45000,
+        cooldown: 30000,
         lastUsed: 0,
         active: false,
         endTime: 0
     },
     dragonAbility: {
         ready: true,
-        cooldown: 25000,
+        cooldown: 10000,
         lastUsed: 0,
         invincibleUntil: 0
     }
@@ -532,6 +538,11 @@ export function resetState() {
     state.asteroids = [];
     state.burgers = [];
     state.ingredients = [];
+    const fr = skin.fireRate || 1.0;
+    state.maxAmmo = Math.round(10 * fr);
+    state.ammo = state.maxAmmo;
+    state.lastAmmoRecharge = 0;
+    state.lightnings = [];
     state.speedMult = 1;
     state.lastSpawn = Date.now();
     state.spawnRate = 1400;

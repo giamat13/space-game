@@ -1,5 +1,5 @@
 import { DOM, state, gameRules, deviceMode } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -351,6 +351,9 @@ export function updateEnemies(now) {
                             if (targetEn.hp <= 0) {
                                 const isElite = targetEn.type === 'orange';
                                 const points = isElite ? 150 : 50;
+                                const ammoGrant = isElite ? 2 : 1;
+                                state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
+                                updateAmmoUI();
                                 state.score += points;
                                 DOM.scoreEl.innerText = state.score;
                                 createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
@@ -382,6 +385,9 @@ export function updateEnemies(now) {
                 if(en.hp <= 0) {
                     const isElite = en.type === 'orange';
                     const points = isElite ? 150 : 50;
+                    const ammoGrant = isElite ? 2 : 1;
+                    state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
+                    updateAmmoUI();
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
@@ -417,3 +423,31 @@ export function updateEnemies(now) {
     }
 }
 
+// ===== UPDATE LIGHTNINGS =====
+
+export function updateLightnings() {
+    for (let i = state.lightnings.length - 1; i >= 0; i--) {
+        const lt = state.lightnings[i];
+        lt.y += lt.speed;
+        lt.el.style.top = lt.y + 'px';
+
+        const lRect = lt.el.getBoundingClientRect();
+        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
+
+        if (!(lRect.right < pRect.left || lRect.left > pRect.right ||
+              lRect.bottom < pRect.top || lRect.top > pRect.bottom)) {
+            state.ammo = state.maxAmmo;
+            updateAmmoUI();
+            showFloatingMessage('⚡ AMMO FULL!', state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
+            createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000');
+            lt.el.remove();
+            state.lightnings.splice(i, 1);
+            continue;
+        }
+
+        if (lt.y > DOM.wrapper.clientHeight) {
+            lt.el.remove();
+            state.lightnings.splice(i, 1);
+        }
+    }
+}
