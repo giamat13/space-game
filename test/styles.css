@@ -279,6 +279,8 @@ body {
 
 .enemy-ship.red { filter: drop-shadow(0 0 10px var(--danger)); }
 .enemy-ship.orange { filter: drop-shadow(0 0 12px var(--elite)); }
+.enemy-ship.green { filter: drop-shadow(0 0 12px #00cc44); }
+.enemy-ship.blue  { filter: drop-shadow(0 0 14px #0088ff); }
 .asteroid { filter: drop-shadow(0 0 12px var(--stone)); }
 .burger { filter: drop-shadow(0 0 15px var(--burger)); }
 
