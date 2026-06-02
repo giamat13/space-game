@@ -2,7 +2,7 @@ name: Deploy test
 on:
   push:
     branches:
-      - claude/ammo-meter-recharge-1iWH8
+      - claude/enemy-color-levels-j7szV
 
 permissions:
   contents: write
