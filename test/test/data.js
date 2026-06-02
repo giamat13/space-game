@@ -8,9 +8,7 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
-    overlay: document.getElementById('overlay'),
-    ammoBar: document.getElementById('top-ammo-bar'),
-    ammoText: document.getElementById('ammo-text')
+    overlay: document.getElementById('overlay')
 };
 
 // Import Firestore sync functions
@@ -424,29 +422,26 @@ export async function saveScore(skinKey, score, level, userName = null) {
     console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}, User: ${userName || 'Anonymous'}`);
     
     // Save to cookies (local)
-    const effectiveName = userName || 'Anonymous';
     let skinLeaderboard = getLeaderboard(skinKey);
-    const newEntry = {
-        score,
-        level,
-        userName: effectiveName,
-        date: new Date().toLocaleDateString('he-IL')
+    const newEntry = { 
+        score, 
+        level, 
+        userName: userName || 'Anonymous',
+        date: new Date().toLocaleDateString('he-IL') 
     };
-    skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
     skinLeaderboard.push(newEntry);
     skinLeaderboard.sort((a, b) => b.score - a.score);
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
-
+    
     let overallLeaderboard = getLeaderboard('overall');
-    const overallEntry = {
-        score,
-        level,
-        skin: skinKey,
-        userName: effectiveName,
-        date: new Date().toLocaleDateString('he-IL')
+    const overallEntry = { 
+        score, 
+        level, 
+        skin: skinKey, 
+        userName: userName || 'Anonymous',
+        date: new Date().toLocaleDateString('he-IL') 
     };
-    overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
     overallLeaderboard = overallLeaderboard.slice(0, 5);
@@ -477,10 +472,6 @@ export const state = {
     asteroids: [],
     burgers: [],
     ingredients: [],
-    lightnings: [],
-    ammo: 10,
-    maxAmmo: 10,
-    lastAmmoRecharge: 0,
     speedMult: 1,
     lastSpawn: 0,
     spawnRate: 1400,
@@ -538,11 +529,6 @@ export function resetState() {
     state.asteroids = [];
     state.burgers = [];
     state.ingredients = [];
-    const fr = skin.fireRate || 1.0;
-    state.maxAmmo = Math.round(10 * fr);
-    state.ammo = state.maxAmmo;
-    state.lastAmmoRecharge = 0;
-    state.lightnings = [];
     state.speedMult = 1;
     state.lastSpawn = Date.now();
     state.spawnRate = 1400;

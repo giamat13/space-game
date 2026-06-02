@@ -185,19 +185,11 @@ export async function saveScoreToCloud(skinKey, score, level, userName) {
             date: new Date().toLocaleDateString('he-IL')
         };
         
-        // שמירה ב-leaderboard הכללי - רק שיא אחד למשתמש
-        const overallRef = doc(db, 'leaderboard', user.uid);
-        const existingOverall = await getDoc(overallRef);
-        if (!existingOverall.exists() || score > existingOverall.data().score) {
-            await setDoc(overallRef, scoreData);
-        }
-
-        // שמירה ב-leaderboard לפי סקין - רק שיא אחד למשתמש
-        const skinRef = doc(db, `scores/${skinKey}/entries`, user.uid);
-        const existingSkin = await getDoc(skinRef);
-        if (!existingSkin.exists() || score > existingSkin.data().score) {
-            await setDoc(skinRef, scoreData);
-        }
+        // שמירה ב-leaderboard הכללי
+        await addDoc(collection(db, 'leaderboard'), scoreData);
+        
+        // שמירה ב-leaderboard לפי סקין
+        await addDoc(collection(db, `scores/${skinKey}/entries`), scoreData);
         
         // עדכון סטטיסטיקות משתמש
         const userStatsRef = doc(db, 'userStats', user.uid);
@@ -252,38 +244,26 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             q = query(
                 collection(db, 'leaderboard'),
                 orderBy('score', 'desc'),
-                limit(50)
+                limit(10)
             );
         } else {
             q = query(
                 collection(db, `scores/${skinKey}/entries`),
                 orderBy('score', 'desc'),
-                limit(50)
+                limit(10)
             );
         }
-
+        
         const querySnapshot = await getDocs(q);
-        const allScores = [];
-
+        const scores = [];
+        
         querySnapshot.forEach((doc) => {
-            allScores.push({
+            scores.push({
                 id: doc.id,
                 ...doc.data()
             });
         });
-
-        // deduplicate: keep only the best score per user
-        const seen = new Set();
-        const scores = [];
-        for (const entry of allScores) {
-            const uid = entry.userId || entry.id;
-            if (!seen.has(uid)) {
-                seen.add(uid);
-                scores.push(entry);
-                if (scores.length === 10) break;
-            }
-        }
-
+        
         console.log(`✅ [CLOUD] Fetched ${scores.length} scores`);
         return scores;
     } catch (error) {

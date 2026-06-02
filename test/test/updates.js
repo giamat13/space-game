@@ -1,5 +1,5 @@
-import { DOM, state, gameRules, deviceMode } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI } from './systems.js';
+import { DOM, state, gameRules } from './data.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -18,13 +18,12 @@ export function updateBullets() {
             
             b.el.style.left = newLeft + 'px';
             b.el.style.top = newTop + 'px';
-
+            
             // Remove if out of bounds
-            if (newTop < -50 || newTop > DOM.wrapper.clientHeight + 50 ||
+            if (newTop < -50 || newTop > DOM.wrapper.clientHeight + 50 || 
                 newLeft < -50 || newLeft > DOM.wrapper.clientWidth + 50) {
                 b.el.remove();
                 state.bullets.splice(i, 1);
-                continue;
             }
         } else {
             // Regular bullets
@@ -33,14 +32,8 @@ export function updateBullets() {
             if(b.y > DOM.wrapper.clientHeight) {
                 b.el.remove();
                 state.bullets.splice(i, 1);
-                continue;
             }
         }
-
-        // Cache the bullet's screen rect once per frame so the collision
-        // loops (enemies/asteroids/burgers) reuse it instead of forcing a
-        // layout reflow on every bullet×target pair (the main mobile lag).
-        b.rect = b.el.getBoundingClientRect();
     }
 }
 
@@ -52,8 +45,8 @@ export function updateEnemyBullets() {
         eb.el.style.left = eb.x + 'px';
         eb.el.style.top = eb.y + 'px';
         const ebRect = eb.el.getBoundingClientRect();
-        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
-
+        const pRect = DOM.player.getBoundingClientRect();
+        
         // Check collision with player (only non-friendly and non-chaotic bullets)
         if (!eb.friendly && !eb.chaotic) {
             if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
@@ -70,7 +63,7 @@ export function updateEnemyBullets() {
             let hitAsteroid = false;
             for (let ai = state.asteroids.length - 1; ai >= 0; ai--) {
                 let ast = state.asteroids[ai];
-                const aRect = ast.rect || ast.el.getBoundingClientRect();
+                const aRect = ast.el.getBoundingClientRect();
                 if(!(ebRect.right < aRect.left || ebRect.left > aRect.right || ebRect.bottom < aRect.top || ebRect.top > aRect.bottom)) {
                     createExplosion(eb.x, eb.y, '#666');
                     eb.el.remove();
@@ -89,13 +82,15 @@ export function updateEnemyBullets() {
                 let targetEn = state.enemies[ei];
                 // Only hit non-chaotic enemies, and don't hit the shooter itself
                 if (targetEn.isChaotic || targetEn.el === eb.shooterId) continue;
-
-                const teRect = targetEn.rect || targetEn.el.getBoundingClientRect();
+                
+                const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
                     // Damage the target enemy
                     targetEn.hp -= 1;
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-
+                    
+                    console.log(`💥 [CHAOTIC HIT] Normal enemy hit! HP: ${targetEn.hp}/${targetEn.maxHP}`);
+                    
                     createExplosion(eb.x, eb.y, '#00f2ff');
                     
                     // Kill enemy if HP reaches 0
@@ -108,8 +103,9 @@ export function updateEnemyBullets() {
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
+                        console.log(`☠️ [CHAOTIC KILL] Normal enemy killed! +${points} points`);
                     }
-
+                    
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
                     hitEnemy = true;
@@ -124,11 +120,11 @@ export function updateEnemyBullets() {
             let hitEnemy = false;
             for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                 let targetEn = state.enemies[ei];
-                const teRect = targetEn.rect || targetEn.el.getBoundingClientRect();
+                const teRect = targetEn.el.getBoundingClientRect();
                 if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
                     targetEn.hp -= 1;
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
-
+                    
                     if (targetEn.hp <= 0) {
                         const isElite = targetEn.type === 'orange';
                         const points = isElite ? 75 : 25;
@@ -165,7 +161,7 @@ export function updateBurgers() {
         bgr.y += bgr.speed;
         bgr.el.style.top = bgr.y + 'px';
         const bRect = bgr.el.getBoundingClientRect();
-        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
+        const pRect = DOM.player.getBoundingClientRect();
         
         if(!(bRect.right < pRect.left || bRect.left > pRect.right || bRect.bottom < pRect.top || bRect.top > pRect.bottom)) {
             const wasFullHP = (state.playerHP >= state.playerMaxHP);
@@ -191,7 +187,7 @@ export function updateBurgers() {
 
         for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
             let bul = state.bullets[bi];
-            const bulRect = bul.rect || bul.el.getBoundingClientRect();
+            const bulRect = bul.el.getBoundingClientRect();
             if(!(bulRect.right < bRect.left || bulRect.left > bRect.right || bulRect.bottom < bRect.top || bulRect.top > bRect.bottom)) {
                 const damage = bul.damage || 1.0;
                 bgr.hp -= damage;
@@ -234,7 +230,7 @@ export function updateIngredients() {
         ing.el.style.top = ing.y + 'px';
         
         const iRect = ing.el.getBoundingClientRect();
-        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
+        const pRect = DOM.player.getBoundingClientRect();
         if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
             state.score += 25;
             DOM.scoreEl.innerText = state.score;
@@ -261,8 +257,8 @@ export function updateAsteroids() {
         ast.rot += ast.rotSpeed;
         ast.el.style.top = ast.y + 'px';
         ast.el.style.transform = `rotate(${ast.rot}deg)`;
-        const aRect = ast.rect = ast.el.getBoundingClientRect();
-        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
+        const aRect = ast.el.getBoundingClientRect();
+        const pRect = DOM.player.getBoundingClientRect();
         
         if(!(aRect.right < pRect.left || aRect.left > pRect.right || aRect.bottom < pRect.top || aRect.top > pRect.bottom)) {
             damagePlayer(40);
@@ -276,7 +272,7 @@ export function updateAsteroids() {
         if (!gameRules.playerShootThroughAsteroids) {
             for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
                 let bul = state.bullets[bi];
-                const bRect = bul.rect || bul.el.getBoundingClientRect();
+                const bRect = bul.el.getBoundingClientRect();
                 if(!(bRect.right < aRect.left || bRect.left > aRect.right || bRect.bottom < aRect.top || bRect.top > aRect.bottom)) {
                     createExplosion(bRect.left, bRect.top, '#666');
                     bul.el.remove();
@@ -300,10 +296,7 @@ export function updateEnemies(now) {
         let en = state.enemies[i];
         en.y += en.speed;
         en.el.style.top = en.y + 'px';
-        // Cache this enemy's rect once per frame instead of recomputing it
-        // for every player bullet (was an O(enemies×bullets) layout thrash).
-        en.rect = en.el.getBoundingClientRect();
-
+        
         if (now - en.lastShot > en.fireRate) {
             enemyShoot(en);
             en.lastShot = now;
@@ -319,27 +312,39 @@ export function updateEnemies(now) {
             continue;
         }
 
-        const eRect = en.rect;
         for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
             let bul = state.bullets[bi];
-            const bRect = bul.rect || bul.el.getBoundingClientRect();
-
+            const bRect = bul.el.getBoundingClientRect();
+            const eRect = en.el.getBoundingClientRect();
+            
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
                 const damage = bul.damage || 1.0;
                 
                 // Phoenix Feather explosion - damages nearby enemies
                 if (bul.isFeather) {
-                    // Create big explosion (capped particle budget)
-                    const fCount = deviceMode.isMobile ? 12 : 24;
-                    for(let e=0; e<fCount; e++) {
-                        spawnParticle(bRect.left, bRect.top, e % 3 === 0 ? '#ffd700' : '#ff6b35', { size: 6, dist: 120, duration: 700 });
+                    // Create big explosion
+                    for(let e=0; e<30; e++) {
+                        const p = document.createElement('div');
+                        p.className = 'particle';
+                        p.style.background = e % 3 === 0 ? '#ffd700' : '#ff6b35';
+                        p.style.left = bRect.left + 'px';
+                        p.style.top = bRect.top + 'px';
+                        p.style.width = '6px';
+                        p.style.height = '6px';
+                        DOM.wrapper.appendChild(p);
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * 120 + 30;
+                        p.animate([
+                            { opacity: 1 }, 
+                            { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
+                        ], 700).onfinish = () => p.remove();
                     }
-
+                    
                     // Damage all enemies in radius (150px)
                     const explosionRadius = 150;
                     for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
                         let targetEn = state.enemies[ei];
-                        const teRect = targetEn.rect || targetEn.el.getBoundingClientRect();
+                        const teRect = targetEn.el.getBoundingClientRect();
                         const dx = (teRect.left + 25) - (bRect.left + 10);
                         const dy = (teRect.top + 25) - (bRect.top + 20);
                         const dist = Math.sqrt(dx*dx + dy*dy);
@@ -413,35 +418,6 @@ export function updateEnemies(now) {
                 }
                 break;
             }
-        }
-    }
-}
-
-// ===== UPDATE LIGHTNINGS =====
-
-export function updateLightnings() {
-    for (let i = state.lightnings.length - 1; i >= 0; i--) {
-        const lt = state.lightnings[i];
-        lt.y += lt.speed;
-        lt.el.style.top = lt.y + 'px';
-
-        const lRect = lt.el.getBoundingClientRect();
-        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
-
-        if (!(lRect.right < pRect.left || lRect.left > pRect.right ||
-              lRect.bottom < pRect.top || lRect.top > pRect.bottom)) {
-            state.ammo = state.maxAmmo;
-            updateAmmoUI();
-            showFloatingMessage('⚡ AMMO FULL!', state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
-            createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000');
-            lt.el.remove();
-            state.lightnings.splice(i, 1);
-            continue;
-        }
-
-        if (lt.y > DOM.wrapper.clientHeight) {
-            lt.el.remove();
-            state.lightnings.splice(i, 1);
         }
     }
 }
