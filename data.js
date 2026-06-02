@@ -422,26 +422,29 @@ export async function saveScore(skinKey, score, level, userName = null) {
     console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}, User: ${userName || 'Anonymous'}`);
     
     // Save to cookies (local)
+    const effectiveName = userName || 'Anonymous';
     let skinLeaderboard = getLeaderboard(skinKey);
-    const newEntry = { 
-        score, 
-        level, 
-        userName: userName || 'Anonymous',
-        date: new Date().toLocaleDateString('he-IL') 
+    const newEntry = {
+        score,
+        level,
+        userName: effectiveName,
+        date: new Date().toLocaleDateString('he-IL')
     };
+    skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
     skinLeaderboard.push(newEntry);
     skinLeaderboard.sort((a, b) => b.score - a.score);
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
-    
+
     let overallLeaderboard = getLeaderboard('overall');
-    const overallEntry = { 
-        score, 
-        level, 
-        skin: skinKey, 
-        userName: userName || 'Anonymous',
-        date: new Date().toLocaleDateString('he-IL') 
+    const overallEntry = {
+        score,
+        level,
+        skin: skinKey,
+        userName: effectiveName,
+        date: new Date().toLocaleDateString('he-IL')
     };
+    overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
     overallLeaderboard = overallLeaderboard.slice(0, 5);
