@@ -1,7 +1,7 @@
 import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire } from './systems.js';
+import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
-import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies } from './updates.js';
+import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync } from './firestore-sync.js';
 
@@ -217,6 +217,7 @@ function initGame() {
     DOM.scoreEl.innerText = '0';
     DOM.levelEl.innerText = '1';
     updateHPUI();
+    updateAmmoUI();
     DOM.overlay.style.display = 'none';
     document.getElementById('floating-settings-btn').style.display = 'none';
 
@@ -249,7 +250,7 @@ function initGame() {
     // Make sure invincibility visual is cleared on a fresh game
     DOM.player.classList.remove('dragon-invincible');
     
-    const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam');
+    const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam, .lightning-bolt');
     elementsToRemove.forEach(e => e.remove());
     
     updateSkinOptions();
@@ -307,6 +308,7 @@ function update() {
     
     handleLevelUp();
     handleSpawning(now);
+    rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
 
@@ -319,6 +321,7 @@ function update() {
     updateBullets();
     updateEnemyBullets();
     updateBurgers();
+    updateLightnings();
     updateIngredients();
     updateAsteroids();
     updateEnemies(now);

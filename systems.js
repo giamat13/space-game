@@ -23,6 +23,24 @@ export function updateHPUI() {
     }
 }
 
+export function updateAmmoUI() {
+    if (!DOM.ammoBar || !DOM.ammoText) return;
+    const pct = (state.ammo / state.maxAmmo) * 100;
+    DOM.ammoBar.style.width = pct + '%';
+    DOM.ammoBar.style.background = state.ammo === 0 ? 'var(--danger)' : 'var(--ammo-color)';
+    DOM.ammoText.innerText = state.ammo + '/' + state.maxAmmo;
+}
+
+export function rechargeAmmo(now) {
+    if (!state.active) return;
+    const interval = Math.round(220 / state.currentSkinStats.fireRate);
+    if (now - state.lastAmmoRecharge >= interval && state.ammo < state.maxAmmo) {
+        state.ammo++;
+        state.lastAmmoRecharge = now;
+        updateAmmoUI();
+    }
+}
+
 export function movePlayer(clientX) {
     const rect = DOM.wrapper.getBoundingClientRect();
     let x = clientX - rect.left - 25;
@@ -91,7 +109,10 @@ export function shoot() {
     const now = Date.now();
     const adjustedCooldown = state.shotCooldown / state.currentSkinStats.fireRate;
     if (now - state.lastShot < adjustedCooldown) return;
+    if (state.ammo <= 0) return;
     state.lastShot = now;
+    state.ammo--;
+    updateAmmoUI();
 
     const b = document.createElement('div');
     b.className = 'bullet';
@@ -472,7 +493,14 @@ export function handleSpawning(now) {
         const el = document.createElement('div');
         const spawnRoll = Math.random();
         
-        if (spawnRoll < 0.1) {
+        if (spawnRoll < 0.05) {
+            el.className = 'lightning-bolt';
+            el.style.left = posX + 'px';
+            el.style.top = '-60px';
+            el.innerHTML = `<svg viewBox="0 0 60 100" style="width:100%;height:100%"><polygon points="35,0 15,50 30,50 20,100 55,40 35,40 50,0" fill="#ffe000" stroke="#ffa500" stroke-width="2"/></svg>`;
+            DOM.wrapper.appendChild(el);
+            state.lightnings.push({ el, y: -60, speed: 1.5 * state.speedMult });
+        } else if (spawnRoll < 0.15) {
             el.className = 'burger';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
@@ -493,7 +521,7 @@ export function handleSpawning(now) {
                 maxHP: 4, 
                 speed: 1.2 * state.speedMult
             });
-        } else if (spawnRoll < 0.5) {
+        } else if (spawnRoll < 0.55) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';

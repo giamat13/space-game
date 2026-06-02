@@ -1,5 +1,5 @@
 import { DOM, state, gameRules, deviceMode } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -417,3 +417,31 @@ export function updateEnemies(now) {
     }
 }
 
+// ===== UPDATE LIGHTNINGS =====
+
+export function updateLightnings() {
+    for (let i = state.lightnings.length - 1; i >= 0; i--) {
+        const lt = state.lightnings[i];
+        lt.y += lt.speed;
+        lt.el.style.top = lt.y + 'px';
+
+        const lRect = lt.el.getBoundingClientRect();
+        const pRect = state.playerRect || DOM.player.getBoundingClientRect();
+
+        if (!(lRect.right < pRect.left || lRect.left > pRect.right ||
+              lRect.bottom < pRect.top || lRect.top > pRect.bottom)) {
+            state.ammo = state.maxAmmo;
+            updateAmmoUI();
+            showFloatingMessage('⚡ AMMO FULL!', state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
+            createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000');
+            lt.el.remove();
+            state.lightnings.splice(i, 1);
+            continue;
+        }
+
+        if (lt.y > DOM.wrapper.clientHeight) {
+            lt.el.remove();
+            state.lightnings.splice(i, 1);
+        }
+    }
+}
