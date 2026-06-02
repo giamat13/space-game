@@ -96,8 +96,9 @@ body {
     color: var(--health);
 }
 
-.stat-box.ammo-stat {
-    min-width: 100px;
+.ammo-label {
+    margin-top: 6px;
+    font-size: 0.8rem;
 }
 
 #ammo-text {
@@ -772,8 +773,7 @@ button:hover {
         padding: 6px 8px;
         font-size: 0.75rem;
     }
-    .stat-box.hp-stat,
-    .stat-box.ammo-stat {
+    .stat-box.hp-stat {
         min-width: 80px;
     }
 }
