@@ -497,24 +497,24 @@ export const state = {
     },
     specialAbility: {
         ready: true,
-        cooldown: 45000,
+        cooldown: 30000,
         lastUsed: 0
     },
     phoenixAbility: {
         ready: true,
-        cooldown: 30000,
+        cooldown: 15000,
         lastUsed: 0
     },
     jokerAbility: {
         ready: true,
-        cooldown: 45000,
+        cooldown: 30000,
         lastUsed: 0,
         active: false,
         endTime: 0
     },
     dragonAbility: {
         ready: true,
-        cooldown: 25000,
+        cooldown: 10000,
         lastUsed: 0,
         invincibleUntil: 0
     }
