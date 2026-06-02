@@ -514,7 +514,7 @@ export const state = {
     },
     dragonAbility: {
         ready: true,
-        cooldown: 10000,
+        cooldown: 25000,
         lastUsed: 0,
         invincibleUntil: 0
     }
