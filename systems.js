@@ -33,7 +33,7 @@ export function updateAmmoUI() {
 
 export function rechargeAmmo(now) {
     if (!state.active) return;
-    const interval = Math.round(800 / state.currentSkinStats.fireRate);
+    const interval = Math.round(5000 / state.currentSkinStats.fireRate);
     if (now - state.lastAmmoRecharge >= interval && state.ammo < state.maxAmmo) {
         state.ammo++;
         state.lastAmmoRecharge = now;
