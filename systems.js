@@ -1,5 +1,20 @@
 import { DOM, state, INGREDIENT_TYPES, deviceMode } from './data.js';
 
+// ===== ENEMY TYPE HELPERS =====
+
+export function getEnemyPoints(type) {
+    return { red: 50, orange: 150, green: 100, blue: 250 }[type] ?? 50;
+}
+export function getEnemyAmmoGrant(type) {
+    return { red: 1, orange: 2, green: 2, blue: 3 }[type] ?? 1;
+}
+export function getEnemyColor(type) {
+    return { red: 'var(--danger)', orange: 'var(--elite)', green: '#00cc44', blue: '#0088ff' }[type] ?? 'var(--danger)';
+}
+export function getEnemyFlatHeal(type) {
+    return { red: 0, orange: 50, green: 35, blue: 75 }[type] ?? 0;
+}
+
 // ===== PLAYER SYSTEMS =====
 
 export function updatePlayerPos() {
@@ -155,6 +170,8 @@ export function enemyShoot(en) {
     const eb = document.createElement('div');
     eb.className = 'enemy-bullet';
     if (en.type === 'orange') eb.style.background = 'var(--elite)';
+    else if (en.type === 'green') { eb.style.background = '#00cc44'; eb.style.boxShadow = '0 0 12px #00cc44'; }
+    else if (en.type === 'blue')  { eb.style.background = '#0088ff'; eb.style.boxShadow = '0 0 14px #0088ff'; }
     
     const enLeft = parseFloat(en.el.style.left) + 20;
     const enTop = en.y + 40;
@@ -193,7 +210,7 @@ export function enemyShoot(en) {
     const dy = targetY - enTop;
     const distance = Math.sqrt(dx*dx + dy*dy);
     
-    const speed = (en.type === 'orange' ? 7 : 5.5) * state.speedMult;
+    const speed = ({ red: 5.5, orange: 7, green: 6.5, blue: 9 }[en.type] ?? 5.5) * state.speedMult;
     const vx = (dx / distance) * speed;
     const vy = (dy / distance) * speed;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -322,11 +339,10 @@ export function useVortexLaser() {
     // Kill enemies and GIVE POINTS
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
-        const isElite = en.type === 'orange';
-        const points = isElite ? 150 : 50;
-        state.score += points; // ✅ ADD POINTS
+        const points = getEnemyPoints(en.type);
+        state.score += points;
         const eRect = en.el.getBoundingClientRect();
-        createExplosion(eRect.left + 25, eRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+        createExplosion(eRect.left + 25, eRect.top + 25, getEnemyColor(en.type));
         en.el.remove();
         state.enemies.splice(i, 1);
         killCount++;
@@ -381,9 +397,7 @@ export function useJokerChaos() {
             // Add delay before chaotic can shoot to avoid immediate collision
             en.lastShot = Date.now() + 1000; // 1 second delay before first shot
             
-            // ✅ GIVE 75% OF POINTS
-            const isElite = en.type === 'orange';
-            const fullPoints = isElite ? 150 : 50;
+            const fullPoints = getEnemyPoints(en.type);
             const partialPoints = Math.floor(fullPoints * 0.75); // 75%
             state.score += partialPoints;
             pointsGained += partialPoints;
@@ -540,34 +554,50 @@ export function handleSpawning(now) {
             const enemyCap = deviceMode.isMobile ? 35 : 70;
             if (state.enemies.length >= enemyCap) { state.lastSpawn = now; return; }
 
-            const orangeChance = Math.min(0.8, 0.25 + (state.level * 0.05));
-            const isOrange = Math.random() < orangeChance; 
-            const type = isOrange ? 'orange' : 'red';
-            const maxHP = isOrange ? (Math.floor(Math.random() * 3) + 3) : (Math.floor(Math.random() * 3) + 1);
-            const colorCode = isOrange ? '#ff9900' : '#ff0000';
+            const redWeight    = state.level < 10 ? Math.max(0, 1.0 - (state.level - 1) * 0.12) : 0;
+            const orangeWeight = Math.min(1.0, 0.25 + state.level * 0.05);
+            const greenWeight  = state.level >= 5  ? Math.min(1.0, (state.level - 4) * 0.18) : 0;
+            const blueWeight   = state.level >= 10 ? Math.min(1.0, (state.level - 9) * 0.20) : 0;
+            const totalWeight  = redWeight + orangeWeight + greenWeight + blueWeight;
+            const roll = Math.random() * totalWeight;
+            let type;
+            if      (roll < redWeight)                                  type = 'red';
+            else if (roll < redWeight + orangeWeight)                   type = 'orange';
+            else if (roll < redWeight + orangeWeight + greenWeight)     type = 'green';
+            else                                                         type = 'blue';
+
+            const enemyStats = {
+                red:    { hp: Math.floor(Math.random() * 3) + 1, colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
+                orange: { hp: Math.floor(Math.random() * 3) + 3, colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
+                green:  { hp: Math.floor(Math.random() * 3) + 3, colorCode: '#00cc44', fireRate: 800,  speedMod: 1.0 },
+                blue:   { hp: Math.floor(Math.random() * 4) + 5, colorCode: '#0088ff', fireRate: 450,  speedMod: 1.3 },
+            };
+            const stats = enemyStats[type];
+            const maxHP = stats.hp;
+            const colorCode = stats.colorCode;
             el.className = `enemy-ship ${type}`;
-            el.style.left = posX + 'px'; 
+            el.style.left = posX + 'px';
             el.style.top = '-60px';
             el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
             DOM.wrapper.appendChild(el);
-            
+
             // Check if chaos mode is active
             const isChaotic = state.jokerAbility && state.jokerAbility.active;
             if (isChaotic) {
                 el.style.filter = 'hue-rotate(180deg) brightness(1.3)';
                 el.style.border = '2px solid #00f2ff';
             }
-            
-            state.enemies.push({ 
-                el: el, 
+
+            state.enemies.push({
+                el: el,
                 hpFill: el.querySelector('.enemy-hp-fill'),
-                type: type, 
-                y: -60, 
-                hp: maxHP, 
+                type: type,
+                y: -60,
+                hp: maxHP,
                 maxHP: maxHP,
-                speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
+                speed: (Math.random() * 0.8 + 0.6) * stats.speedMod * state.speedMult,
                 lastShot: now + Math.random() * 500,
-                fireRate: (isOrange ? 600 : 1000) / state.speedMult,
+                fireRate: stats.fireRate / state.speedMult,
                 isChaotic: isChaotic,
                 hitsByChaos: isChaotic ? {} : undefined
             });

@@ -1,5 +1,5 @@
 import { DOM, state, gameRules, deviceMode } from './data.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -100,11 +100,10 @@ export function updateEnemyBullets() {
                     
                     // Kill enemy if HP reaches 0
                     if (targetEn.hp <= 0) {
-                        const isElite = targetEn.type === 'orange';
-                        const points = isElite ? 75 : 25;
+                        const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
-                        createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                        createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
@@ -130,11 +129,10 @@ export function updateEnemyBullets() {
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
 
                     if (targetEn.hp <= 0) {
-                        const isElite = targetEn.type === 'orange';
-                        const points = isElite ? 75 : 25;
+                        const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
-                        createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                        createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
                     }
@@ -349,14 +347,13 @@ export function updateEnemies(now) {
                             targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
                             
                             if (targetEn.hp <= 0) {
-                                const isElite = targetEn.type === 'orange';
-                                const points = isElite ? 150 : 50;
-                                const ammoGrant = isElite ? 2 : 1;
+                                const points = getEnemyPoints(targetEn.type);
+                                const ammoGrant = getEnemyAmmoGrant(targetEn.type);
                                 state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
                                 updateAmmoUI();
                                 state.score += points;
                                 DOM.scoreEl.innerText = state.score;
-                                createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
+                                createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
                                 targetEn.el.remove();
                                 state.enemies.splice(ei, 1);
                             }
@@ -383,30 +380,30 @@ export function updateEnemies(now) {
                 state.bullets.splice(bi, 1);
                 
                 if(en.hp <= 0) {
-                    const isElite = en.type === 'orange';
-                    const points = isElite ? 150 : 50;
-                    const ammoGrant = isElite ? 2 : 1;
+                    const points = getEnemyPoints(en.type);
+                    const ammoGrant = getEnemyAmmoGrant(en.type);
+                    const explodeColor = getEnemyColor(en.type);
+                    const flatHeal = getEnemyFlatHeal(en.type);
                     state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
                     updateAmmoUI();
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
                     const crossedHealThreshold = Math.floor(state.score / 300) > Math.floor(oldScore / 300);
-                    
-                    if (isElite) {
-                        createExplosion(eRect.left + 25, eRect.top + 25, 'var(--elite)');
+
+                    createExplosion(eRect.left + 25, eRect.top + 25, explodeColor);
+                    if (flatHeal > 0) {
                         if (crossedHealThreshold) {
                             const healAmount = state.playerMaxHP * 0.75;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + healAmount);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
-                            showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, "var(--elite)");
+                            showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, explodeColor);
                         } else {
-                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 50);
-                            showFloatingMessage("REPAIR +25% & 150 PTS", eRect.left, eRect.top, "var(--elite)");
+                            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + flatHeal);
+                            showFloatingMessage(`REPAIR +${flatHeal} & ${points} PTS`, eRect.left, eRect.top, explodeColor);
                         }
                         updateHPUI();
                     } else {
-                        createExplosion(eRect.left + 25, eRect.top + 25, 'var(--danger)');
                         if (crossedHealThreshold) {
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 20);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
