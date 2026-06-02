@@ -351,6 +351,9 @@ export function updateEnemies(now) {
                             if (targetEn.hp <= 0) {
                                 const isElite = targetEn.type === 'orange';
                                 const points = isElite ? 150 : 50;
+                                const ammoGrant = isElite ? 2 : 1;
+                                state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
+                                updateAmmoUI();
                                 state.score += points;
                                 DOM.scoreEl.innerText = state.score;
                                 createExplosion(teRect.left + 25, teRect.top + 25, isElite ? 'var(--elite)' : 'var(--danger)');
@@ -382,6 +385,9 @@ export function updateEnemies(now) {
                 if(en.hp <= 0) {
                     const isElite = en.type === 'orange';
                     const points = isElite ? 150 : 50;
+                    const ammoGrant = isElite ? 2 : 1;
+                    state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
+                    updateAmmoUI();
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
