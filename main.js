@@ -664,6 +664,7 @@ function updateArrowMovement() {
 }
 
 window.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
     if (keyBindings.controlType === 'mouse' && !state.paused) {
         mousePressed = true;
         shoot();
