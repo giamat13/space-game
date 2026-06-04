@@ -517,7 +517,9 @@ export const state = {
         cooldown: 25000,
         lastUsed: 0,
         invincibleUntil: 0
-    }
+    },
+    isDebugGame: false,
+    paused: false
 };
 
 export function resetState() {
@@ -563,5 +565,7 @@ export function resetState() {
     state.dragonAbility.ready = true;
     state.dragonAbility.lastUsed = 0;
     state.dragonAbility.invincibleUntil = 0;
+    state.isDebugGame = false;
+    state.paused = false;
     console.log('✅ [STATE] Reset complete');
 }

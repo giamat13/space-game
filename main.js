@@ -288,6 +288,8 @@ function initGame() {
     updateAmmoUI();
     DOM.overlay.style.display = 'none';
     document.getElementById('floating-settings-btn').style.display = 'none';
+    document.getElementById('pause-btn').style.display = 'flex';
+    document.getElementById('pause-overlay').style.display = 'none';
 
     // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
@@ -392,8 +394,9 @@ function handleLevelUp() {
 
 function update() {
     if(!state.active) return;
+    if(state.paused) return; // loop restarts from togglePause
     const now = Date.now();
-    
+
     handleLevelUp();
     handleSpawning(now);
     rechargeAmmo(now);
@@ -416,6 +419,17 @@ function update() {
 
     requestAnimationFrame(update);
 }
+
+function togglePause() {
+    if (!state.active) return;
+    state.paused = !state.paused;
+    const pauseBtn = document.getElementById('pause-btn');
+    const pauseOverlay = document.getElementById('pause-overlay');
+    if (pauseBtn) pauseBtn.innerText = state.paused ? '▶' : '⏸';
+    if (pauseOverlay) pauseOverlay.style.display = state.paused ? 'flex' : 'none';
+    if (!state.paused) requestAnimationFrame(update);
+}
+window.togglePause = togglePause;
 
 // ===== SPECIAL ABILITY SYSTEM =====
 
@@ -542,7 +556,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('touchmove', (e) => {
-    if(!state.active) return;
+    if(!state.active || state.paused) return;
     e.preventDefault();
     movePlayer(e.touches[0].clientX);
     shoot();
@@ -554,7 +568,7 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchstart', (e) => {
-    if(!state.active) return;
+    if(!state.active || state.paused) return;
     movePlayer(e.touches[0].clientX);
     shoot();
     
@@ -569,17 +583,34 @@ let arrowKeysPressed = { left: false, right: false, up: false, down: false, shoo
 let mousePressed = false;
 
 window.addEventListener('keydown', (e) => {
+    // ESC: exit leaderboard/settings, or pause/resume game
+    if (e.code === 'Escape') {
+        const lbContainer = document.getElementById('leaderboard-container');
+        const settingsContainer = document.getElementById('settings-container');
+        if (lbContainer && lbContainer.style.display !== 'none') {
+            closeLeaderboard();
+        } else if (settingsContainer && settingsContainer.style.display !== 'none') {
+            closeSettings();
+        } else if (state.active) {
+            togglePause();
+        }
+        return;
+    }
+
+    // Block game input while paused
+    if (state.paused) return;
+
     // Handle shooting key - track if it's pressed
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
         shoot(); // Shoot immediately on press
     }
-    
+
     // Handle special ability for all control types
     if (state.active && e.code === keyBindings.ability) {
         activateSpecialAbility();
     }
-    
+
     // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
     
@@ -633,7 +664,8 @@ function updateArrowMovement() {
 }
 
 window.addEventListener('mousedown', (e) => {
-    if (keyBindings.controlType === 'mouse') {
+    if (e.target.tagName === 'BUTTON') return;
+    if (keyBindings.controlType === 'mouse' && !state.paused) {
         mousePressed = true;
         shoot();
     }
@@ -738,7 +770,10 @@ window.setLvl = function(lvlNum) {
     // Update game difficulty based on level
     state.speedMult = 1 + ((level - 1) * 0.2);
     state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
-    
+
+    // Mark as debug game so score won't be saved to the leaderboard
+    state.isDebugGame = true;
+
     console.log(`✅ [DEBUG] Level set to ${level}`);
     console.log(`📊 [DEBUG] Score set to: ${state.score}`);
     console.log(`📊 [DEBUG] Speed multiplier: ${state.speedMult.toFixed(2)}`);
@@ -756,21 +791,26 @@ window.spawn = function(type) {
         console.error('❌ [DEBUG] Game must be active! Start a game first.');
         return false;
     }
-    
-    const validTypes = ['burger', 'asteroid', 'enemy', 'elite', 'orange', 'red'];
-    const lowerType = type.toLowerCase();
-    
-    if (!validTypes.includes(lowerType)) {
-        console.error(`❌ [DEBUG] Invalid type! Valid types: ${validTypes.join(', ')}`);
+
+    if (type === undefined || type === null) {
+        console.error('❌ [DEBUG] Missing type! Valid types: burger, asteroid, enemy, red, orange/elite, green, blue');
         return false;
     }
-    
+
+    const validTypes = ['burger', 'asteroid', 'enemy', 'elite', 'orange', 'red', 'green', 'blue'];
+    const lowerType = String(type).toLowerCase();
+
+    if (!validTypes.includes(lowerType)) {
+        console.error(`❌ [DEBUG] Invalid type "${lowerType}"! Valid types: ${validTypes.join(', ')}`);
+        return false;
+    }
+
     const posX = Math.random() * (DOM.wrapper.clientWidth - 50);
     const el = document.createElement('div');
-    
+
     if (lowerType === 'burger') {
         el.className = 'burger';
-        el.style.left = posX + 'px'; 
+        el.style.left = posX + 'px';
         el.style.top = '-60px';
         el.innerHTML = `
             <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
@@ -782,52 +822,61 @@ window.spawn = function(type) {
             </svg>`;
         DOM.wrapper.appendChild(el);
         state.burgers.push({
-            el: el, 
+            el: el,
             hpFill: el.querySelector('.enemy-hp-fill'),
-            y: -60, 
-            hp: 4, 
-            maxHP: 4, 
+            y: -60,
+            hp: 4,
+            maxHP: 4,
             speed: 1.2 * state.speedMult
         });
         console.log('🍔 [DEBUG] Spawned burger');
     } else if (lowerType === 'asteroid') {
         el.className = 'asteroid';
-        el.style.left = posX + 'px'; 
+        el.style.left = posX + 'px';
         el.style.top = '-60px';
         el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#333" stroke="#555" stroke-width="3"/><circle cx="40" cy="40" r="5" fill="#222"/><circle cx="60" cy="70" r="8" fill="#222"/></svg>`;
         DOM.wrapper.appendChild(el);
-        state.asteroids.push({ 
-            el: el, 
-            y: -60, 
-            speed: (Math.random() * 2.0 + 1.2) * state.speedMult, 
-            rot: 0, 
-            rotSpeed: Math.random() * 8 - 4 
+        state.asteroids.push({
+            el: el,
+            y: -60,
+            speed: (Math.random() * 2.0 + 1.2) * state.speedMult,
+            rot: 0,
+            rotSpeed: Math.random() * 8 - 4
         });
         console.log('🪨 [DEBUG] Spawned asteroid');
     } else {
-        const isOrange = lowerType === 'elite' || lowerType === 'orange';
-        const type = isOrange ? 'orange' : 'red';
-        const maxHP = isOrange ? (Math.floor(Math.random() * 3) + 3) : (Math.floor(Math.random() * 3) + 1);
-        const colorCode = isOrange ? '#ff9900' : '#ff0000';
-        el.className = `enemy-ship ${type}`;
-        el.style.left = posX + 'px'; 
+        const enemyTypeMap = {
+            enemy: { type: 'red', hp: () => Math.floor(Math.random() * 3) + 1, colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
+            red:   { type: 'red', hp: () => Math.floor(Math.random() * 3) + 1, colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
+            orange: { type: 'orange', hp: () => Math.floor(Math.random() * 3) + 3, colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
+            elite:  { type: 'orange', hp: () => Math.floor(Math.random() * 3) + 3, colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
+            green:  { type: 'green',  hp: () => Math.floor(Math.random() * 3) + 3, colorCode: '#00cc44', fireRate: 800,  speedMod: 1.0 },
+            blue:   { type: 'blue',   hp: () => Math.floor(Math.random() * 4) + 5, colorCode: '#0088ff', fireRate: 450,  speedMod: 1.3 },
+        };
+        const stats = enemyTypeMap[lowerType];
+        const enemyType = stats.type;
+        const maxHP = stats.hp();
+        el.className = `enemy-ship ${enemyType}`;
+        el.style.left = posX + 'px';
         el.style.top = '-60px';
-        el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
+        el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${stats.colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
         DOM.wrapper.appendChild(el);
-        state.enemies.push({ 
-            el: el, 
+        state.enemies.push({
+            el: el,
             hpFill: el.querySelector('.enemy-hp-fill'),
-            type: type, 
-            y: -60, 
-            hp: maxHP, 
+            type: enemyType,
+            y: -60,
+            hp: maxHP,
             maxHP: maxHP,
-            speed: (Math.random() * 0.8 + 0.6) * state.speedMult,
+            speed: (Math.random() * 0.8 + 0.6) * stats.speedMod * state.speedMult,
             lastShot: Date.now() + Math.random() * 500,
-            fireRate: (isOrange ? 600 : 1000) / state.speedMult
+            fireRate: stats.fireRate / state.speedMult,
+            isChaotic: false,
+            hitsByChaos: {}
         });
-        console.log(`👾 [DEBUG] Spawned ${type} enemy`);
+        console.log(`👾 [DEBUG] Spawned ${enemyType} enemy`);
     }
-    
+
     return true;
 };
 
@@ -836,7 +885,7 @@ console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
-console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "elite"');
+console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "red", "orange"/"elite", "green", "blue"');
 console.log('  - DebugUnlockEdu() - Remove the education lock on this device');
 
 // ===== SETTINGS MENU =====

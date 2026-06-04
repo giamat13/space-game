@@ -2,7 +2,7 @@ name: Deploy test
 on:
   push:
     branches:
-      - claude/dragon-shield-ricochet-fire-voj2O
+      - claude/bug-fixes-FTOOp
 
 permissions:
   contents: write
