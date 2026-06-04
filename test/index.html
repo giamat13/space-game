@@ -36,7 +36,7 @@
 
         <button id="floating-settings-btn" style="display: none;">⚙️</button>
 
-        <button id="pause-btn" style="display: none;">⏸</button>
+        <button id="pause-btn" onclick="togglePause(); event.stopPropagation();" onmousedown="event.stopPropagation();" style="display: none;">⏸</button>
 
         <div id="pause-overlay" style="display: none;">
             <div class="pause-title">⏸ מושהה</div>
