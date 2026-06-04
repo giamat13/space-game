@@ -288,6 +288,8 @@ function initGame() {
     updateAmmoUI();
     DOM.overlay.style.display = 'none';
     document.getElementById('floating-settings-btn').style.display = 'none';
+    document.getElementById('pause-btn').style.display = 'flex';
+    document.getElementById('pause-overlay').style.display = 'none';
 
     // Show/hide special ability button based on skin and reset cooldown display
     const abilityBtn = document.getElementById('special-ability-btn');
@@ -392,8 +394,9 @@ function handleLevelUp() {
 
 function update() {
     if(!state.active) return;
+    if(state.paused) return; // loop restarts from togglePause
     const now = Date.now();
-    
+
     handleLevelUp();
     handleSpawning(now);
     rechargeAmmo(now);
@@ -416,6 +419,17 @@ function update() {
 
     requestAnimationFrame(update);
 }
+
+function togglePause() {
+    if (!state.active) return;
+    state.paused = !state.paused;
+    const pauseBtn = document.getElementById('pause-btn');
+    const pauseOverlay = document.getElementById('pause-overlay');
+    if (pauseBtn) pauseBtn.innerText = state.paused ? '▶' : '⏸';
+    if (pauseOverlay) pauseOverlay.style.display = state.paused ? 'flex' : 'none';
+    if (!state.paused) requestAnimationFrame(update);
+}
+window.togglePause = togglePause;
 
 // ===== SPECIAL ABILITY SYSTEM =====
 
@@ -542,7 +556,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('touchmove', (e) => {
-    if(!state.active) return;
+    if(!state.active || state.paused) return;
     e.preventDefault();
     movePlayer(e.touches[0].clientX);
     shoot();
@@ -554,7 +568,7 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchstart', (e) => {
-    if(!state.active) return;
+    if(!state.active || state.paused) return;
     movePlayer(e.touches[0].clientX);
     shoot();
     
@@ -569,17 +583,34 @@ let arrowKeysPressed = { left: false, right: false, up: false, down: false, shoo
 let mousePressed = false;
 
 window.addEventListener('keydown', (e) => {
+    // ESC: exit leaderboard/settings, or pause/resume game
+    if (e.code === 'Escape') {
+        const lbContainer = document.getElementById('leaderboard-container');
+        const settingsContainer = document.getElementById('settings-container');
+        if (lbContainer && lbContainer.style.display !== 'none') {
+            closeLeaderboard();
+        } else if (settingsContainer && settingsContainer.style.display !== 'none') {
+            closeSettings();
+        } else if (state.active) {
+            togglePause();
+        }
+        return;
+    }
+
+    // Block game input while paused
+    if (state.paused) return;
+
     // Handle shooting key - track if it's pressed
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
         shoot(); // Shoot immediately on press
     }
-    
+
     // Handle special ability for all control types
     if (state.active && e.code === keyBindings.ability) {
         activateSpecialAbility();
     }
-    
+
     // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
     
@@ -633,7 +664,7 @@ function updateArrowMovement() {
 }
 
 window.addEventListener('mousedown', (e) => {
-    if (keyBindings.controlType === 'mouse') {
+    if (keyBindings.controlType === 'mouse' && !state.paused) {
         mousePressed = true;
         shoot();
     }

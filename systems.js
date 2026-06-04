@@ -92,9 +92,13 @@ export function damagePlayer(amount) {
         console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
 
-        // Hide special ability button when returning to main menu
+        // Hide game-only buttons when returning to main menu
         const abilityBtn = document.getElementById('special-ability-btn');
         if (abilityBtn) abilityBtn.style.display = 'none';
+        const pauseBtn = document.getElementById('pause-btn');
+        if (pauseBtn) pauseBtn.style.display = 'none';
+        const pauseOverlay = document.getElementById('pause-overlay');
+        if (pauseOverlay) pauseOverlay.style.display = 'none';
 
         if (!state.isDebugGame) {
             import('./data.js').then(module => {
