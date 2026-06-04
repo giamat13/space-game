@@ -136,12 +136,11 @@ export function shoot() {
     b.style.bottom = '80px';
     
     if (state.currentSkinStats.bulletDamage >= 3.0) {
-        b.style.width = '20px';
-        b.style.height = '55px';
-        b.style.background = 'linear-gradient(to top, #cc0000, #ff2200, #ff6600, #ffa500, #ffff00, #ffffff)';
-        b.style.boxShadow = '0 0 50px #ff4500, 0 0 30px #ffa500, 0 0 18px #ffff00, 0 0 8px #fff';
-        b.style.borderRadius = '50% 50% 30% 30%';
-        b.style.filter = 'blur(0.3px)';
+        b.style.width = '8px';
+        b.style.height = '25px';
+        b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
+        b.style.boxShadow = '0 0 25px #ff4500, 0 0 15px #ffa500, 0 0 8px #ffff00';
+        b.style.borderRadius = '50% 50% 40% 40%';
         b.dataset.isFire = 'true';
     } else if (state.currentSkinStats.bulletDamage > 1.5) {
         b.style.width = '6px';
