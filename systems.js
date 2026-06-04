@@ -586,11 +586,12 @@ export function handleSpawning(now) {
             else if (roll < redWeight + orangeWeight + greenWeight)     type = 'green';
             else                                                         type = 'blue';
 
+            const scaleEnemyHP = (hp) => Math.ceil(hp * 1.5);
             const enemyStats = {
-                red:    { hp: Math.floor(Math.random() * 3) + 1, colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
-                orange: { hp: Math.floor(Math.random() * 3) + 3, colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
-                green:  { hp: Math.floor(Math.random() * 3) + 3, colorCode: '#00cc44', fireRate: 800,  speedMod: 1.0 },
-                blue:   { hp: Math.floor(Math.random() * 4) + 5, colorCode: '#0088ff', fireRate: 450,  speedMod: 1.3 },
+                red:    { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 1), colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
+                orange: { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 3), colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
+                green:  { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 3), colorCode: '#00cc44', fireRate: 800,  speedMod: 1.0 },
+                blue:   { hp: scaleEnemyHP(Math.floor(Math.random() * 4) + 5), colorCode: '#0088ff', fireRate: 450,  speedMod: 1.3 },
             };
             const stats = enemyStats[type];
             const maxHP = stats.hp;
