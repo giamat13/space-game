@@ -413,6 +413,11 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
+
+                    // Education mode: chance for a bonus question on a kill.
+                    // The quiz module enforces a 10s global cooldown, so this
+                    // won't fire on every single kill.
+                    if (window.__onEnemyKilled) window.__onEnemyKilled();
                 }
                 break;
             }

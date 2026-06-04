@@ -201,84 +201,158 @@
             
             <div id="settings-container" style="display: none;">
                 <h2 style="margin-bottom: 20px;">⚙️ הגדרות</h2>
-                
-                <h3 style="color: var(--primary); margin-top: 20px; margin-bottom: 15px;">📱 מצב מכשיר</h3>
-                
-                <div class="settings-group">
-                    <label>סוג מכשיר:</label>
-                    <div class="button-group">
-                        <button id="device-auto" class="setting-btn active" onclick="setDevice('auto')">🔄 אוטומטי</button>
-                        <button id="device-mobile" class="setting-btn" onclick="setDevice('mobile')">📱 טלפון</button>
-                        <button id="device-desktop" class="setting-btn" onclick="setDevice('desktop')">🖥️ מחשב</button>
-                    </div>
-                    <small style="opacity: 0.7;">במצב טלפון, הגדרות המקשים מושבתות</small>
-                </div>
-                
-                <h3 style="color: var(--primary); margin-top: 20px; margin-bottom: 15px;">🎮 שליטה</h3>
-                
-                <div class="settings-group" id="control-settings">
-                    <label>שליטה בספינה:</label>
-                    <div class="button-group">
-                        <button id="control-mouse" class="setting-btn active" onclick="setControl('mouse')">🖱️ עכבר</button>
-                        <button id="control-arrows" class="setting-btn" onclick="setControl('arrows')">⬅️➡️ חצים</button>
-                    </div>
-                </div>
-                
-                <div class="settings-group" id="shoot-key-settings">
-                    <label>מקש ירי:</label>
-                    <div class="key-display">
-                        <span id="shoot-key-display">Space</span>
-                        <button onclick="changeKey('shoot')" class="change-key-btn">שנה מקש</button>
-                    </div>
-                    <small style="opacity: 0.7;">לחץ על "שנה מקש" ואז לחץ על המקש הרצוי</small>
-                </div>
-                
-                <div class="settings-group" id="ability-key-settings">
-                    <label>מקש יכולת מיוחדת:</label>
-                    <div class="key-display">
-                        <span id="ability-key-display">B</span>
-                        <button onclick="changeKey('ability')" class="change-key-btn">שנה מקש</button>
-                    </div>
-                </div>
-                
-                <div class="settings-group" id="rightclick-settings">
-                    <label>קליק ימני ליכולת מיוחדת:</label>
-                    <div class="button-group">
-                        <button id="rightclick-on" class="setting-btn active" onclick="setRightClick(true)">✅ פעיל</button>
-                        <button id="rightclick-off" class="setting-btn" onclick="setRightClick(false)">❌ כבוי</button>
-                    </div>
-                </div>
-                
-                <h3 style="color: var(--primary); margin-top: 30px; margin-bottom: 15px;">📜 כללי משחק</h3>
-                
-                <div class="settings-group">
-                    <label>אויבים יורים דרך סלעים:</label>
-                    <div class="button-group">
-                        <button id="enemies-shoot-asteroids-yes" class="setting-btn active" onclick="setGameRule('enemiesShootThroughAsteroids', true)">✅ כן</button>
-                        <button id="enemies-shoot-asteroids-no" class="setting-btn" onclick="setGameRule('enemiesShootThroughAsteroids', false)">❌ לא</button>
-                    </div>
-                    <small style="opacity: 0.7;">קליעי אויבים עוברים דרך אסטרואידים</small>
-                </div>
-                
-                <div class="settings-group">
-                    <label>השחקן יורה דרך סלעים:</label>
-                    <div class="button-group">
-                        <button id="player-shoot-asteroids-yes" class="setting-btn" onclick="setGameRule('playerShootThroughAsteroids', true)">✅ כן</button>
-                        <button id="player-shoot-asteroids-no" class="setting-btn active" onclick="setGameRule('playerShootThroughAsteroids', false)">❌ לא</button>
-                    </div>
-                    <small style="opacity: 0.7;">הקליעים שלך עוברים דרך אסטרואידים</small>
+
+                <div class="settings-tabs">
+                    <button class="settings-tab-btn active" data-tab="device" onclick="showSettingsTab('device')">📱 מכשיר</button>
+                    <button class="settings-tab-btn" data-tab="controls" onclick="showSettingsTab('controls')">🎮 שליטה</button>
+                    <button class="settings-tab-btn" data-tab="rules" onclick="showSettingsTab('rules')">📜 כללים</button>
+                    <button class="settings-tab-btn" data-tab="edu" onclick="showSettingsTab('edu')">📚 חינוכי</button>
+                    <button class="settings-tab-btn" data-tab="dev" onclick="showSettingsTab('dev')">💻 מפתחים</button>
                 </div>
 
-                <h3 style="color: var(--primary); margin-top: 30px; margin-bottom: 15px;">💻 קונסול מפתחים</h3>
-
-                <div class="settings-group" id="dev-console-settings">
-                    <label>הרצת קוד (בדיוק כמו ב-F12 → Console):</label>
-                    <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="// הקלד קוד כאן"></textarea>
-                    <div class="button-group" style="margin-top: 8px;">
-                        <button class="setting-btn" onclick="runDevConsole()">▶️ הרץ</button>
-                        <button class="setting-btn" onclick="clearDevConsole()">🗑️ נקה</button>
+                <!-- TAB: מצב מכשיר -->
+                <div class="settings-tab-pane" data-tab="device">
+                    <div class="settings-group">
+                        <label>סוג מכשיר:</label>
+                        <div class="button-group">
+                            <button id="device-auto" class="setting-btn active" onclick="setDevice('auto')">🔄 אוטומטי</button>
+                            <button id="device-mobile" class="setting-btn" onclick="setDevice('mobile')">📱 טלפון</button>
+                            <button id="device-desktop" class="setting-btn" onclick="setDevice('desktop')">🖥️ מחשב</button>
+                        </div>
+                        <small style="opacity: 0.7;">במצב טלפון, הגדרות המקשים מושבתות</small>
                     </div>
-                    <pre id="dev-console-output" class="dev-console-output" dir="ltr"></pre>
+                </div>
+
+                <!-- TAB: שליטה -->
+                <div class="settings-tab-pane" data-tab="controls" style="display:none;">
+                    <div class="settings-group" id="control-settings">
+                        <label>שליטה בספינה:</label>
+                        <div class="button-group">
+                            <button id="control-mouse" class="setting-btn active" onclick="setControl('mouse')">🖱️ עכבר</button>
+                            <button id="control-arrows" class="setting-btn" onclick="setControl('arrows')">⬅️➡️ חצים</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group" id="shoot-key-settings">
+                        <label>מקש ירי:</label>
+                        <div class="key-display">
+                            <span id="shoot-key-display">Space</span>
+                            <button onclick="changeKey('shoot')" class="change-key-btn">שנה מקש</button>
+                        </div>
+                        <small style="opacity: 0.7;">לחץ על "שנה מקש" ואז לחץ על המקש הרצוי</small>
+                    </div>
+
+                    <div class="settings-group" id="ability-key-settings">
+                        <label>מקש יכולת מיוחדת:</label>
+                        <div class="key-display">
+                            <span id="ability-key-display">B</span>
+                            <button onclick="changeKey('ability')" class="change-key-btn">שנה מקש</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group" id="rightclick-settings">
+                        <label>קליק ימני ליכולת מיוחדת:</label>
+                        <div class="button-group">
+                            <button id="rightclick-on" class="setting-btn active" onclick="setRightClick(true)">✅ פעיל</button>
+                            <button id="rightclick-off" class="setting-btn" onclick="setRightClick(false)">❌ כבוי</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: כללי משחק -->
+                <div class="settings-tab-pane" data-tab="rules" style="display:none;">
+                    <div class="settings-group">
+                        <label>אויבים יורים דרך סלעים:</label>
+                        <div class="button-group">
+                            <button id="enemies-shoot-asteroids-yes" class="setting-btn active" onclick="setGameRule('enemiesShootThroughAsteroids', true)">✅ כן</button>
+                            <button id="enemies-shoot-asteroids-no" class="setting-btn" onclick="setGameRule('enemiesShootThroughAsteroids', false)">❌ לא</button>
+                        </div>
+                        <small style="opacity: 0.7;">קליעי אויבים עוברים דרך אסטרואידים</small>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>השחקן יורה דרך סלעים:</label>
+                        <div class="button-group">
+                            <button id="player-shoot-asteroids-yes" class="setting-btn" onclick="setGameRule('playerShootThroughAsteroids', true)">✅ כן</button>
+                            <button id="player-shoot-asteroids-no" class="setting-btn active" onclick="setGameRule('playerShootThroughAsteroids', false)">❌ לא</button>
+                        </div>
+                        <small style="opacity: 0.7;">הקליעים שלך עוברים דרך אסטרואידים</small>
+                    </div>
+                </div>
+
+                <!-- TAB: מצב חינוכי -->
+                <div class="settings-tab-pane" data-tab="edu" style="display:none;">
+                    <div class="settings-group" id="edu-locked-banner" style="display:none;">
+                        <small style="opacity: 0.9; color: #ffd700;">🔒 מצב חינוכי נעול. כדי לבטל יש להזין סיסמה — או שייפתח אוטומטית אחרי 45 דקות.</small>
+                        <small id="edu-lock-remaining" style="opacity: 0.9; color: #ffd700; font-weight:bold;"></small>
+                        <div class="key-display" style="margin-top:8px;">
+                            <input type="password" id="edu-unlock-password" placeholder="סיסמה לפתיחה" style="flex:1; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;">
+                            <button onclick="eduUnlock()" class="change-key-btn">🔓 בטל נעילה</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>הפעלת מצב חינוכי:</label>
+                        <div class="button-group">
+                            <button id="edu-on" class="setting-btn" onclick="eduSetEnabled(true)">✅ פעיל</button>
+                            <button id="edu-off" class="setting-btn active" onclick="eduSetEnabled(false)">❌ כבוי</button>
+                        </div>
+                        <small style="opacity: 0.7;">שאלות יופיעו בעליית שלב, בהשמדת אויב ובתחילת המשחק (עם הפסקה של 10 שניות בין שאלות)</small>
+                    </div>
+
+                    <div class="settings-group" id="edu-subject-group">
+                        <label>מקצוע:</label>
+                        <select id="edu-subject-select" onchange="eduSetSubject(this.value)" style="width:100%; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;"></select>
+                    </div>
+
+                    <div class="settings-group" id="edu-grade-group">
+                        <label>כיתה:</label>
+                        <select id="edu-grade-select" onchange="eduSetGrade(this.value)" style="width:100%; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;"></select>
+                    </div>
+
+                    <div class="settings-group" id="edu-lock-group">
+                        <label>נעילת המצב הנוכחי עם סיסמה:</label>
+                        <div class="key-display">
+                            <input type="password" id="edu-lock-password" placeholder="בחר סיסמה" style="flex:1; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;">
+                            <button onclick="eduLock()" class="change-key-btn">🔒 נעל</button>
+                        </div>
+                        <small style="opacity: 0.7;">לאחר נעילה לא ניתן לשנות מקצוע/כיתה או לכבות בלי הסיסמה. ייפתח אוטומטית אחרי 45 דקות.</small>
+                    </div>
+
+                    <div class="settings-group" id="edu-link-group">
+                        <label>צור קישור חינוכי (לתלמידים/לכיתה):</label>
+                        <div class="key-display">
+                            <input type="password" id="edu-link-password" placeholder="סיסמה (ריק = ללא נעילה)" style="flex:1; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;">
+                            <button onclick="eduCreateLink()" class="change-key-btn">🔗 צור קישור</button>
+                        </div>
+                        <small style="opacity: 0.7;">הקישור מקבע את המקצוע והכיתה שנבחרו. עם סיסמה — נעול ל-45 דקות. בלי סיסמה — רק בוחר מקצוע וכיתה, ללא נעילה.</small>
+                        <textarea id="edu-link-output" class="dev-console-input" rows="2" dir="ltr" readonly placeholder="הקישור יופיע כאן" style="margin-top:8px;"></textarea>
+                        <div class="button-group" style="margin-top:8px;">
+                            <button class="setting-btn" onclick="eduCopyLink()">📋 העתק קישור</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group" id="edu-manage-group" style="display:none;">
+                        <label>ניהול הכיתה (מי שיצר את הסיסמה):</label>
+                        <div class="button-group" style="margin-bottom:10px;">
+                            <button class="setting-btn" onclick="eduUnlockAll()">🔓 פתח לכולם</button>
+                        </div>
+                        <small style="opacity: 0.7;">רשימת המחוברים לקישור הזה. אפשר לפתוח ליחידים:</small>
+                        <div id="edu-participants" style="margin-top:10px;"></div>
+                    </div>
+                </div>
+
+                <!-- TAB: קונסול מפתחים -->
+                <div class="settings-tab-pane" data-tab="dev" style="display:none;">
+                    <div class="settings-group" id="dev-console-settings">
+                        <label>הרצת קוד (בדיוק כמו ב-F12 → Console):</label>
+                        <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="// הקלד קוד כאן"></textarea>
+                        <div class="button-group" style="margin-top: 8px;">
+                            <button class="setting-btn" onclick="runDevConsole()">▶️ הרץ</button>
+                            <button class="setting-btn" onclick="clearDevConsole()">🗑️ נקה</button>
+                        </div>
+                        <pre id="dev-console-output" class="dev-console-output" dir="ltr"></pre>
+                    </div>
                 </div>
 
                 <button onclick="closeSettings()" style="margin-top: 20px;">חזרה</button>

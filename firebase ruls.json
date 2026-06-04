@@ -31,7 +31,18 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
     }
-    
+
+    // Education sessions: shared "classroom" state used for the 45-minute lock,
+    // remote unlock-all, and the "who is connected / locked" dashboard.
+    // Students may be anonymous, so access is open (obfuscation-only security:
+    // the session id is just a hash of a teacher-chosen password).
+    match /eduSessions/{sessionId} {
+      allow read, write: if true;
+      match /participants/{clientId} {
+        allow read, write: if true;
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

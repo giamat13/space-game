@@ -4,6 +4,7 @@ import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync } from './firestore-sync.js';
+import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 
 // ===== INITIALIZATION =====
 
@@ -14,7 +15,61 @@ loadUnlockedSkins();
 loadKeyBindings();
 loadGameRules();
 loadDeviceMode();
+loadEduConfig();        // Education mode config (may come from a teacher link)
+loadQuestionBank();     // Load questions.json (async; fallback bundled)
 updateSkinOptions();
+initEduSession();        // Connect to shared session (remote unlock / dashboard)
+
+// Heartbeat: re-check the 45-minute auto-unlock, refresh our display name and
+// presence (lastSeen) in the shared session, every 15s.
+setInterval(() => {
+    window.__eduCurrentUser = currentUser; // keep the name fresh once logged in
+    const justOpened = applyExpiryIfNeeded();
+    if (eduConfig.locked && eduConfig.sessionId) joinSession(true);
+    const settingsOpen = document.getElementById('settings-container')?.style.display !== 'none';
+    if ((justOpened || eduConfig.managed) && settingsOpen) {
+        updateEduSettingsDisplay();
+    }
+}, 15000);
+
+// ===== EDUCATION SHARED SESSION =====
+let eduUnsubUnlock = null;
+let eduUnsubParticipants = null;
+
+function initEduSession() {
+    // Expose the logged-in user's name for the participant dashboard.
+    window.__eduCurrentUser = currentUser;
+
+    if (eduConfig.locked && eduConfig.sessionId) {
+        // We're a locked device: announce ourselves and wait for an unlock.
+        joinSession(true);
+        listenForUnlock(() => {
+            updateEduSettingsDisplay();
+            showFloatingMessage('🔓 הנעילה נפתחה', 20, 20, 'var(--primary)');
+        }).then(unsub => { eduUnsubUnlock = unsub; });
+    }
+    if (eduConfig.managed && eduConfig.sessionId) {
+        // We created the password: keep the session doc alive and watch the roster.
+        startManaging();
+    }
+}
+
+// Allow the quiz modal to resume the paused game loop.
+window.__resumeGameLoop = () => requestAnimationFrame(update);
+
+// Enemy-kill quiz hook (called from updates.js). The 10s cooldown inside the
+// education module keeps this from firing too often.
+window.__onEnemyKilled = () => {
+    if (!isEduActive()) return;
+    triggerQuiz('kill', {
+        onCorrect: () => {
+            const heal = Math.round(state.playerMaxHP * 0.10);
+            state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
+            updateHPUI();
+            showFloatingMessage(`+${heal} HP`, DOM.wrapper.clientWidth/2 - 30, DOM.wrapper.clientHeight/2 + 40, "var(--health)");
+        }
+    });
+};
 
 // Initialize floating settings button
 document.getElementById('floating-settings-btn').style.display = 'flex';
@@ -255,7 +310,15 @@ function initGame() {
     
     updateSkinOptions();
     updatePlayerPos();
+    resetQuizCooldown();
     requestAnimationFrame(update);
+
+    // Education mode: opening question before the action ramps up.
+    if (isEduActive()) {
+        triggerQuiz('start', {
+            onWrong: () => { /* opening question is informational only */ }
+        });
+    }
 }
 
 // Export to window for HTML onclick
@@ -297,6 +360,18 @@ function handleLevelUp() {
         }
         
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
+
+        // Education mode: a question on every level up. A wrong answer costs HP.
+        if (isEduActive()) {
+            triggerQuiz('levelup', {
+                onWrong: () => {
+                    const penalty = Math.round(state.playerMaxHP * 0.15);
+                    state.playerHP = Math.max(1, state.playerHP - penalty);
+                    updateHPUI();
+                    showFloatingMessage(`-${penalty} HP`, DOM.wrapper.clientWidth/2 - 30, DOM.wrapper.clientHeight/2 + 40, "var(--danger)");
+                }
+            });
+        }
     }
 }
 
@@ -749,6 +824,7 @@ console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
 console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "elite"');
+console.log('  - DebugUnlockEdu() - Remove the education lock on this device');
 
 // ===== SETTINGS MENU =====
 
@@ -758,6 +834,20 @@ function showSettings() {
     document.getElementById('settings-container').style.display = 'block';
     document.getElementById('floating-settings-btn').style.display = 'none';
     updateSettingsDisplay();
+    showSettingsTab(currentSettingsTab);
+}
+
+// ===== SETTINGS TABS =====
+let currentSettingsTab = 'device';
+
+function showSettingsTab(name) {
+    currentSettingsTab = name;
+    document.querySelectorAll('.settings-tab-pane').forEach(p => {
+        p.style.display = (p.dataset.tab === name) ? 'block' : 'none';
+    });
+    document.querySelectorAll('.settings-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+    });
 }
 
 function closeSettings() {
@@ -816,6 +906,197 @@ function updateSettingsDisplay() {
     // Update key displays
     document.getElementById('shoot-key-display').innerText = formatKeyName(keyBindings.shoot);
     document.getElementById('ability-key-display').innerText = formatKeyName(keyBindings.ability);
+
+    updateEduSettingsDisplay();
+}
+
+// ===== EDUCATION MODE SETTINGS =====
+
+function updateEduSettingsDisplay() {
+    const locked = eduConfig.locked;
+
+    // Enabled buttons
+    document.getElementById('edu-on').classList.toggle('active', eduConfig.enabled);
+    document.getElementById('edu-off').classList.toggle('active', !eduConfig.enabled);
+
+    // Locked banner + remaining time until the 45-minute auto-unlock
+    document.getElementById('edu-locked-banner').style.display = locked ? 'block' : 'none';
+    const remainEl = document.getElementById('edu-lock-remaining');
+    if (remainEl) {
+        if (locked) {
+            const ms = lockMsRemaining();
+            const mins = Math.floor(ms / 60000);
+            const secs = Math.floor((ms % 60000) / 1000);
+            remainEl.textContent = `⏳ פתיחה אוטומטית בעוד ${mins}:${String(secs).padStart(2, '0')} דקות`;
+        } else {
+            remainEl.textContent = '';
+        }
+    }
+
+    // Subject dropdown
+    const subjectSel = document.getElementById('edu-subject-select');
+    const subjects = getSubjects();
+    subjectSel.innerHTML = '';
+    subjects.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.key;
+        o.textContent = s.name;
+        if (s.key === eduConfig.subject) o.selected = true;
+        subjectSel.appendChild(o);
+    });
+    subjectSel.disabled = locked;
+
+    // Grade dropdown
+    const gradeSel = document.getElementById('edu-grade-select');
+    const grades = getGradesForSubject(eduConfig.subject);
+    gradeSel.innerHTML = '';
+    grades.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g;
+        o.textContent = gradeLabel(g);
+        if (g === eduConfig.grade) o.selected = true;
+        gradeSel.appendChild(o);
+    });
+    gradeSel.disabled = locked;
+
+    // When locked, hide the lock/link creation controls (already pinned).
+    document.getElementById('edu-lock-group').style.display = locked ? 'none' : 'block';
+    document.getElementById('edu-link-group').style.display = locked ? 'none' : 'block';
+    // Disabling the on/off toggle while locked (must unlock first to turn off)
+    document.getElementById('edu-off').style.opacity = locked ? '0.4' : '1';
+    document.getElementById('edu-off').style.pointerEvents = locked ? 'none' : 'auto';
+
+    // Manager dashboard (only for the device that created the password).
+    const mgr = document.getElementById('edu-manage-group');
+    if (mgr) {
+        const showMgr = eduConfig.managed && !!eduConfig.sessionId;
+        mgr.style.display = showMgr ? 'block' : 'none';
+        if (showMgr) startEduParticipantWatch();
+        else stopEduParticipantWatch();
+    }
+}
+
+// ===== EDUCATION MANAGER DASHBOARD =====
+function startEduParticipantWatch() {
+    if (eduParticipantWatchOn) return;
+    eduParticipantWatchOn = true;
+    listenParticipants(renderEduParticipants).then(unsub => { eduUnsubParticipants = unsub; });
+}
+
+function stopEduParticipantWatch() {
+    if (eduUnsubParticipants) { eduUnsubParticipants(); eduUnsubParticipants = null; }
+    eduParticipantWatchOn = false;
+}
+let eduParticipantWatchOn = false;
+
+function renderEduParticipants(list) {
+    const box = document.getElementById('edu-participants');
+    if (!box) return;
+    const me = list.filter(p => p.name); // any registered participant
+    if (!me.length) {
+        box.innerHTML = '<small style="opacity:0.7;">עדיין לא נכנס אף אחד לקישור הזה…</small>';
+        return;
+    }
+    box.innerHTML = me.map(p => {
+        const status = p.locked
+            ? '<span style="color:#ffd700;">🔒 נעול</span>'
+            : '<span style="color:#39ff88;">🔓 פתוח</span>';
+        const btn = p.locked
+            ? `<button class="change-key-btn" onclick="eduUnlockOne('${p.id}')">🔓 פתח</button>`
+            : '';
+        return `<div class="edu-participant-row">
+            <span class="edu-participant-name">${escapeHtml(p.name || p.id)}</span>
+            ${status}${btn}
+        </div>`;
+    }).join('');
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+function eduUnlockAll() {
+    if (!confirm('לפתוח את הנעילה לכל מי שמחובר לקישור?')) return;
+    unlockAllParticipants().then(ok => {
+        alert(ok ? '🔓 נפתח לכולם.' : '⚠️ לא ניתן להתחבר לשרת כעת.');
+    });
+}
+
+function eduUnlockOne(clientId) {
+    unlockOneParticipant(clientId).then(ok => {
+        if (!ok) alert('⚠️ לא ניתן להתחבר לשרת כעת.');
+    });
+}
+
+function eduSetEnabled(on) {
+    if (eduConfig.locked && !on) {
+        showFloatingMessage('🔒 יש לבטל את הנעילה עם סיסמה תחילה', 20, 20, 'var(--danger)');
+        return;
+    }
+    setEduEnabled(on);
+    updateEduSettingsDisplay();
+}
+
+function eduSetSubject(value) {
+    if (!setEduSubject(value)) return;
+    updateEduSettingsDisplay();
+}
+
+function eduSetGrade(value) {
+    if (!setEduGrade(value)) return;
+    updateEduSettingsDisplay();
+}
+
+function eduLock() {
+    const pw = document.getElementById('edu-lock-password').value.trim();
+    if (!pw) { alert('יש להזין סיסמה'); return; }
+    lockEdu(pw);
+    document.getElementById('edu-lock-password').value = '';
+    // Start listening for a remote/timer unlock on this newly-locked device.
+    if (eduUnsubUnlock) { eduUnsubUnlock(); eduUnsubUnlock = null; }
+    listenForUnlock(() => {
+        updateEduSettingsDisplay();
+        showFloatingMessage('🔓 הנעילה נפתחה', 20, 20, 'var(--primary)');
+    }).then(unsub => { eduUnsubUnlock = unsub; });
+    updateEduSettingsDisplay();
+    alert('🔒 מצב חינוכי ננעל. ייפתח אוטומטית אחרי 45 דקות, עם הסיסמה, או מרחוק.');
+}
+
+function eduUnlock() {
+    const pw = document.getElementById('edu-unlock-password').value.trim();
+    if (unlockEdu(pw)) {
+        document.getElementById('edu-unlock-password').value = '';
+        updateEduSettingsDisplay();
+        alert('🔓 הנעילה בוטלה.');
+    } else {
+        alert('❌ סיסמה שגויה.');
+    }
+}
+
+function eduCreateLink() {
+    const pw = document.getElementById('edu-link-password').value.trim();
+    const link = buildEduLink(eduConfig.subject, eduConfig.grade, pw);
+    document.getElementById('edu-link-output').value = link;
+    if (pw) {
+        // Become the manager of this session so we can unlock everyone / watch
+        // who is connected. The students who open the link are locked.
+        becomeManager(pw);
+    } else {
+        alert('ℹ️ נוצר קישור ללא סיסמה — הקישור לא ננעל, רק בוחר מקצוע וכיתה.');
+    }
+    updateEduSettingsDisplay();
+}
+
+function eduCopyLink() {
+    const out = document.getElementById('edu-link-output');
+    if (!out.value) { alert('צור קישור קודם'); return; }
+    out.select();
+    navigator.clipboard?.writeText(out.value).then(
+        () => alert('📋 הקישור הועתק!'),
+        () => { document.execCommand('copy'); alert('📋 הקישור הועתק!'); }
+    );
 }
 
 function formatKeyName(code) {
@@ -985,3 +1266,24 @@ window.setRightClick = setRightClick;
 window.setGameRule = setGameRuleFunc;
 window.setDevice = setDevice;
 window.changeKey = changeKey;
+window.eduSetEnabled = eduSetEnabled;
+window.eduSetSubject = eduSetSubject;
+window.eduSetGrade = eduSetGrade;
+window.eduLock = eduLock;
+window.eduUnlock = eduUnlock;
+window.eduCreateLink = eduCreateLink;
+window.eduCopyLink = eduCopyLink;
+window.eduUnlockAll = eduUnlockAll;
+window.eduUnlockOne = eduUnlockOne;
+window.showSettingsTab = showSettingsTab;
+
+// Debug: open the education lock on this device immediately (ignores password,
+// timer and remote state). Also reports the new "open" status to the session.
+window.DebugUnlockEdu = function () {
+    forceUnlockLocal();
+    if (document.getElementById('settings-container')?.style.display !== 'none') {
+        updateEduSettingsDisplay();
+    }
+    console.log('🔓 [DEBUG] Education lock removed on this device.');
+    return true;
+};
