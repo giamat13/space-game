@@ -51,7 +51,7 @@ export function updateEnemyBullets() {
         eb.y += eb.vy;
         eb.el.style.left = eb.x + 'px';
         eb.el.style.top = eb.y + 'px';
-        const ebRect = eb.rect = eb.el.getBoundingClientRect();
+        const ebRect = eb.el.getBoundingClientRect();
         const pRect = state.playerRect || DOM.player.getBoundingClientRect();
 
         // Check collision with player (only non-friendly and non-chaotic and non-ricocheted bullets)

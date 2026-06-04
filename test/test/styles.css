@@ -635,9 +635,6 @@ button:hover {
     padding: 20px;
     box-sizing: border-box;
     touch-action: pan-y;
-    overflow-y: auto;
-    max-height: 100%;
-    -webkit-overflow-scrolling: touch;
 }
 
 /* Auth Styles */
@@ -677,18 +674,10 @@ button:hover {
 /* Settings tabs */
 .settings-tabs {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
-    justify-content: flex-start;
+    justify-content: center;
     margin-bottom: 10px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-}
-
-.settings-tabs::-webkit-scrollbar {
-    display: none;
 }
 
 .settings-tab-btn {
@@ -701,8 +690,8 @@ button:hover {
     font-family: 'Orbitron', sans-serif;
     font-size: 12px;
     transition: all 0.25s;
-    flex: 0 0 auto;
-    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 70px;
 }
 
 .settings-tab-btn:hover {
