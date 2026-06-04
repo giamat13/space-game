@@ -4,6 +4,7 @@
 // (הסיסמה, המקצוע והכיתה מקודדים בתוך הקישור עצמו).
 
 import { state } from './data.js';
+import { t, currentLang } from './i18n.js';
 
 // ---------- Persistent config ----------
 // eduConfig describes the *current* education setup.
@@ -332,11 +333,11 @@ function ensureModal() {
     return modal;
 }
 
-const EVENT_LABELS = {
-    levelup: '⬆️ עליית שלב — ענה נכון כדי להמשיך',
-    kill: '💥 אויב הושמד — שאלת בונוס',
-    start: '🚀 לפני שמתחילים — שאלת פתיחה'
-};
+const EVENT_LABELS = () => ({
+    levelup: t('quizLevelup'),
+    kill: t('quizKill'),
+    start: t('quizStart')
+});
 
 function showQuizModal(q, eventType, onCorrect, onWrong) {
     quizOpen = true;
@@ -346,7 +347,7 @@ function showQuizModal(q, eventType, onCorrect, onWrong) {
     const modal = ensureModal();
     modal.style.display = 'flex';
 
-    modal.querySelector('#edu-quiz-tag').innerText = EVENT_LABELS[eventType] || 'שאלה';
+    modal.querySelector('#edu-quiz-tag').innerText = EVENT_LABELS()[eventType] || (currentLang === 'en' ? 'Question' : 'שאלה');
     modal.querySelector('#edu-quiz-question').innerText = q.question;
     const feedback = modal.querySelector('#edu-quiz-feedback');
     feedback.innerText = '';
@@ -378,14 +379,14 @@ function showQuizModal(q, eventType, onCorrect, onWrong) {
             Array.from(optionsEl.children).forEach(b => { b.disabled = true; });
             if (idx === q.correctIndex) {
                 btn.classList.add('correct');
-                feedback.innerText = '✅ נכון!';
+                feedback.innerText = t('quizCorrect');
                 feedback.classList.add('ok');
                 finish(true);
             } else {
                 btn.classList.add('wrong');
                 const correctBtn = optionsEl.children[q.correctIndex];
                 if (correctBtn) correctBtn.classList.add('correct');
-                feedback.innerText = '❌ טעות. התשובה הנכונה מסומנת.';
+                feedback.innerText = t('quizWrong');
                 feedback.classList.add('bad');
                 finish(false);
             }

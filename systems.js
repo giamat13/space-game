@@ -1,4 +1,5 @@
 import { DOM, state, INGREDIENT_TYPES, deviceMode } from './data.js';
+import { t, currentLang } from './i18n.js';
 
 // ===== ENEMY TYPE HELPERS =====
 
@@ -104,7 +105,7 @@ export function damagePlayer(amount) {
         
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
-        document.getElementById('sub-title').innerHTML = `הספינה שלך הושמדה!<br>ניקוד סופי: ${state.score}<br>שלב: ${state.level}`;
+        document.getElementById('sub-title').innerHTML = `${t('shipDestroyed')}<br>${t('finalScore')} ${state.score}<br>${t('levelWord')} ${state.level}`;
         document.getElementById('leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
     }

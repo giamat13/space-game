@@ -716,6 +716,59 @@ button:hover {
 }
 
 /* Education manager participant rows */
+/* Language selection list */
+.lang-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.lang-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0, 242, 255, 0.06);
+    border: 2px solid rgba(0, 242, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 15px;
+    color: white;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: start;
+}
+
+.lang-card:hover {
+    background: rgba(0, 242, 255, 0.15);
+    border-color: var(--primary);
+    transform: translateX(-2px);
+}
+
+.lang-card.active {
+    background: rgba(0, 242, 255, 0.18);
+    border-color: var(--primary);
+    box-shadow: 0 0 16px rgba(0, 242, 255, 0.35);
+}
+
+.lang-flag {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.lang-name {
+    flex: 1;
+    font-size: 1rem;
+}
+
+.lang-check {
+    color: var(--primary);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
 .edu-participant-row {
     display: flex;
     align-items: center;

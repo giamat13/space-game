@@ -5,6 +5,7 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
+import { t, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 
 // ===== INITIALIZATION =====
 
@@ -19,6 +20,18 @@ loadEduConfig();        // Education mode config (may come from a teacher link)
 loadQuestionBank();     // Load questions.json (async; fallback bundled)
 updateSkinOptions();
 initEduSession();        // Connect to shared session (remote unlock / dashboard)
+applyLang();             // Apply saved language preference to all [data-i18n] elements
+
+// Re-translate and re-render dynamic JS text whenever the language changes.
+window.addEventListener('langchange', () => {
+    updateEduSettingsDisplay(); // re-render grade labels
+    updateSettingsDisplay();    // re-render buttons
+    renderLangList();           // update the active tick in the language tab
+});
+
+// Expose toggleLang for the HTML onclick button.
+window.toggleLang = toggleLang;
+window.pickLang = (code) => { applyLang(code); };
 
 // Heartbeat: re-check the 45-minute auto-unlock, refresh our display name and
 // presence (lastSeen) in the shared session, every 15s.
@@ -45,7 +58,7 @@ function initEduSession() {
         joinSession(true);
         listenForUnlock(() => {
             updateEduSettingsDisplay();
-            showFloatingMessage('🔓 הנעילה נפתחה', 20, 20, 'var(--primary)');
+            showFloatingMessage(t('lockOpened'), 20, 20, 'var(--primary)');
         }).then(unsub => { eduUnsubUnlock = unsub; });
     }
     if (eduConfig.managed && eduConfig.sessionId) {
@@ -123,7 +136,7 @@ async function displayLeaderboard(category) {
     }
     
     // Show loading message
-    content.innerHTML = '<div class="lb-empty">⏳ טוען נתונים...</div>';
+    content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
     
     // Try to get from cloud first
     let leaderboard = [];
@@ -147,7 +160,7 @@ async function displayLeaderboard(category) {
     
     if (leaderboard.length === 0) {
         console.log('⚠️ [DISPLAY] No entries found, showing empty message');
-        content.innerHTML = '<div class="lb-empty">אין עדיין שיאים 🎯<br>שחק כדי להגיע ללוח!</div>';
+        content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
         return;
     }
     
@@ -177,9 +190,9 @@ async function displayLeaderboard(category) {
                 <div class="lb-player-name" style="font-size: 0.9rem; font-weight: bold; color: var(--primary); margin-bottom: 3px;">
                     👤 ${userName}
                 </div>
-                <div class="lb-score">${entry.score.toLocaleString()} נקודות</div>
+                <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">
-                    שלב ${entry.level} ${skinName} • ${entry.date}
+                    ${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}
                 </div>
             </div>
         </div>
@@ -848,6 +861,23 @@ function showSettingsTab(name) {
     document.querySelectorAll('.settings-tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === name);
     });
+    if (name === 'lang') renderLangList();
+}
+
+function renderLangList() {
+    const box = document.getElementById('lang-list');
+    if (!box) return;
+    box.innerHTML = LANGUAGES.map(lang => {
+        const active = lang.code === currentLang;
+        return `<button
+            class="lang-card${active ? ' active' : ''}"
+            onclick="pickLang('${lang.code}')"
+            dir="${lang.dir}">
+            <span class="lang-flag">${lang.flag}</span>
+            <span class="lang-name">${lang.name}</span>
+            ${active ? '<span class="lang-check">✓</span>' : ''}
+        </button>`;
+    }).join('');
 }
 
 function closeSettings() {
@@ -859,34 +889,21 @@ function closeSettings() {
 
 function updateSettingsDisplay() {
     // Update device mode buttons
-    const isAuto = deviceMode.isAutoDetected;
     const isMobile = deviceMode.isMobile;
+
+    document.getElementById('device-mobile').classList.toggle('active', isMobile);
+    document.getElementById('device-desktop').classList.toggle('active', !isMobile);
     
-    document.getElementById('device-auto').classList.toggle('active', isAuto);
-    document.getElementById('device-mobile').classList.toggle('active', !isAuto && isMobile);
-    document.getElementById('device-desktop').classList.toggle('active', !isAuto && !isMobile);
-    
-    // Show/hide keyboard settings based on device mode
-    const keyboardSettings = [
-        document.getElementById('control-settings'),
-        document.getElementById('shoot-key-settings'),
-        document.getElementById('ability-key-settings'),
-        document.getElementById('rightclick-settings')
-    ];
-    
-    keyboardSettings.forEach(setting => {
-        if (setting) {
-            if (isMobile) {
-                setting.style.opacity = '0.5';
-                setting.style.pointerEvents = 'none';
-                setting.style.filter = 'grayscale(100%)';
-            } else {
-                setting.style.opacity = '1';
-                setting.style.pointerEvents = 'auto';
-                setting.style.filter = 'none';
-            }
+    // Hide the entire controls tab on mobile (irrelevant on touch devices)
+    const controlsTabBtn = document.querySelector('.settings-tab-btn[data-tab="controls"]');
+    if (controlsTabBtn) {
+        controlsTabBtn.style.display = isMobile ? 'none' : '';
+        // If the controls tab is currently active while switching to mobile,
+        // redirect to the device tab instead.
+        if (isMobile && currentSettingsTab === 'controls') {
+            showSettingsTab('device');
         }
-    });
+    }
     
     // Update control type buttons
     document.getElementById('control-mouse').classList.toggle('active', keyBindings.controlType === 'mouse');
@@ -927,7 +944,9 @@ function updateEduSettingsDisplay() {
             const ms = lockMsRemaining();
             const mins = Math.floor(ms / 60000);
             const secs = Math.floor((ms % 60000) / 1000);
-            remainEl.textContent = `⏳ פתיחה אוטומטית בעוד ${mins}:${String(secs).padStart(2, '0')} דקות`;
+            remainEl.textContent = currentLang === 'en'
+                ? `⏳ Auto-opens in ${mins}:${String(secs).padStart(2, '0')} min`
+                : `⏳ פתיחה אוטומטית בעוד ${mins}:${String(secs).padStart(2, '0')} דקות`;
         } else {
             remainEl.textContent = '';
         }
@@ -994,15 +1013,15 @@ function renderEduParticipants(list) {
     if (!box) return;
     const me = list.filter(p => p.name); // any registered participant
     if (!me.length) {
-        box.innerHTML = '<small style="opacity:0.7;">עדיין לא נכנס אף אחד לקישור הזה…</small>';
+        box.innerHTML = `<small style="opacity:0.7;">${t('noParticipants')}</small>`;
         return;
     }
     box.innerHTML = me.map(p => {
         const status = p.locked
-            ? '<span style="color:#ffd700;">🔒 נעול</span>'
-            : '<span style="color:#39ff88;">🔓 פתוח</span>';
+            ? '<span style="color:#ffd700;">🔒 ' + (currentLang === 'en' ? 'Locked' : 'נעול') + '</span>'
+            : '<span style="color:#39ff88;">🔓 ' + (currentLang === 'en' ? 'Open' : 'פתוח') + '</span>';
         const btn = p.locked
-            ? `<button class="change-key-btn" onclick="eduUnlockOne('${p.id}')">🔓 פתח</button>`
+            ? `<button class="change-key-btn" onclick="eduUnlockOne('${p.id}')">${t('unlockOne')}</button>`
             : '';
         return `<div class="edu-participant-row">
             <span class="edu-participant-name">${escapeHtml(p.name || p.id)}</span>
@@ -1018,21 +1037,21 @@ function escapeHtml(s) {
 }
 
 function eduUnlockAll() {
-    if (!confirm('לפתוח את הנעילה לכל מי שמחובר לקישור?')) return;
+    if (!confirm(t('unlockAllConfirm'))) return;
     unlockAllParticipants().then(ok => {
-        alert(ok ? '🔓 נפתח לכולם.' : '⚠️ לא ניתן להתחבר לשרת כעת.');
+        alert(ok ? t('unlockAllOk') : t('unlockAllFail'));
     });
 }
 
 function eduUnlockOne(clientId) {
     unlockOneParticipant(clientId).then(ok => {
-        if (!ok) alert('⚠️ לא ניתן להתחבר לשרת כעת.');
+        if (!ok) alert(t('unlockOneFail'));
     });
 }
 
 function eduSetEnabled(on) {
     if (eduConfig.locked && !on) {
-        showFloatingMessage('🔒 יש לבטל את הנעילה עם סיסמה תחילה', 20, 20, 'var(--danger)');
+        showFloatingMessage(currentLang === 'en' ? '🔒 Unlock with password first' : '🔒 יש לבטל את הנעילה עם סיסמה תחילה', 20, 20, 'var(--danger)');
         return;
     }
     setEduEnabled(on);
@@ -1051,17 +1070,17 @@ function eduSetGrade(value) {
 
 function eduLock() {
     const pw = document.getElementById('edu-lock-password').value.trim();
-    if (!pw) { alert('יש להזין סיסמה'); return; }
+    if (!pw) { alert(t('enterPassword')); return; }
     lockEdu(pw);
     document.getElementById('edu-lock-password').value = '';
     // Start listening for a remote/timer unlock on this newly-locked device.
     if (eduUnsubUnlock) { eduUnsubUnlock(); eduUnsubUnlock = null; }
     listenForUnlock(() => {
         updateEduSettingsDisplay();
-        showFloatingMessage('🔓 הנעילה נפתחה', 20, 20, 'var(--primary)');
+        showFloatingMessage(t('lockOpened'), 20, 20, 'var(--primary)');
     }).then(unsub => { eduUnsubUnlock = unsub; });
     updateEduSettingsDisplay();
-    alert('🔒 מצב חינוכי ננעל. ייפתח אוטומטית אחרי 45 דקות, עם הסיסמה, או מרחוק.');
+    alert(t('lockSuccess'));
 }
 
 function eduUnlock() {
@@ -1069,9 +1088,9 @@ function eduUnlock() {
     if (unlockEdu(pw)) {
         document.getElementById('edu-unlock-password').value = '';
         updateEduSettingsDisplay();
-        alert('🔓 הנעילה בוטלה.');
+        alert(t('unlockSuccess'));
     } else {
-        alert('❌ סיסמה שגויה.');
+        alert(t('unlockFail'));
     }
 }
 
@@ -1084,18 +1103,18 @@ function eduCreateLink() {
         // who is connected. The students who open the link are locked.
         becomeManager(pw);
     } else {
-        alert('ℹ️ נוצר קישור ללא סיסמה — הקישור לא ננעל, רק בוחר מקצוע וכיתה.');
+        alert(t('noLinkPassword'));
     }
     updateEduSettingsDisplay();
 }
 
 function eduCopyLink() {
     const out = document.getElementById('edu-link-output');
-    if (!out.value) { alert('צור קישור קודם'); return; }
+    if (!out.value) { alert(t('createLinkFirst')); return; }
     out.select();
     navigator.clipboard?.writeText(out.value).then(
-        () => alert('📋 הקישור הועתק!'),
-        () => { document.execCommand('copy'); alert('📋 הקישור הועתק!'); }
+        () => alert(t('linkCopied')),
+        () => { document.execCommand('copy'); alert(t('linkCopied')); }
     );
 }
 
@@ -1127,18 +1146,11 @@ function setGameRuleFunc(rule, value) {
 
 function setDevice(mode) {
     console.log(`📱 [SETTINGS] Device mode set to: ${mode}`);
-    
-    if (mode === 'auto') {
-        // Re-detect device
-        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        const isSmallScreen = window.innerWidth <= 768;
-        setDeviceMode(isTouchDevice && isSmallScreen, false);
-    } else if (mode === 'mobile') {
+    if (mode === 'mobile') {
         setDeviceMode(true, true);
     } else if (mode === 'desktop') {
         setDeviceMode(false, true);
     }
-    
     updateSettingsDisplay();
 }
 
@@ -1150,7 +1162,7 @@ function changeKey(action) {
     listeningForKey = action;
     const btn = event.target;
     btn.classList.add('listening');
-    btn.innerText = '...לחץ על מקש';
+    btn.innerText = t('listenKey');
     
     console.log(`⚙️ [SETTINGS] Listening for key for: ${action}`);
     
@@ -1168,7 +1180,7 @@ function changeKey(action) {
         updateSettingsDisplay();
         
         btn.classList.remove('listening');
-        btn.innerText = 'שנה מקש';
+        btn.innerText = t('changeKey');
         
         window.removeEventListener('keydown', keyListener);
         listeningForKey = null;
@@ -1204,7 +1216,7 @@ async function runDevConsole() {
 
     const code = input.value.trim();
     if (!code) {
-        appendDevLine(output, '⚠️ אין קוד להרצה', 'dev-err');
+        appendDevLine(output, currentLang === 'en' ? '⚠️ No code to run' : '⚠️ אין קוד להרצה', 'dev-err');
         return;
     }
 
