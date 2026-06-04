@@ -447,17 +447,19 @@ export function useDragonFire() {
     DOM.player.classList.add('dragon-invincible');
 
     // Breathe fire in all directions
-    const numFlames = 16;
-    const flameSpeed = 9;
+    const numFlames = 32;
+    const flameSpeed = 18;
     for (let i = 0; i < numFlames; i++) {
         const angle = (i / numFlames) * Math.PI * 2;
+        const speedVariation = flameSpeed + (Math.random() * 6 - 3);
         const flame = document.createElement('div');
         flame.className = 'bullet';
-        flame.style.width = '12px';
-        flame.style.height = '12px';
+        flame.style.width = '32px';
+        flame.style.height = '32px';
         flame.style.borderRadius = '50%';
-        flame.style.background = 'radial-gradient(circle, #ffff00, #ff6600, #ff0000)';
-        flame.style.boxShadow = '0 0 18px #ff6600, 0 0 10px #ffff00';
+        flame.style.background = 'radial-gradient(circle, #ffffff 10%, #ffff00 30%, #ff6600 60%, #ff0000 85%, #880000)';
+        flame.style.boxShadow = '0 0 55px #ff6600, 0 0 35px #ffff00, 0 0 20px #ff0000, 0 0 8px #fff';
+        flame.style.filter = 'blur(0.5px)';
         flame.style.left = playerCenterX + 'px';
         flame.style.top = playerTop + 'px';
         flame.dataset.isFire = 'true';
@@ -468,15 +470,20 @@ export function useDragonFire() {
             directional: true,
             x: playerCenterX,
             y: 90,
-            vx: Math.cos(angle) * flameSpeed,
-            vy: Math.sin(angle) * flameSpeed,
-            damage: 5.0
+            vx: Math.cos(angle) * speedVariation,
+            vy: Math.sin(angle) * speedVariation,
+            damage: 15.0
         });
     }
 
-    // Visual burst at the player
-    createExplosion(playerCenterX, playerY, '#ff6600');
-    createExplosion(playerCenterX, playerY, '#ffaa33');
+    // Massive visual burst at the player
+    for (let b = 0; b < 5; b++) {
+        setTimeout(() => {
+            createExplosion(playerCenterX + (Math.random()-0.5)*40, playerY + (Math.random()-0.5)*40, '#ff6600');
+            createExplosion(playerCenterX + (Math.random()-0.5)*40, playerY + (Math.random()-0.5)*40, '#ffff00');
+        }, b * 80);
+    }
+    createExplosion(playerCenterX, playerY, '#ffffff');
 
     showFloatingMessage('🐉 DRAGON INFERNO!', playerCenterX - 80, playerY - 50, '#ff6600');
     console.log(`✅ [DRAGON] ${numFlames} flames launched + 10s invincibility`);
