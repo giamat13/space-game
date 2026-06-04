@@ -54,15 +54,59 @@ export function updateEnemyBullets() {
         const ebRect = eb.el.getBoundingClientRect();
         const pRect = state.playerRect || DOM.player.getBoundingClientRect();
 
-        // Check collision with player (only non-friendly and non-chaotic bullets)
-        if (!eb.friendly && !eb.chaotic) {
+        // Check collision with player (only non-friendly and non-chaotic and non-ricocheted bullets)
+        if (!eb.friendly && !eb.chaotic && !eb.ricochet) {
             if(!(ebRect.right < pRect.left || ebRect.left > pRect.right || ebRect.bottom < pRect.top || ebRect.top > pRect.bottom)) {
+                // Dragon shield ricochet - bounce bullet back toward enemies
+                if (state.dragonAbility && Date.now() < state.dragonAbility.invincibleUntil) {
+                    eb.vx = -eb.vx;
+                    eb.vy = -(Math.abs(eb.vy) + 5);
+                    eb.ricochet = true;
+                    eb.damage = 40;
+                    eb.el.style.background = 'radial-gradient(circle, #ffffff, #ffff00, #ffaa33, #ff6600)';
+                    eb.el.style.boxShadow = '0 0 30px #ffaa33, 0 0 18px #ff6600, 0 0 8px #fff';
+                    eb.el.style.width = '14px';
+                    eb.el.style.height = '14px';
+                    eb.el.style.borderRadius = '50%';
+                    createExplosion(eb.x, eb.y, '#ffaa33');
+                    showFloatingMessage('🛡️ RICOCHET!', eb.x - 50, eb.y, '#ffaa33');
+                    continue;
+                }
                 damagePlayer(15);
                 createExplosion(eb.x, eb.y, 'var(--primary)');
                 eb.el.remove();
                 state.enemyBullets.splice(i, 1);
                 continue;
             }
+        }
+
+        // Ricocheted bullets (from dragon shield) damage enemies
+        if (eb.ricochet) {
+            let hitEnemy = false;
+            for (let ei = state.enemies.length - 1; ei >= 0; ei--) {
+                let targetEn = state.enemies[ei];
+                const teRect = targetEn.rect || targetEn.el.getBoundingClientRect();
+                if(!(ebRect.right < teRect.left || ebRect.left > teRect.right || ebRect.bottom < teRect.top || ebRect.top > teRect.bottom)) {
+                    const damage = eb.damage || 40;
+                    targetEn.hp -= damage;
+                    targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
+                    createExplosion(eb.x, eb.y, '#ffaa33');
+                    createExplosion(eb.x, eb.y, '#ffff00');
+                    if (targetEn.hp <= 0) {
+                        const points = getEnemyPoints(targetEn.type);
+                        state.score += points;
+                        DOM.scoreEl.innerText = state.score;
+                        createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
+                        targetEn.el.remove();
+                        state.enemies.splice(ei, 1);
+                    }
+                    eb.el.remove();
+                    state.enemyBullets.splice(i, 1);
+                    hitEnemy = true;
+                    break;
+                }
+            }
+            if (hitEnemy) continue;
         }
         
         // Check collision with asteroids (if enemies can't shoot through them)

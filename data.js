@@ -156,7 +156,7 @@ export const SKINS = {
         name: 'Dragon',
         fireRate: 2.2,
         bulletSpeed: 1.8,
-        bulletDamage: 3.5,
+        bulletDamage: 5.0,
         maxHP: 800,
         isFire: true,
         description: '🐉 DRAGON INFERNO (25s CD) | 🔥 Fire in ALL directions | 🛡️ 10s invincibility | ⚡ Superior in everything'
