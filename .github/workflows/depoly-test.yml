@@ -2,7 +2,7 @@ name: Deploy test
 on:
   push:
     branches:
-      - claude/enemy-color-levels-j7szV
+      - claude/dragon-shield-ricochet-fire-voj2O
 
 permissions:
   contents: write
