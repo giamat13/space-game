@@ -91,18 +91,26 @@ export function damagePlayer(amount) {
     if(state.playerHP <= 0) {
         console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
-        
-        import('./data.js').then(module => {
-            // Get username from auth module
-            import('./auth.js').then(authModule => {
-                const userName = authModule.currentUser?.displayName || 'Anonymous';
-                module.saveScore(module.currentSkinKey, state.score, state.level, userName);
-                console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
+
+        // Hide special ability button when returning to main menu
+        const abilityBtn = document.getElementById('special-ability-btn');
+        if (abilityBtn) abilityBtn.style.display = 'none';
+
+        if (!state.isDebugGame) {
+            import('./data.js').then(module => {
+                // Get username from auth module
+                import('./auth.js').then(authModule => {
+                    const userName = authModule.currentUser?.displayName || 'Anonymous';
+                    module.saveScore(module.currentSkinKey, state.score, state.level, userName);
+                    console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
+                });
+            }).catch(err => {
+                console.error('❌ [GAME OVER] Save error:', err);
             });
-        }).catch(err => {
-            console.error('❌ [GAME OVER] Save error:', err);
-        });
-        
+        } else {
+            console.log('🛠️ [GAME OVER] Debug game — score not saved to leaderboard');
+        }
+
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = "Game Over";
         document.getElementById('sub-title').innerHTML = `${t('shipDestroyed')}<br>${t('finalScore')} ${state.score}<br>${t('levelWord')} ${state.level}`;
