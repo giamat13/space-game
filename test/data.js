@@ -529,7 +529,8 @@ export function resetState() {
     state.playerX = DOM.wrapper.clientWidth / 2 - 25;
 
     const skin = SKINS[currentSkinKey];
-    state.level = Math.max(1, skin.unlockLevel || 0);
+    const ul = skin.unlockLevel || 0;
+    state.level = Math.max(1, ul - Math.ceil(ul / 3));
     const maxHP = skin.maxHP || 200;
     state.playerHP = maxHP;
     state.playerMaxHP = maxHP;
