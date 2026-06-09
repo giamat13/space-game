@@ -227,7 +227,49 @@
             <button onclick="initGame()" data-i18n="startBtn">צא למשימה</button>
             <button id="login-button" onclick="toggleLoginMenu()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="loginBtn">🔐 התחבר</button>
             <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="leaderboardBtn">🏆 לוח שיאים</button>
+            <button onclick="showPersonalHistory()" style="margin-top: 10px; background: rgba(0,242,255,0.1); border-color: var(--primary); color: var(--primary);">📊 ההיסטוריה שלי</button>
             <button onclick="showSettings()" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;" data-i18n="settingsBtn">⚙️ הגדרות</button>
+
+            <!-- Personal best mini-strip shown in main menu -->
+            <div id="personal-best-strip" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(0,242,255,0.07); border:1px solid rgba(0,242,255,0.3); border-radius:8px; font-size:0.78rem; color:var(--primary); text-align:center; max-width:340px; width:100%;">
+                🏅 <span id="personal-best-text">–</span>
+            </div>
+            </div>
+
+            <!-- ===== PERSONAL HISTORY PANEL ===== -->
+            <div id="history-container" style="display:none; width:100%; max-width:420px; text-align:center;">
+                <h2 style="margin-bottom:6px;">📊 ההיסטוריה שלי</h2>
+
+                <!-- Stats summary -->
+                <div id="history-stats" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px;"></div>
+
+                <!-- Tabs: History / Personal Bests -->
+                <div style="display:flex; gap:8px; justify-content:center; margin-bottom:12px;">
+                    <button class="history-tab active" id="htab-history" onclick="switchHistoryTab('history')">🕒 היסטוריה</button>
+                    <button class="history-tab" id="htab-bests" onclick="switchHistoryTab('bests')">🥇 שיאים אישיים</button>
+                </div>
+
+                <!-- History list -->
+                <div id="history-list-panel">
+                    <div id="history-list" style="max-height:340px; overflow-y:auto;"></div>
+                </div>
+
+                <!-- Personal bests list -->
+                <div id="history-bests-panel" style="display:none;">
+                    <div class="leaderboard-tabs" style="margin-bottom:10px; flex-wrap:wrap;">
+                        <button class="lb-tab active" data-htab="overall" onclick="switchBestsTab(this,'overall')">🏆 כללי</button>
+                        <button class="lb-tab" data-htab="classic" onclick="switchBestsTab(this,'classic')">Classic</button>
+                        <button class="lb-tab" data-htab="interceptor" onclick="switchBestsTab(this,'interceptor')">Interceptor</button>
+                        <button class="lb-tab" data-htab="tanker" onclick="switchBestsTab(this,'tanker')">Tanker</button>
+                        <button class="lb-tab" data-htab="phoenix" onclick="switchBestsTab(this,'phoenix')">Phoenix</button>
+                        <button class="lb-tab" data-htab="vortex" onclick="switchBestsTab(this,'vortex')">Vortex</button>
+                        <button class="lb-tab" data-htab="joker" onclick="switchBestsTab(this,'joker')">Joker</button>
+                        <button class="lb-tab" data-htab="dragon" onclick="switchBestsTab(this,'dragon')">🐉 Dragon</button>
+                    </div>
+                    <div id="bests-list"></div>
+                </div>
+
+                <button onclick="closePersonalHistory()" style="margin-top:15px;">◀ חזרה</button>
             </div>
             
             <div id="settings-container" style="display: none;">

@@ -1458,6 +1458,145 @@ function clearDevConsole() {
     if (output) output.innerHTML = '';
 }
 
+// ===== PERSONAL HISTORY & PERSONAL LEADERBOARD =====
+
+import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration } from './game-history.js';
+
+let _currentHistoryTab = 'history';
+let _currentBestsKey = 'overall';
+
+function showPersonalHistory() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('history-container').style.display = 'block';
+    _currentHistoryTab = 'history';
+    _currentBestsKey = 'overall';
+    document.getElementById('htab-history').classList.add('active');
+    document.getElementById('htab-bests').classList.remove('active');
+    document.getElementById('history-list-panel').style.display = 'block';
+    document.getElementById('history-bests-panel').style.display = 'none';
+    renderHistoryStats();
+    renderHistoryList();
+}
+
+function closePersonalHistory() {
+    document.getElementById('history-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
+}
+
+function switchHistoryTab(tab) {
+    _currentHistoryTab = tab;
+    document.getElementById('htab-history').classList.toggle('active', tab === 'history');
+    document.getElementById('htab-bests').classList.toggle('active', tab === 'bests');
+    document.getElementById('history-list-panel').style.display = tab === 'history' ? 'block' : 'none';
+    document.getElementById('history-bests-panel').style.display = tab === 'bests' ? 'block' : 'none';
+    if (tab === 'bests') renderBestsList(_currentBestsKey);
+}
+
+function switchBestsTab(btn, skinKey) {
+    _currentBestsKey = skinKey;
+    document.querySelectorAll('#history-bests-panel .lb-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderBestsList(skinKey);
+}
+
+function renderHistoryStats() {
+    const stats = getPersonalStats();
+    const el = document.getElementById('history-stats');
+    if (!stats) {
+        el.innerHTML = '<div style="opacity:0.5; font-size:0.8rem;">עדיין אין משחקים שמורים</div>';
+        return;
+    }
+    const card = (icon, label, value) =>
+        `<div style="background:rgba(0,242,255,0.07);border:1px solid rgba(0,242,255,0.25);border-radius:8px;padding:8px 12px;min-width:90px;">
+            <div style="font-size:1.1rem">${icon}</div>
+            <div style="font-size:1rem;font-weight:bold;color:var(--primary)">${value}</div>
+            <div style="font-size:0.65rem;opacity:0.6">${label}</div>
+        </div>`;
+    el.innerHTML =
+        card('🎮', 'משחקים', stats.totalGames) +
+        card('🏆', 'שיא', stats.bestScore.toLocaleString()) +
+        card('⭐', 'שלב מקסימלי', stats.bestLevel) +
+        card('📈', 'ממוצע', stats.avgScore.toLocaleString()) +
+        card('⏱️', 'זמן ממוצע', formatDuration(stats.totalTime / stats.totalGames)) +
+        (stats.favSkin ? card('🚀', 'ספינה מועדפת', SKINS[stats.favSkin]?.name || stats.favSkin) : '');
+}
+
+function renderHistoryList() {
+    const history = loadGameHistory();
+    const el = document.getElementById('history-list');
+    if (!history.length) {
+        el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">עדיין אין היסטוריה — שחק משחק!</div>';
+        return;
+    }
+    const medals = ['🥇','🥈','🥉'];
+    const sorted = [...history].sort((a,b) => b.score - a.score);
+    const topScores = new Set(sorted.slice(0,3).map(e => e.timestamp));
+
+    el.innerHTML = history.map((entry, i) => {
+        const isBest = topScores.has(entry.timestamp);
+        const medal = isBest ? medals[sorted.findIndex(e => e.timestamp === entry.timestamp)] || '' : '';
+        const skinName = SKINS[entry.skin]?.name || entry.skinName || entry.skin || '–';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${isBest ? 'background:rgba(0,242,255,0.07);' : ''}">
+            <div style="font-size:1.1rem;min-width:24px">${medal || (i+1)}</div>
+            <div style="flex:1;font-size:0.8rem;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
+                    <span style="opacity:0.6">שלב ${entry.level}</span>
+                    <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
+                </div>
+                <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderBestsList(skinKey) {
+    const bests = getPersonalBests(skinKey, 10);
+    const el = document.getElementById('bests-list');
+    if (!bests.length) {
+        el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">אין שיאים לקטגוריה זו עדיין</div>';
+        return;
+    }
+    const medals = ['🥇','🥈','🥉'];
+    el.innerHTML = bests.map((entry, i) => {
+        const skinName = SKINS[entry.skin]?.name || entry.skinName || entry.skin || '–';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${i===0?'background:rgba(255,215,0,0.06);':''}">
+            <div style="font-size:1.2rem;min-width:28px">${medals[i] || (i+1)}</div>
+            <div style="flex:1;font-size:0.82rem;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
+                    <span style="opacity:0.65">שלב ${entry.level}</span>
+                    ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
+                </div>
+                <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Update the personal-best mini-strip in the main menu
+function refreshPersonalBest() {
+    const best = getPersonalBest();
+    const strip = document.getElementById('personal-best-strip');
+    const text = document.getElementById('personal-best-text');
+    if (!strip || !text) return;
+    if (!best) { strip.style.display = 'none'; return; }
+    strip.style.display = 'block';
+    const skinName = SKINS[best.skin]?.name || best.skin || '';
+    text.textContent = `השיא שלך: ${best.score.toLocaleString()} נקודות • שלב ${best.level}${skinName ? ' • ' + skinName : ''}`;
+}
+
+// Called from systems.js after a game ends
+window.__refreshPersonalBest = refreshPersonalBest;
+
+// Initialize on load
+refreshPersonalBest();
+
+window.showPersonalHistory = showPersonalHistory;
+window.closePersonalHistory = closePersonalHistory;
+window.switchHistoryTab = switchHistoryTab;
+window.switchBestsTab = switchBestsTab;
+
 // Export to window
 window.runDevConsole = runDevConsole;
 window.clearDevConsole = clearDevConsole;

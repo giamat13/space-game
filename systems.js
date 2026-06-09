@@ -106,9 +106,12 @@ export function damagePlayer(amount) {
                 import('./data.js'),
                 import('./auth.js'),
                 import('./education.js'),
-                import('./i18n.js')
-            ]).then(([dataModule, authModule, eduModule, i18nModule]) => {
+                import('./i18n.js'),
+                import('./game-history.js')
+            ]).then(([dataModule, authModule, eduModule, i18nModule, histModule]) => {
                 const userName = authModule.currentUser?.displayName || 'Anonymous';
+                const skinKey = dataModule.currentSkinKey;
+                const skinName = dataModule.SKINS[skinKey]?.name || skinKey;
                 const settings = {
                     isMobile: dataModule.deviceMode.isMobile,
                     controlType: dataModule.keyBindings.controlType,
@@ -124,8 +127,29 @@ export function damagePlayer(amount) {
                     gameDuration,
                     startTime: state.startTime || null
                 };
-                dataModule.saveScore(dataModule.currentSkinKey, state.score, state.level, userName, settings);
+
+                // Save to global leaderboard (cloud + local)
+                dataModule.saveScore(skinKey, state.score, state.level, userName, settings);
                 console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
+
+                // Save to personal game history
+                histModule.addGameToHistory({
+                    score: state.score,
+                    level: state.level,
+                    skin: skinKey,
+                    skinName,
+                    duration: gameDuration,
+                    date: new Date().toLocaleDateString('he-IL'),
+                    timestamp: Date.now(),
+                    userName,
+                    isDebug: false
+                });
+                console.log(`✅ [GAME OVER] Game added to personal history`);
+
+                // Notify main menu to refresh personal best display
+                if (typeof window.__refreshPersonalBest === 'function') {
+                    window.__refreshPersonalBest();
+                }
             }).catch(err => {
                 console.error('❌ [GAME OVER] Save error:', err);
             });
@@ -644,4 +668,3 @@ export function handleSpawning(now) {
         state.lastSpawn = now;
     }
 }
-
