@@ -283,7 +283,7 @@ function initGame() {
     document.documentElement.style.setProperty('--primary', skin.color);
 
     DOM.scoreEl.innerText = '0';
-    DOM.levelEl.innerText = '1';
+    DOM.levelEl.innerText = state.level;
     updateHPUI();
     updateAmmoUI();
     DOM.overlay.style.display = 'none';
@@ -343,8 +343,9 @@ console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 // ===== LEVEL UP SYSTEM =====
 
 function handleLevelUp() {
-    if (state.score >= state.lastLevelScore + 1000) {
-        state.lastLevelScore = Math.floor(state.score / 1000) * 1000;
+    const threshold = state.level < state.startingLevel ? 100 : 1000;
+    if (state.score >= state.lastLevelScore + threshold) {
+        state.lastLevelScore += threshold;
         state.level++;
         DOM.levelEl.innerText = state.level;
         state.speedMult += 0.2;

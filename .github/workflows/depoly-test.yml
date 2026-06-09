@@ -2,7 +2,7 @@ name: Deploy test
 on:
   push:
     branches:
-      - claude/bug-fixes-FTOOp
+      - claude/character-starting-levels-ikootl
 
 permissions:
   contents: write

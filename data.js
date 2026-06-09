@@ -526,10 +526,12 @@ export function resetState() {
     console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
     state.score = 0;
-    state.level = 1;
     state.playerX = DOM.wrapper.clientWidth / 2 - 25;
-    
+
     const skin = SKINS[currentSkinKey];
+    const ul = skin.unlockLevel || 0;
+    state.startingLevel = Math.max(1, ul - Math.ceil(ul / 3));
+    state.level = 1;
     const maxHP = skin.maxHP || 200;
     state.playerHP = maxHP;
     state.playerMaxHP = maxHP;
@@ -545,9 +547,10 @@ export function resetState() {
     state.ammo = state.maxAmmo;
     state.lastAmmoRecharge = 0;
     state.lightnings = [];
-    state.speedMult = 1;
     state.lastSpawn = Date.now();
-    state.spawnRate = 1400;
+    const levelsAboveOne = state.level - 1;
+    state.spawnRate = Math.max(250, 1400 - levelsAboveOne * 200);
+    state.speedMult = 1 + levelsAboveOne * 0.2;
     state.lastShot = 0;
     state.shotCooldown = 180;
     state.lastHealScore = 0;
