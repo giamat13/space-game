@@ -156,6 +156,12 @@ const STRINGS = {
     quizCorrect:      { he: '✅ נכון!', en: '✅ Correct!', ar: '✅ صحيح!', ru: '✅ Правильно!', fr: '✅ Correct !', es: '✅ ¡Correcto!' },
     quizWrong:        { he: '❌ טעות. התשובה הנכונה מסומנת.', en: '❌ Wrong. The correct answer is highlighted.', ar: '❌ خطأ. الإجابة الصحيحة مظلّلة.', ru: '❌ Неверно. Правильный ответ выделен.', fr: '❌ Faux. La bonne réponse est surlignée.', es: '❌ Incorrecto. La respuesta correcta está resaltada.' },
 
+    // ---- Entry settings view ----
+    esTitle:          { he: '⚙️ הגדרות משחק', en: '⚙️ Game Settings', ar: '⚙️ إعدادات اللعبة', ru: '⚙️ Настройки игры', fr: '⚙️ Paramètres de jeu', es: '⚙️ Ajustes del juego' },
+    esFilterAll:      { he: 'הכל', en: 'All', ar: 'الكل', ru: 'Все', fr: 'Tout', es: 'Todo' },
+    esFallbackNote:   { he: '⚠️ הגדרות לא נשמרו למשחק ישן זה — מוצגות ההגדרות הנוכחיות שלך', en: '⚠️ Settings not saved for this old game — showing your current settings', ar: '⚠️ لم تُحفظ الإعدادات لهذه اللعبة القديمة — عرض إعداداتك الحالية', ru: '⚠️ Настройки не сохранены для этой старой игры — показаны ваши текущие настройки', fr: '⚠️ Paramètres non sauvegardés pour cette ancienne partie — affichage de vos paramètres actuels', es: '⚠️ Ajustes no guardados para esta partida antigua — mostrando tus ajustes actuales' },
+    esDuration:       { he: '⏱️ זמן משחק', en: '⏱️ Game duration', ar: '⏱️ مدة اللعبة', ru: '⏱️ Длительность', fr: '⏱️ Durée de partie', es: '⏱️ Duración' },
+
     // ---- Language tab ----
     langTabTitle:     { he: 'בחר שפה', en: 'Choose Language', ar: 'اختر اللغة', ru: 'Выберите язык', fr: 'Choisir la langue', es: 'Elegir idioma' },
     langLabel:        { he: 'שפה / Language:', en: 'Language / שפה:', ar: 'اللغة:', ru: 'Язык:', fr: 'Langue :', es: 'Idioma:' },

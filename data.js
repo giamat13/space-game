@@ -420,9 +420,9 @@ export function getLeaderboard(skinKey = 'overall') {
     return [];
 }
 
-export async function saveScore(skinKey, score, level, userName = null) {
+export async function saveScore(skinKey, score, level, userName = null, settings = null) {
     console.log(`💾 [SCORE] Saving: ${score} pts, Level ${level}, User: ${userName || 'Anonymous'}`);
-    
+
     // Save to cookies (local)
     const effectiveName = userName || 'Anonymous';
     let skinLeaderboard = getLeaderboard(skinKey);
@@ -430,7 +430,8 @@ export async function saveScore(skinKey, score, level, userName = null) {
         score,
         level,
         userName: effectiveName,
-        date: new Date().toLocaleDateString('he-IL')
+        date: new Date().toLocaleDateString('he-IL'),
+        settings: settings || null
     };
     skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
     skinLeaderboard.push(newEntry);
@@ -444,17 +445,18 @@ export async function saveScore(skinKey, score, level, userName = null) {
         level,
         skin: skinKey,
         userName: effectiveName,
-        date: new Date().toLocaleDateString('he-IL')
+        date: new Date().toLocaleDateString('he-IL'),
+        settings: settings || null
     };
     overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
     overallLeaderboard.push(overallEntry);
     overallLeaderboard.sort((a, b) => b.score - a.score);
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
-    
+
     // Save to cloud
     try {
-        await saveScoreToCloud(skinKey, score, level, userName);
+        await saveScoreToCloud(skinKey, score, level, userName, settings);
         console.log('✅ [SCORE] Saved to cloud');
     } catch (error) {
         console.log('⚠️ [SCORE] Cloud save failed, local score saved');
@@ -519,7 +521,8 @@ export const state = {
         invincibleUntil: 0
     },
     isDebugGame: false,
-    paused: false
+    paused: false,
+    startTime: 0
 };
 
 export function resetState() {
@@ -570,5 +573,6 @@ export function resetState() {
     state.dragonAbility.invincibleUntil = 0;
     state.isDebugGame = false;
     state.paused = false;
+    state.startTime = Date.now();
     console.log('✅ [STATE] Reset complete');
 }

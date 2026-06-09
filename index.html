@@ -134,6 +134,30 @@
                 <button onclick="closeLeaderboard()" style="margin-top: 15px;" data-i18n="lbBack">חזרה</button>
             </div>
 
+            <!-- Entry Settings View -->
+            <div id="entry-settings-container" style="display: none; width: 100%; max-width: 400px; text-align: center;">
+                <h2 style="margin-bottom: 8px;" data-i18n="esTitle">⚙️ הגדרות משחק</h2>
+                <div id="es-meta" style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 4px;"></div>
+                <div id="es-duration" style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 12px; display:none;"></div>
+
+                <div id="es-filters" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; justify-content:center;">
+                    <button class="es-filter active" data-cat="all" onclick="setEntrySettingsFilter('all')" data-i18n="esFilterAll">הכל</button>
+                    <button class="es-filter" data-cat="device" onclick="setEntrySettingsFilter('device')" data-i18n="tabDevice">📱 מכשיר</button>
+                    <button class="es-filter" data-cat="controls" onclick="setEntrySettingsFilter('controls')" data-i18n="tabControls">🎮 שליטה</button>
+                    <button class="es-filter" data-cat="rules" onclick="setEntrySettingsFilter('rules')" data-i18n="tabRules">📜 כללים</button>
+                    <button class="es-filter" data-cat="edu" onclick="setEntrySettingsFilter('edu')" data-i18n="tabEdu">📚 חינוכי</button>
+                    <button class="es-filter" data-cat="lang" onclick="setEntrySettingsFilter('lang')" data-i18n="tabLang">🌐 שפה</button>
+                </div>
+
+                <div id="es-body"></div>
+
+                <div id="es-fallback-note" style="display:none; margin-top:10px;">
+                    <small style="opacity: 0.6;" data-i18n="esFallbackNote">⚠️ הגדרות לא נשמרו — מוצגות ההגדרות הנוכחיות שלך</small>
+                </div>
+
+                <button onclick="closeEntrySettings()" style="margin-top: 15px;" data-i18n="settingsBack">◀ חזרה</button>
+            </div>
+
             <div id="main-menu">
             <div class="skin-selector">
                 <div class="skin-option selected" data-skin="classic">
