@@ -283,7 +283,7 @@ function initGame() {
     document.documentElement.style.setProperty('--primary', skin.color);
 
     DOM.scoreEl.innerText = '0';
-    DOM.levelEl.innerText = '1';
+    DOM.levelEl.innerText = state.level;
     updateHPUI();
     updateAmmoUI();
     DOM.overlay.style.display = 'none';
