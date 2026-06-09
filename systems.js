@@ -101,13 +101,31 @@ export function damagePlayer(amount) {
         if (pauseOverlay) pauseOverlay.style.display = 'none';
 
         if (!state.isDebugGame) {
-            import('./data.js').then(module => {
-                // Get username from auth module
-                import('./auth.js').then(authModule => {
-                    const userName = authModule.currentUser?.displayName || 'Anonymous';
-                    module.saveScore(module.currentSkinKey, state.score, state.level, userName);
-                    console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
-                });
+            const gameDuration = Date.now() - (state.startTime || Date.now());
+            Promise.all([
+                import('./data.js'),
+                import('./auth.js'),
+                import('./education.js'),
+                import('./i18n.js')
+            ]).then(([dataModule, authModule, eduModule, i18nModule]) => {
+                const userName = authModule.currentUser?.displayName || 'Anonymous';
+                const settings = {
+                    isMobile: dataModule.deviceMode.isMobile,
+                    controlType: dataModule.keyBindings.controlType,
+                    shoot: dataModule.keyBindings.shoot,
+                    ability: dataModule.keyBindings.ability,
+                    rightClickAbility: dataModule.keyBindings.rightClickAbility,
+                    enemiesShootThroughAsteroids: dataModule.gameRules.enemiesShootThroughAsteroids,
+                    playerShootThroughAsteroids: dataModule.gameRules.playerShootThroughAsteroids,
+                    eduEnabled: eduModule.eduConfig.enabled,
+                    eduSubject: eduModule.eduConfig.subject,
+                    eduGrade: eduModule.eduConfig.grade,
+                    lang: i18nModule.currentLang,
+                    gameDuration,
+                    startTime: state.startTime || null
+                };
+                dataModule.saveScore(dataModule.currentSkinKey, state.score, state.level, userName, settings);
+                console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
             }).catch(err => {
                 console.error('❌ [GAME OVER] Save error:', err);
             });

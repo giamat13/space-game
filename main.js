@@ -92,6 +92,9 @@ console.log('✅ [INIT] Game loaded successfully');
 
 // ===== LEADERBOARD =====
 
+let _currentLeaderboardEntries = [];
+let _esActiveFilter = 'all';
+
 function showLeaderboard() {
     console.log('🏆 [LEADERBOARD] Opening leaderboard...');
     console.log('🏆 [LEADERBOARD] Hiding main menu');
@@ -125,6 +128,139 @@ function closeLeaderboard() {
     document.getElementById('floating-settings-btn').style.display = 'flex';
     console.log('✅ [LEADERBOARD] Leaderboard closed');
 }
+
+// ===== ENTRY SETTINGS VIEW =====
+
+function showEntrySettings(idx) {
+    const entry = _currentLeaderboardEntries[idx];
+    if (!entry) return;
+
+    const isFallback = !entry.settings;
+    const s = entry.settings || {
+        isMobile: deviceMode.isMobile,
+        controlType: keyBindings.controlType,
+        shoot: keyBindings.shoot,
+        ability: keyBindings.ability,
+        rightClickAbility: keyBindings.rightClickAbility,
+        enemiesShootThroughAsteroids: gameRules.enemiesShootThroughAsteroids,
+        playerShootThroughAsteroids: gameRules.playerShootThroughAsteroids,
+        eduEnabled: eduConfig.enabled,
+        eduSubject: eduConfig.subject,
+        eduGrade: eduConfig.grade,
+        lang: currentLang,
+        gameDuration: null,
+        startTime: null
+    };
+
+    document.getElementById('leaderboard-container').style.display = 'none';
+    const container = document.getElementById('entry-settings-container');
+    container.style.display = 'block';
+
+    // Meta info
+    const skinName = SKINS[entry.skin]?.name || entry.skin || '';
+    document.getElementById('es-meta').textContent =
+        `👤 ${entry.userName || 'Anonymous'} | ${(entry.score || 0).toLocaleString()} pts | ${t('levelWord')} ${entry.level}${skinName ? ' • ' + skinName : ''} | ${entry.date || ''}`;
+
+    // Duration
+    const durationEl = document.getElementById('es-duration');
+    if (s.gameDuration) {
+        const mins = Math.floor(s.gameDuration / 60000);
+        const secs = Math.floor((s.gameDuration % 60000) / 1000);
+        durationEl.textContent = `${t('esDuration')}: ${mins}:${String(secs).padStart(2, '0')}`;
+        durationEl.style.display = 'block';
+    } else {
+        durationEl.style.display = 'none';
+    }
+
+    // Fallback note
+    document.getElementById('es-fallback-note').style.display = isFallback ? 'block' : 'none';
+
+    // Store settings on container for filter updates
+    container._esSettings = s;
+
+    // Reset filter to "all"
+    _esActiveFilter = 'all';
+    document.querySelectorAll('.es-filter').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+    renderEntrySettingsBody(s, 'all');
+}
+
+function closeEntrySettings() {
+    document.getElementById('entry-settings-container').style.display = 'none';
+    document.getElementById('leaderboard-container').style.display = 'block';
+}
+
+function setEntrySettingsFilter(cat) {
+    _esActiveFilter = cat;
+    document.querySelectorAll('.es-filter').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+    const container = document.getElementById('entry-settings-container');
+    renderEntrySettingsBody(container._esSettings || {}, cat);
+}
+
+function renderEntrySettingsBody(s, cat) {
+    const langInfo = LANGUAGES.find(l => l.code === s.lang) || LANGUAGES[0];
+    const subjects = getSubjects();
+    const subjName = subjects.find(sub => sub.key === s.eduSubject)?.name || s.eduSubject || '-';
+
+    const fmtKey = (code) => {
+        if (!code) return '?';
+        if (code === 'Space') return 'Space';
+        if (code.startsWith('Key')) return code.replace('Key', '');
+        if (code.startsWith('Digit')) return code.replace('Digit', '');
+        return code;
+    };
+
+    const bool = (v) => v
+        ? `<span class="es-val-yes">✅ ${currentLang === 'en' ? 'Yes' : 'כן'}</span>`
+        : `<span class="es-val-no">❌ ${currentLang === 'en' ? 'No' : 'לא'}</span>`;
+
+    const row = (label, value) =>
+        `<div class="es-row"><span class="es-label">${label}</span><span class="es-value">${value}</span></div>`;
+
+    const groups = {
+        device: `<div class="es-group" data-cat="device">
+            <div class="es-group-title">${t('tabDevice')}</div>
+            ${row(t('deviceLabel'), s.isMobile
+                ? `📱 ${t('deviceMobile').replace(/^📱\s*/, '')}`
+                : `🖥️ ${t('deviceDesktop').replace(/^🖥️\s*/, '')}`)}
+        </div>`,
+
+        controls: `<div class="es-group" data-cat="controls">
+            <div class="es-group-title">${t('tabControls')}</div>
+            ${row(t('controlLabel'), s.controlType === 'mouse' ? t('controlMouse') : t('controlArrows'))}
+            ${row(t('shootKeyLabel'), `<kbd>${fmtKey(s.shoot)}</kbd>`)}
+            ${row(t('abilityKeyLabel'), `<kbd>${fmtKey(s.ability)}</kbd>`)}
+            ${row(t('rightClickLabel'), bool(s.rightClickAbility))}
+        </div>`,
+
+        rules: `<div class="es-group" data-cat="rules">
+            <div class="es-group-title">${t('tabRules')}</div>
+            ${row(t('enemiesAsteLabel'), bool(s.enemiesShootThroughAsteroids))}
+            ${row(t('playerAsteLabel'), bool(s.playerShootThroughAsteroids))}
+        </div>`,
+
+        edu: `<div class="es-group" data-cat="edu">
+            <div class="es-group-title">${t('tabEdu')}</div>
+            ${row(t('eduOnOffLabel'), s.eduEnabled
+                ? `✅ ${t('eduOn').replace(/^✅\s*/, '')}`
+                : `❌ ${t('eduOff').replace(/^❌\s*/, '')}`)}
+            ${s.eduEnabled ? row(t('subjectLabel'), subjName) : ''}
+            ${s.eduEnabled ? row(t('gradeLabel_'), gradeLabel(s.eduGrade || '1')) : ''}
+        </div>`,
+
+        lang: `<div class="es-group" data-cat="lang">
+            <div class="es-group-title">${t('tabLang')}</div>
+            ${row(t('langLabel'), `${langInfo.flag} ${langInfo.name}`)}
+        </div>`
+    };
+
+    document.getElementById('es-body').innerHTML =
+        cat === 'all' ? Object.values(groups).join('') : (groups[cat] || '');
+}
+
+// Export to window for HTML onclick
+window.showEntrySettings = showEntrySettings;
+window.closeEntrySettings = closeEntrySettings;
+window.setEntrySettingsFilter = setEntrySettingsFilter;
 
 async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
@@ -164,25 +300,27 @@ async function displayLeaderboard(category) {
         return;
     }
     
+    _currentLeaderboardEntries = leaderboard;
+
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     console.log('📊 [DISPLAY] Generating HTML for entries...');
     const html = leaderboard.map((entry, index) => {
         console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
-        
+
         // Get skin name, or use the skin key if skin doesn't exist in SKINS
         let skinName = '';
         if (entry.skin) {
             if (SKINS[entry.skin]) {
                 skinName = `• ${SKINS[entry.skin].name}`;
             } else {
-                skinName = `• ${entry.skin}`; // Fallback to skin key if skin doesn't exist
+                skinName = `• ${entry.skin}`;
                 console.warn(`⚠️ [DISPLAY] Unknown skin: ${entry.skin}`);
             }
         }
-        
+
         // Get user name
         const userName = entry.userName || 'Anonymous';
-        
+
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
@@ -195,6 +333,7 @@ async function displayLeaderboard(category) {
                     ${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}
                 </div>
             </div>
+            <button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>
         </div>
     `;
     }).join('');

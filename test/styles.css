@@ -527,6 +527,98 @@ button:hover {
     font-size: 0.9rem;
 }
 
+.lb-settings-btn {
+    padding: 6px 9px;
+    font-size: 1rem;
+    background: rgba(0,242,255,0.08);
+    border: 1px solid rgba(0,242,255,0.25);
+    color: var(--primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+}
+
+.lb-settings-btn:hover {
+    background: rgba(0,242,255,0.2);
+    border-color: var(--primary);
+}
+
+/* Entry Settings View */
+#es-body {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--primary);
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    text-align: start;
+}
+
+.es-filter {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.65);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.es-filter.active {
+    background: rgba(0,242,255,0.18);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.es-group {
+    margin-bottom: 12px;
+}
+
+.es-group-title {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(0,242,255,0.25);
+}
+
+.es-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 0.78rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.es-label {
+    color: rgba(255,255,255,0.55);
+    flex: 1;
+    padding-inline-end: 8px;
+}
+
+.es-value {
+    color: white;
+    font-weight: bold;
+    text-align: end;
+}
+
+.es-val-yes { color: #2ecc71; }
+.es-val-no  { color: #e74c3c; }
+
+kbd {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 0.72rem;
+    font-family: monospace;
+}
+
 /* Special Ability Button */
 #special-ability-btn {
     position: fixed;

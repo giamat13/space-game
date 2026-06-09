@@ -158,7 +158,7 @@ export async function syncMaxLevel() {
 }
 
 // ===== SAVE SCORE TO FIRESTORE =====
-export async function saveScoreToCloud(skinKey, score, level, userName) {
+export async function saveScoreToCloud(skinKey, score, level, userName, settings = null) {
     if (!auth || !db) {
         console.error('❌ [CLOUD] Firebase not initialized');
         return false;
@@ -172,7 +172,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName) {
 
     try {
         console.log(`☁️ [CLOUD] Saving score: ${score} pts, Level ${level}, Skin: ${skinKey}`);
-        
+
         // שמירה ב-collection הספציפי לסקין
         const scoreData = {
             userId: user.uid,
@@ -182,7 +182,8 @@ export async function saveScoreToCloud(skinKey, score, level, userName) {
             level: level,
             skin: skinKey,
             timestamp: serverTimestamp(),
-            date: new Date().toLocaleDateString('he-IL')
+            date: new Date().toLocaleDateString('he-IL'),
+            settings: settings || null
         };
         
         // שמירה ב-leaderboard הכללי - רק שיא אחד למשתמש
