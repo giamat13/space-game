@@ -46,5 +46,25 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
+
+    // Analytics: full game sessions + event logs.
+    // Write is open so anonymous players can also be tracked.
+    // Read is restricted to the session owner only.
+    match /gameSessions/{sessionId} {
+      allow create: if true;
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'anonymous');
+      allow update, delete: if false;
+
+      match /logs/{logId} {
+        allow create: if true;
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.userId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // Per-user analytics index (quick queries by user)
+    match /userAnalytics/{userId}/sessions/{sessionId} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }

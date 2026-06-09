@@ -6,6 +6,10 @@ import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { t, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
+import {
+    startAnalyticsSession, trackLevelUp, trackPauseStart,
+    trackPauseEnd, trackScoreUpdate, trackAbilityUsed
+} from './analytics.js';
 
 // ===== INITIALIZATION =====
 
@@ -408,6 +412,20 @@ window.selectSkin = selectSkin;
 function initGame() {
     resetState();
     
+    // ===== ANALYTICS: start session =====
+    startAnalyticsSession(currentSkinKey, currentUser?.displayName || 'Anonymous', {
+        isMobile: deviceMode.isMobile,
+        controlType: keyBindings.controlType,
+        shoot: keyBindings.shoot,
+        ability: keyBindings.ability,
+        rightClickAbility: keyBindings.rightClickAbility,
+        enemiesShootThroughAsteroids: gameRules.enemiesShootThroughAsteroids,
+        playerShootThroughAsteroids: gameRules.playerShootThroughAsteroids,
+        lang: currentLang,
+        screenW: window.innerWidth,
+        screenH: window.innerHeight
+    });
+    
     // Reset player size to normal
     DOM.player.style.transform = 'scale(1)';
     
@@ -492,6 +510,7 @@ function handleLevelUp() {
         state.playerHP = state.playerMaxHP;
         updateHPUI();
         
+        trackLevelUp(state.level, state.score, state.playerHP, state.playerMaxHP);
         saveMaxLevel(state.level);
         
         let unlocked = false;
@@ -542,6 +561,7 @@ function update() {
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
+    trackScoreUpdate(state.score);
 
     // Read the player's rect once per frame; every collision pass reuses it
     // instead of triggering its own layout reflow.
@@ -567,7 +587,12 @@ function togglePause() {
     const pauseOverlay = document.getElementById('pause-overlay');
     if (pauseBtn) pauseBtn.innerText = state.paused ? '▶' : '⏸';
     if (pauseOverlay) pauseOverlay.style.display = state.paused ? 'flex' : 'none';
-    if (!state.paused) requestAnimationFrame(update);
+    if (state.paused) {
+        trackPauseStart();
+    } else {
+        trackPauseEnd();
+        requestAnimationFrame(update);
+    }
 }
 window.togglePause = togglePause;
 
@@ -658,6 +683,7 @@ function activateSpecialAbility() {
         state.specialAbility.ready = false;
         state.specialAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('vortex_laser', state.level, state.playerHP);
     } else if (currentSkinKey === 'phoenix') {
         if (!state.phoenixAbility.ready) return;
         
@@ -665,6 +691,7 @@ function activateSpecialAbility() {
         state.phoenixAbility.ready = false;
         state.phoenixAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('phoenix_feathers', state.level, state.playerHP);
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
 
@@ -672,6 +699,7 @@ function activateSpecialAbility() {
         state.jokerAbility.ready = false;
         state.jokerAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('joker_chaos', state.level, state.playerHP);
     } else if (currentSkinKey === 'dragon') {
         if (!state.dragonAbility.ready) return;
 
@@ -679,6 +707,7 @@ function activateSpecialAbility() {
         state.dragonAbility.ready = false;
         state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('dragon_fire', state.level, state.playerHP);
     }
 }
 

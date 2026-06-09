@@ -1,5 +1,9 @@
 import { DOM, state, INGREDIENT_TYPES, deviceMode } from './data.js';
 import { t, currentLang } from './i18n.js';
+import {
+    trackShot, trackDamageTaken, trackHeal,
+    trackDeath, saveAnalyticsToCloud
+} from './analytics.js';
 
 // ===== ENEMY TYPE HELPERS =====
 
@@ -64,14 +68,16 @@ export function movePlayer(clientX) {
     updatePlayerPos();
 }
 
-export function damagePlayer(amount) {
+export function damagePlayer(amount, source = 'unknown') {
     // Dragon invincibility - ignore all damage while active
     if (state.dragonAbility && Date.now() < state.dragonAbility.invincibleUntil) {
         console.log('🛡️ [DRAGON] Damage blocked by invincibility');
         return;
     }
 
+    const hpBefore = state.playerHP;
     state.playerHP -= amount;
+    trackDamageTaken(amount, source, hpBefore, state.playerHP);
 
     // Check if player should lose weight
     if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
@@ -146,6 +152,13 @@ export function damagePlayer(amount) {
                 });
                 console.log(`✅ [GAME OVER] Game added to personal history`);
 
+                // ===== ANALYTICS: log death + save full session to Firebase =====
+                trackDeath(source, 0, state.score, state.level);
+                saveAnalyticsToCloud(
+                    { score: state.score, level: state.level },
+                    settings
+                ).catch(e => console.error('❌ [ANALYTICS] Save failed:', e));
+
                 // Notify main menu to refresh personal best display
                 if (typeof window.__refreshPersonalBest === 'function') {
                     window.__refreshPersonalBest();
@@ -167,7 +180,9 @@ export function damagePlayer(amount) {
 
 export function healPlayer(percent) {
     const amount = state.playerMaxHP * (percent / 100);
+    const hpBefore = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
+    trackHeal(amount, 'level_up', hpBefore, state.playerHP);
     updateHPUI();
     showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -212,6 +227,7 @@ export function shoot() {
         y: 80,
         damage: state.currentSkinStats.bulletDamage
     });
+    trackShot(state.playerX + 23, DOM.wrapper.clientHeight - 80, state.currentSkinStats.bulletDamage);
 }
 
 export function enemyShoot(en) {

@@ -1,5 +1,10 @@
 import { DOM, state, gameRules, deviceMode } from './data.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
+import {
+    trackShotHit, trackEnemyKilled, trackFriendlyFire,
+    trackChaoticKill, trackAsteroidDestroyed, trackIngredientCollected,
+    trackBurgerEaten, trackScoreUpdate
+} from './analytics.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -72,7 +77,7 @@ export function updateEnemyBullets() {
                     showFloatingMessage('🛡️ RICOCHET!', eb.x - 50, eb.y, '#ffaa33');
                     continue;
                 }
-                damagePlayer(15);
+                damagePlayer(15, 'enemy_bullet');
                 createExplosion(eb.x, eb.y, 'var(--primary)');
                 eb.el.remove();
                 state.enemyBullets.splice(i, 1);
@@ -96,7 +101,9 @@ export function updateEnemyBullets() {
                         const points = getEnemyPoints(targetEn.type);
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
+                        trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
+                        trackEnemyKilled(targetEn.type, points, state.level, 'ricochet');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
                     }
@@ -147,8 +154,10 @@ export function updateEnemyBullets() {
                         const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
+                        trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
                         showFloatingMessage(`+${points}`, teRect.left, teRect.top, '#00f2ff');
+                        trackChaoticKill(targetEn.type);
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
                     }
@@ -176,7 +185,9 @@ export function updateEnemyBullets() {
                         const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
                         state.score += points;
                         DOM.scoreEl.innerText = state.score;
+                        trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
+                        trackFriendlyFire('unknown', targetEn.type, 1);
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
                     }
@@ -211,8 +222,11 @@ export function updateBurgers() {
         
         if(!(bRect.right < pRect.left || bRect.left > pRect.right || bRect.bottom < pRect.top || bRect.top > pRect.bottom)) {
             const wasFullHP = (state.playerHP >= state.playerMaxHP);
+            const hpBefore = state.playerHP;
             
             healPlayer(15);
+            const becameFat = !state.isPlayerFat && wasFullHP && state.burgersEatenAtFullHP + 1 >= 3;
+            trackBurgerEaten(state.playerMaxHP * 0.15, hpBefore, state.playerHP, becameFat);
             createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
             bgr.el.remove();
             state.burgers.splice(i, 1);
@@ -280,8 +294,10 @@ export function updateIngredients() {
         if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
             state.score += 25;
             DOM.scoreEl.innerText = state.score;
+            trackScoreUpdate(state.score);
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
             updateHPUI();
+            trackIngredientCollected('generic', 'heal', 5);
             ing.el.remove();
             state.ingredients.splice(i, 1);
             continue;
@@ -307,8 +323,9 @@ export function updateAsteroids() {
         const pRect = state.playerRect || DOM.player.getBoundingClientRect();
         
         if(!(aRect.right < pRect.left || aRect.left > pRect.right || aRect.bottom < pRect.top || aRect.top > pRect.bottom)) {
-            damagePlayer(40);
+            damagePlayer(40, 'asteroid_collision');
             createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+            trackAsteroidDestroyed('collision');
             ast.el.remove();
             state.asteroids.splice(i, 1);
             continue;
@@ -323,6 +340,7 @@ export function updateAsteroids() {
                     createExplosion(bRect.left, bRect.top, '#666');
                     bul.el.remove();
                     state.bullets.splice(bi, 1);
+                    trackAsteroidDestroyed('bullet');
                     break;
                 }
             }
@@ -354,7 +372,7 @@ export function updateEnemies(now) {
         if(en.y > DOM.wrapper.clientHeight - 30) {
             // Only damage player if not chaotic
             if (!en.isChaotic) {
-                damagePlayer(30);
+                damagePlayer(30, 'enemy_collision');
             }
             en.el.remove();
             state.enemies.splice(i, 1);
@@ -411,6 +429,7 @@ export function updateEnemies(now) {
                 
                 en.hp -= damage;
                 en.hpFill.style.width = (en.hp / en.maxHP * 100) + '%';
+                trackShotHit(en.type, damage, en.hp, en.maxHP);
                 
                 // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
@@ -433,6 +452,8 @@ export function updateEnemies(now) {
                     const oldScore = state.score;
                     state.score += points;
                     DOM.scoreEl.innerText = state.score;
+                    trackScoreUpdate(state.score);
+                    trackEnemyKilled(en.type, points, state.level, 'bullet');
                     const crossedHealThreshold = Math.floor(state.score / 300) > Math.floor(oldScore / 300);
 
                     createExplosion(eRect.left + 25, eRect.top + 25, explodeColor);
