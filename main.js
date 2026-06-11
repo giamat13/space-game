@@ -103,6 +103,10 @@ let _esActiveFilter = 'all';
 
 // ===== FILTER SYSTEM =====
 
+// lang is now a multi-select array: [] = all, ['he','en'] = those only
+// Entries without settings are shown ONLY when filter = "all" state,
+// EXCEPT for filters with meaningful defaults (edu=off, upgrades=none, rules=defaults, rightClick=true).
+
 const FILTER_CATS = [
     { key: 'device',   icon: '📱', label: 'מכשיר'   },
     { key: 'rules',    icon: '📜', label: 'כללים'   },
@@ -113,7 +117,7 @@ const FILTER_CATS = [
 ];
 
 function defaultFilters() {
-    return { activeCategories: [], device: 'all', edu: 'all', lang: 'all', upgrades: {}, rules: {}, controls: {} };
+    return { activeCategories: [], device: 'all', edu: 'all', lang: [], upgrades: {}, rules: {}, controls: {} };
 }
 let _lbFilters    = defaultFilters();
 let _histFilters  = defaultFilters();
@@ -127,10 +131,19 @@ const _upgStateNext = { any: 'required', required: 'forbidden', forbidden: 'any'
 const _boolIcon     = { any: '⬜', 'true': '✅', 'false': '🚫' };
 const _boolNext     = { any: 'true', 'true': 'false', 'false': 'any' };
 
+const LANGS = [
+    { code:'he',  label:'עברית',   flag:'🇮🇱' },
+    { code:'en',  label:'English',  flag:'🇺🇸' },
+    { code:'ar',  label:'عربي',    flag:'🇸🇦' },
+    { code:'ru',  label:'Русский',  flag:'🇷🇺' },
+    { code:'fr',  label:'Français', flag:'🇫🇷' },
+    { code:'es',  label:'Español',  flag:'🇪🇸' },
+];
+
 function catHasFilter(catKey, f) {
     if (catKey === 'device')   return f.device !== 'all';
     if (catKey === 'edu')      return f.edu !== 'all';
-    if (catKey === 'lang')     return f.lang !== 'all';
+    if (catKey === 'lang')     return Array.isArray(f.lang) ? f.lang.length > 0 : f.lang !== 'all';
     if (catKey === 'upgrades') return f.upgrades && Object.values(f.upgrades).some(v => v !== 'any');
     if (catKey === 'rules')    return f.rules && Object.values(f.rules).some(v => v !== 'any');
     if (catKey === 'controls') return f.controls && Object.values(f.controls).some(v => v && v !== 'any');
@@ -140,7 +153,7 @@ function catHasFilter(catKey, f) {
 function resetCatFilters(catKey, f) {
     if (catKey === 'device')   { f.device = 'all'; return; }
     if (catKey === 'edu')      { f.edu = 'all'; return; }
-    if (catKey === 'lang')     { f.lang = 'all'; return; }
+    if (catKey === 'lang')     { f.lang = []; return; }
     if (catKey === 'upgrades') { f.upgrades = {}; return; }
     if (catKey === 'rules')    { f.rules = {}; return; }
     if (catKey === 'controls') { f.controls = {}; return; }
@@ -149,18 +162,20 @@ function resetCatFilters(catKey, f) {
 function renderCatPanel(catKey, filters, cid) {
     const f = filters;
     switch (catKey) {
-        case 'device':
-            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${['all','mobile','desktop'].map(v =>
-                    `<button class="es-filter${f.device===v?' active':''}" onclick="window.__filterSet('${cid}','device','${v}')">${v==='all'?'הכל':v==='mobile'?'📱 טלפון':'🖥️ מחשב'}</button>`
+        case 'device': {
+            const note = `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">ללא הגדרות → מוצג רק ב"הכל"</div>`;
+            return note + `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${[['all','הכל'],['mobile','📱 טלפון'],['desktop','🖥️ מחשב']].map(([v,lbl]) =>
+                    `<button class="es-filter${f.device===v?' active':''}" onclick="window.__filterSet('${cid}','device','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
+        }
 
         case 'rules': {
             const RULES = {
                 enemiesShootThroughAsteroids: 'אויבים ירי דרך סלעים',
                 playerShootThroughAsteroids:  'שחקן ירי דרך סלעים',
             };
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=כן &nbsp;🚫=לא</div>` +
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=כן &nbsp;🚫=לא &nbsp;· ללא הגדרות → ברירת מחדל</div>` +
                 Object.entries(RULES).map(([key, label]) => {
                     const cur = (f.rules||{})[key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -179,8 +194,8 @@ function renderCatPanel(catKey, filters, cid) {
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">סוג שליטה:</span>
                     <div style="display:flex;gap:3px;">
-                        ${['any','mouse','arrows'].map(v =>
-                            `<button class="es-filter${ctrlType===v?' active':''}" onclick="window.__filterSetCtrl('${cid}','controlType','${v}')">${v==='any'?'הכל':v==='mouse'?'🖱️ עכבר':'⬆️ חצים'}</button>`
+                        ${[['any','הכל'],['mouse','🖱️ עכבר'],['arrows','⬆️ חצים']].map(([v,lbl]) =>
+                            `<button class="es-filter${ctrlType===v?' active':''}" onclick="window.__filterSetCtrl('${cid}','controlType','${v}')">${lbl}</button>`
                         ).join('')}
                     </div>
                 </div>
@@ -188,36 +203,33 @@ function renderCatPanel(catKey, filters, cid) {
                     <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">קליק ימני:</span>
                     <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','rightClickAbility')"
                         style="font-size:1rem;padding:2px 8px;min-width:36px${rcS}">${_boolIcon[rightClick]}</button>
-                    <span style="font-size:0.63rem;opacity:0.45;">⬜=לא משנה ✅=כן 🚫=לא</span>
+                    <span style="font-size:0.63rem;opacity:0.45;">⬜=לא משנה ✅=כן 🚫=לא &nbsp;· ללא הגדרות → כן</span>
                 </div>
             </div>`;
         }
 
         case 'edu':
-            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${['all','on','off'].map(v =>
-                    `<button class="es-filter${f.edu===v?' active':''}" onclick="window.__filterSet('${cid}','edu','${v}')">${v==='all'?'הכל':v==='on'?'✅ פעיל':'❌ כבוי'}</button>`
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">ללא הגדרות → כבוי</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${[['all','הכל'],['on','✅ פעיל'],['off','❌ כבוי']].map(([v,lbl]) =>
+                    `<button class="es-filter${f.edu===v?' active':''}" onclick="window.__filterSet('${cid}','edu','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
 
         case 'lang': {
-            const LANGS = [
-                { code:'all', label:'הכל',     flag:'' },
-                { code:'he',  label:'עברית',   flag:'🇮🇱' },
-                { code:'en',  label:'English',  flag:'🇺🇸' },
-                { code:'ar',  label:'عربي',    flag:'🇸🇦' },
-                { code:'ru',  label:'Русский',  flag:'🇷🇺' },
-                { code:'fr',  label:'Français', flag:'🇫🇷' },
-                { code:'es',  label:'Español',  flag:'🇪🇸' },
-            ];
-            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${LANGS.map(l =>
-                    `<button class="es-filter${f.lang===l.code?' active':''}" onclick="window.__filterSet('${cid}','lang','${l.code}')">${l.flag} ${l.label}</button>`
-                ).join('')}</div>`;
+            const sel = Array.isArray(f.lang) ? f.lang : [];
+            const isAll = sel.length === 0;
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">מולטי-בחירה · ללא הגדרות → מוצג רק ב"הכל"</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="es-filter${isAll?' active':''}" onclick="window.__filterToggleLang('${cid}',null)">הכל</button>
+                    ${LANGS.map(l =>
+                        `<button class="es-filter${sel.includes(l.code)?' active':''}" onclick="window.__filterToggleLang('${cid}','${l.code}')">${l.flag} ${l.label}</button>`
+                    ).join('')}
+                </div>`;
         }
 
         case 'upgrades':
             if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">אין שדרוגים</span>`;
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=חובה &nbsp;🚫=אסור</div>` +
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=חובה &nbsp;🚫=אסור &nbsp;· ללא הגדרות → ללא שדרוגים</div>` +
                 Object.values(UPGRADES).map(u => {
                     const cur = (f.upgrades||{})[u.key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -235,28 +247,33 @@ function applyEntryFilters(entries, filters) {
     return entries.filter(e => {
         const s = e.settings || null;
 
-        // Device: only filter when entry has settings; unknown = pass through
-        if (filters.device !== 'all' && s) {
+        // Device: no settings → only show when filter = 'all'
+        if (filters.device !== 'all') {
+            if (!s) return false;
             if (filters.device === 'mobile'  && !s.isMobile) return false;
             if (filters.device === 'desktop' &&  s.isMobile) return false;
         }
 
-        // Edu: unknown = off
+        // Edu: no settings → default = off
         const eduEnabled = s ? !!s.eduEnabled : false;
         if (filters.edu === 'on'  && !eduEnabled) return false;
         if (filters.edu === 'off' &&  eduEnabled) return false;
 
-        // Lang: unknown = pass through
-        if (filters.lang !== 'all' && s && s.lang !== filters.lang) return false;
+        // Lang: multi-select array; no settings → only show when selection is empty (all)
+        const langSel = Array.isArray(filters.lang) ? filters.lang : (filters.lang !== 'all' ? [filters.lang] : []);
+        if (langSel.length > 0) {
+            if (!s || !s.lang) return false;
+            if (!langSel.includes(s.lang)) return false;
+        }
 
-        // Upgrades: unknown = no upgrades
+        // Upgrades: no settings → default = no upgrades
         const ups = s ? (s.upgrades || []) : [];
         for (const [key, state] of Object.entries(filters.upgrades || {})) {
             if (state === 'required' && !ups.includes(key)) return false;
             if (state === 'forbidden' &&  ups.includes(key)) return false;
         }
 
-        // Rules: unknown = defaults (enemies=true, player=false)
+        // Rules: no settings → use game defaults (enemies=true, player=false)
         const ruleDef = { enemiesShootThroughAsteroids: true, playerShootThroughAsteroids: false };
         for (const [key, state] of Object.entries(filters.rules || {})) {
             if (state === 'any') continue;
@@ -265,14 +282,18 @@ function applyEntryFilters(entries, filters) {
             if (state === 'false' &&  val) return false;
         }
 
-        // Controls: unknown = pass through; rightClickAbility default = true
+        // Controls:
+        // - controlType: no settings → only show when filter = 'any'
+        // - rightClickAbility: no settings → default = true
         for (const [key, value] of Object.entries(filters.controls || {})) {
             if (!value || value === 'any') continue;
             if (key === 'rightClickAbility') {
                 const val = s ? !!s.rightClickAbility : true;
                 if (value === 'true'  && !val) return false;
                 if (value === 'false' &&  val) return false;
-            } else if (s) {
+            } else {
+                // controlType etc: no settings → exclude
+                if (!s) return false;
                 if (s[key] !== value) return false;
             }
         }
@@ -285,7 +306,8 @@ function countActiveFilters(filters) {
     let n = 0;
     if (filters.device !== 'all') n++;
     if (filters.edu    !== 'all') n++;
-    if (filters.lang   !== 'all') n++;
+    const langSel = Array.isArray(filters.lang) ? filters.lang : [];
+    n += langSel.length;
     if (filters.upgrades) n += Object.values(filters.upgrades).filter(v => v !== 'any').length;
     if (filters.rules)    n += Object.values(filters.rules).filter(v => v !== 'any').length;
     if (filters.controls) n += Object.values(filters.controls).filter(v => v && v !== 'any').length;
@@ -304,7 +326,7 @@ function renderFilterBar(containerId, filters, onChange) {
         const isOpen    = activeCats.includes(cat.key);
         const hasFilter = catHasFilter(cat.key, filters);
         let style = '';
-        if (isOpen)       style = 'border-color:var(--primary);color:var(--primary);background:rgba(0,242,255,0.12);';
+        if (isOpen)         style = 'border-color:var(--primary);color:var(--primary);background:rgba(0,242,255,0.12);';
         else if (hasFilter) style = 'border-color:rgba(255,215,0,0.55);color:#ffd700;';
         return `<button class="es-filter" onclick="window.__filterToggleCat('${containerId}','${cat.key}')" style="${style}">${cat.icon} ${cat.label}${hasFilter ? ' ·' : ''}</button>`;
     }).join('');
@@ -352,12 +374,31 @@ window.__filterToggleCat = function(cid, catKey) {
     el._onChange(f);
 };
 
+// Single-select: 'all' button stays 'all' (never toggles off)
 window.__filterSet = function(cid, key, value) {
     const el = document.getElementById(cid);
     if (!el || !el._onChange) return;
     const f = _filterMap()[cid];
     if (!f) return;
-    f[key] = f[key] === value ? 'all' : value;
+    // Clicking active non-all option resets to all; clicking all always stays all
+    f[key] = (f[key] === value && value !== 'all') ? 'all' : value;
+    el._wasOpen = true;
+    el._onChange(f);
+};
+
+// Multi-select language toggle
+window.__filterToggleLang = function(cid, code) {
+    const el = document.getElementById(cid);
+    if (!el || !el._onChange) return;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    if (!Array.isArray(f.lang)) f.lang = [];
+    if (!code) { f.lang = []; }  // "All" clicked → clear
+    else {
+        const idx = f.lang.indexOf(code);
+        if (idx >= 0) f.lang.splice(idx, 1);
+        else f.lang.push(code);
+    }
     el._wasOpen = true;
     el._onChange(f);
 };
@@ -373,13 +414,14 @@ window.__filterBoolState = function(cid, group, key) {
     el._onChange(f);
 };
 
+// controlType: 'any' button always stays 'any' (never toggles off)
 window.__filterSetCtrl = function(cid, key, value) {
     const el = document.getElementById(cid);
     if (!el || !el._onChange) return;
     const f = _filterMap()[cid];
     if (!f) return;
     if (!f.controls) f.controls = {};
-    f.controls[key] = f.controls[key] === value ? 'any' : value;
+    f.controls[key] = (f.controls[key] === value && value !== 'any') ? 'any' : value;
     el._wasOpen = true;
     el._onChange(f);
 };
@@ -402,7 +444,7 @@ window.__filterReset = function(cid) {
     if (!f) return;
     const openCats = [...(f.activeCategories || [])];
     Object.assign(f, defaultFilters());
-    f.activeCategories = openCats; // keep panels open, just clear values
+    f.activeCategories = openCats;
     el._wasOpen = true;
     el._onChange(f);
 };
@@ -837,7 +879,7 @@ function _renderLbContent() {
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
-                    👤 ${userName}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
+                    👤 ${userName}${isDevUser(userName)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
@@ -846,6 +888,20 @@ function _renderLbContent() {
         </div>`;
     }).join('');
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
+}
+
+// ===== DEVELOPER BADGE =====
+// Hardcoded developer account identifiers
+const DEV_IDENTIFIERS = new Set(['giamat13', 'ita.furst@gmail.com', 'ita.furst']);
+
+function isDevUser(userName) {
+    if (!userName) return false;
+    const n = userName.toLowerCase().trim();
+    return DEV_IDENTIFIERS.has(n) || n.startsWith('ita.furst');
+}
+
+function devBadge() {
+    return `<span class="dev-badge" title="מפתח המשחק">👑 DEV</span>`;
 }
 
 // ===== SPEEDRUN HELPERS =====
@@ -879,41 +935,36 @@ function checkSpeedrunMilestones() {
     }
 }
 
-async function displaySpeedrunLeaderboard(goalKey) {
+let _rawSpeedrunEntries = [];
+
+function _renderSrContent(goalKey) {
     const content = document.getElementById('leaderboard-content');
     if (!content) return;
-    const filterBar = document.getElementById('lb-filter-bar');
-    if (filterBar) filterBar.innerHTML = '';
 
     const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
     const goal = allGoals.find(g => g.key === goalKey);
-    if (!goal) { content.innerHTML = '<div class="lb-empty">קטגוריה לא נמצאה</div>'; return; }
 
-    content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
+    const filtered = applyEntryFilters(_rawSpeedrunEntries, _lbFilters);
 
-    let entries = [];
-    try {
-        const { getSpeedrunLeaderboardFromCloud } = await import('./firestore-sync.js');
-        const cloud = await getSpeedrunLeaderboardFromCloud(goalKey);
-        entries = (cloud && cloud.length > 0) ? cloud : getSpeedrunLeaderboard(goalKey);
-    } catch (e) {
-        entries = getSpeedrunLeaderboard(goalKey);
-    }
-
-    if (entries.length === 0) {
-        content.innerHTML = `<div class="lb-empty">אין שיאים עדיין — השלם את "${goal.label}" כמה שיותר מהר!</div>`;
+    if (!filtered.length) {
+        const empty = _rawSpeedrunEntries.length === 0
+            ? `אין שיאים עדיין — השלם את "${goal?.label || goalKey}" כמה שיותר מהר!`
+            : `אין תוצאות עם הפילטרים הנוכחיים`;
+        content.innerHTML = `<div class="lb-empty">${empty}</div>`;
         return;
     }
 
     const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-    content.innerHTML = entries.map((e, i) => {
+    window.__srEntries = filtered;
+    content.innerHTML = filtered.map((e, i) => {
         const skinLabel = SKINS[e.skin]?.name || e.skin || '';
         const settingsBtn = e.settings
             ? `<button onclick="window.__srShowSettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
+        const dev = isDevUser(e.userName) ? devBadge() : '';
         return `<div class="lb-entry rank-${i+1}">
             <div class="lb-rank">${medals[i] || (i+1)}</div>
             <div class="lb-info" style="flex:1;">
-                <div class="lb-player-name">👤 ${e.userName || 'Anonymous'}</div>
+                <div class="lb-player-name">👤 ${e.userName || 'Anonymous'} ${dev}</div>
                 <div class="lb-score" style="color:#00f2ff;font-size:1.2rem;">⏱️ ${formatTime(e.time)}</div>
                 <div class="lb-details">${skinLabel} • ${e.date || ''}</div>
             </div>
@@ -921,14 +972,35 @@ async function displaySpeedrunLeaderboard(goalKey) {
         </div>`;
     }).join('');
 
-    // Store for settings button
-    window.__srEntries = entries;
     window.__srShowSettings = function(idx) {
         const orig = _currentLeaderboardEntries;
         _currentLeaderboardEntries = window.__srEntries;
         showEntrySettings(idx);
         _currentLeaderboardEntries = orig;
     };
+}
+
+async function displaySpeedrunLeaderboard(goalKey) {
+    const content = document.getElementById('leaderboard-content');
+    if (!content) return;
+
+    const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+    const goal = allGoals.find(g => g.key === goalKey);
+    if (!goal) { content.innerHTML = '<div class="lb-empty">קטגוריה לא נמצאה</div>'; return; }
+
+    renderFilterBar('lb-filter-bar', _lbFilters, () => _renderSrContent(goalKey));
+
+    content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
+
+    try {
+        const { getSpeedrunLeaderboardFromCloud } = await import('./firestore-sync.js');
+        const cloud = await getSpeedrunLeaderboardFromCloud(goalKey);
+        _rawSpeedrunEntries = (cloud && cloud.length > 0) ? cloud : getSpeedrunLeaderboard(goalKey);
+    } catch (e) {
+        _rawSpeedrunEntries = getSpeedrunLeaderboard(goalKey);
+    }
+
+    _renderSrContent(goalKey);
 }
 
 async function displayLeaderboard(category) {
@@ -949,7 +1021,7 @@ async function displayLeaderboard(category) {
             <div class="lb-entry rank-${i + 1}">
                 <div class="lb-rank">${medals[i] || (i + 1)}</div>
                 <div class="lb-info">
-                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}</div>
+                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}${isDevUser(entry.userName)?devBadge():''}</div>
                     <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
                 </div>
             </div>`).join('');

@@ -1160,6 +1160,27 @@ kbd {
     background: rgba(0,242,255,0.04);
 }
 
+/* ===== DEVELOPER BADGE ===== */
+.dev-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-right: 4px;
+    vertical-align: middle;
+    background: linear-gradient(90deg, #ff6b6b, #ffd700, #00f2ff, #ff6b6b);
+    background-size: 250% auto;
+    color: #000;
+    animation: devShimmer 2.4s linear infinite;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+@keyframes devShimmer {
+    0%   { background-position: 0% center; }
+    100% { background-position: 250% center; }
+}
+
 /* ===== PERSONAL HISTORY PANEL ===== */
 .history-tab {
     padding: 8px 18px;
