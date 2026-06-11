@@ -438,20 +438,6 @@ export const UPGRADES = {
         desc: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר',
         cost: 50000,
         skin: 'dragon'
-    },
-    coin_boost: {
-        key: 'coin_boost',
-        name: '💰 בונוס מטבעות',
-        desc: 'מרוויחים 50% יותר מטבעות בכל עלייה בשלב',
-        cost: 75000,
-        skin: null
-    },
-    double_ammo: {
-        key: 'double_ammo',
-        name: '⚡ כפל תחמושת',
-        desc: 'מקסימום התחמושת מוכפל לכל הסקינים',
-        cost: 50000,
-        skin: null
     }
 };
 
