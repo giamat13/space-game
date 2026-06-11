@@ -149,7 +149,8 @@ export function damagePlayer(amount, source = 'unknown') {
                     date: new Date().toLocaleDateString('he-IL'),
                     timestamp: Date.now(),
                     userName,
-                    isDebug: false
+                    isDebug: false,
+                    settings
                 });
                 console.log(`✅ [GAME OVER] Game added to personal history`);
 

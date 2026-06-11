@@ -436,7 +436,7 @@ export const UPGRADES = {
         key: 'dragon_homing_ricochet',
         name: '🐉 כדורי דרגון חכמים',
         desc: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר',
-        cost: 2500,
+        cost: 25000,
         skin: 'dragon'
     }
 };
@@ -472,9 +472,43 @@ export function removeUpgrade(key) {
     if (idx === -1) return false;
     owned.splice(idx, 1);
     setCookie('ownedUpgrades', JSON.stringify(owned));
-    addCoins(upgrade.cost);
+    // Remove from disabled list too
+    const disabled = getDisabledUpgrades();
+    const di = disabled.indexOf(key);
+    if (di !== -1) { disabled.splice(di, 1); setCookie('disabledUpgrades', JSON.stringify(disabled)); }
+    const refund = Math.floor(upgrade.cost * 0.75);
+    addCoins(refund);
     syncUpgrades(owned, true).catch(() => {});
+    return refund;
+}
+
+export function getDisabledUpgrades() {
+    const saved = getCookie('disabledUpgrades');
+    return saved ? JSON.parse(saved) : [];
+}
+
+export function disableUpgrade(key) {
+    if (!getOwnedUpgrades().includes(key)) return false;
+    const disabled = getDisabledUpgrades();
+    if (!disabled.includes(key)) { disabled.push(key); setCookie('disabledUpgrades', JSON.stringify(disabled)); }
     return true;
+}
+
+export function enableUpgrade(key) {
+    const disabled = getDisabledUpgrades();
+    const idx = disabled.indexOf(key);
+    if (idx === -1) return false;
+    disabled.splice(idx, 1);
+    setCookie('disabledUpgrades', JSON.stringify(disabled));
+    return true;
+}
+
+export function isUpgradeDisabled(key) {
+    return getDisabledUpgrades().includes(key);
+}
+
+export function isUpgradeActive(key) {
+    return getOwnedUpgrades().includes(key) && !getDisabledUpgrades().includes(key);
 }
 
 export function resetCoins() {

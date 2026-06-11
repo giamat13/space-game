@@ -1,4 +1,4 @@
-import { DOM, state, gameRules, deviceMode, hasUpgrade } from './data.js';
+import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive } from './data.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
@@ -97,7 +97,7 @@ export function updateEnemyBullets() {
                     eb.vx = -eb.vx;
                     eb.vy = -(Math.abs(eb.vy) + 5);
                     eb.ricochet = true;
-                    eb.homing = hasUpgrade('dragon_homing_ricochet');
+                    eb.homing = isUpgradeActive('dragon_homing_ricochet');
                     // Lock in a constant flight speed for the homing steering
                     eb.speed = Math.max(8, Math.hypot(eb.vx, eb.vy));
                     eb.damage = 40;

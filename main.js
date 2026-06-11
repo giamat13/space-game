@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -98,7 +98,145 @@ console.log('✅ [INIT] Game loaded successfully');
 // ===== LEADERBOARD =====
 
 let _currentLeaderboardEntries = [];
+let _currentBestsEntries = [];
 let _esActiveFilter = 'all';
+
+// ===== FILTER SYSTEM =====
+// upgrades is an object: { upgradeKey: 'any' | 'required' | 'forbidden' }
+let _lbFilters    = { device: 'all', upgrades: {}, edu: 'all' };
+let _histFilters  = { device: 'all', upgrades: {}, edu: 'all' };
+let _bestsFilters = { device: 'all', upgrades: {}, edu: 'all' };
+
+const _filterMap = () => ({ 'lb-filter-bar': _lbFilters, 'hist-filter-bar': _histFilters, 'bests-filter-bar': _bestsFilters });
+
+function applyEntryFilters(entries, filters) {
+    return entries.filter(e => {
+        const s = e.settings || null;
+
+        // Device: only filter when entry has settings
+        if (filters.device !== 'all' && s) {
+            if (filters.device === 'mobile'  && !s.isMobile) return false;
+            if (filters.device === 'desktop' &&  s.isMobile) return false;
+        }
+
+        // Edu: unknown settings → assume edu OFF
+        const eduEnabled = s ? !!s.eduEnabled : false;
+        if (filters.edu === 'on'  && !eduEnabled) return false;
+        if (filters.edu === 'off' &&  eduEnabled) return false;
+
+        // Upgrades: unknown settings → assume no upgrades
+        const ups = s ? (s.upgrades || []) : [];
+        const upFilters = filters.upgrades || {};
+        for (const [key, state] of Object.entries(upFilters)) {
+            if (state === 'required' && !ups.includes(key)) return false;
+            if (state === 'forbidden' &&  ups.includes(key)) return false;
+        }
+
+        return true;
+    });
+}
+
+function countActiveFilters(filters) {
+    let n = 0;
+    if (filters.device !== 'all') n++;
+    if (filters.edu    !== 'all') n++;
+    if (filters.upgrades) n += Object.values(filters.upgrades).filter(v => v !== 'any').length;
+    return n;
+}
+
+const _upgStateIcon = { any: '⬜', required: '✅', forbidden: '🚫' };
+const _upgStateNext = { any: 'required', required: 'forbidden', forbidden: 'any' };
+
+function renderFilterBar(containerId, filters, onChange) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    const active = countActiveFilters(filters);
+    const badge  = active > 0 ? ` <span style="background:#00f2ff;color:#000;border-radius:9px;padding:0 5px;font-size:0.65rem;font-weight:bold;">${active}</span>` : '';
+
+    const upgRows = Object.values(UPGRADES).map(u => {
+        const cur = (filters.upgrades || {})[u.key] || 'any';
+        const icon = _upgStateIcon[cur];
+        const activeStyle = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+            <button class="es-filter" onclick="window.__filterCycleUpgrade('${containerId}','${u.key}')"
+                style="font-size:1rem;padding:2px 6px;min-width:34px${activeStyle}">${icon}</button>
+            <span style="font-size:0.75rem;opacity:0.85;">${u.name}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <details class="filter-bar">
+            <summary style="cursor:pointer;font-size:0.78rem;opacity:0.8;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;justify-content:center;padding:4px 0;">
+                🔍 פילטרים${badge}
+            </summary>
+            <div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 4px;justify-content:center;text-align:right;">
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                    <span style="font-size:0.65rem;opacity:0.6;">מכשיר</span>
+                    <div style="display:flex;gap:3px;">
+                        ${['all','mobile','desktop'].map(v =>
+                            `<button class="es-filter${filters.device===v?' active':''}" onclick="window.__filterSet('${containerId}','device','${v}')">${v==='all'?'הכל':v==='mobile'?'📱':'🖥️'}</button>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                    <span style="font-size:0.65rem;opacity:0.6;">מצב חינוכי</span>
+                    <div style="display:flex;gap:3px;">
+                        ${['all','on','off'].map(v =>
+                            `<button class="es-filter${filters.edu===v?' active':''}" onclick="window.__filterSet('${containerId}','edu','${v}')">${v==='all'?'הכל':v==='on'?'✅':'❌'}</button>`
+                        ).join('')}
+                    </div>
+                </div>
+                ${Object.keys(UPGRADES).length > 0 ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                    <span style="font-size:0.65rem;opacity:0.6;">שדרוגים <span style="opacity:0.5;">(⬜=לא משנה ✅=חובה 🚫=אסור)</span></span>
+                    ${upgRows}
+                </div>` : ''}
+                ${active > 0 ? `<button class="es-filter" onclick="window.__filterReset('${containerId}')" style="align-self:flex-end;color:#ff4d4d;border-color:#ff4d4d;margin-top:4px;">✕ נקה הכל</button>` : ''}
+            </div>
+        </details>
+    `;
+
+    // Preserve open state across re-renders
+    const wasOpen = el._wasOpen || el.querySelector('details')?.open;
+    if (wasOpen) el.querySelector('details').open = true;
+    el._wasOpen = false;
+
+    el._onChange = onChange;
+}
+
+window.__filterSet = function(containerId, key, value) {
+    const el = document.getElementById(containerId);
+    if (!el || !el._onChange) return;
+    const filters = _filterMap()[containerId];
+    if (!filters) return;
+    filters[key] = filters[key] === value ? 'all' : value;
+    el._wasOpen = true;
+    el._onChange(filters);
+};
+
+window.__filterCycleUpgrade = function(containerId, upgradeKey) {
+    const el = document.getElementById(containerId);
+    if (!el || !el._onChange) return;
+    const filters = _filterMap()[containerId];
+    if (!filters) return;
+    if (!filters.upgrades) filters.upgrades = {};
+    const cur = filters.upgrades[upgradeKey] || 'any';
+    filters.upgrades[upgradeKey] = _upgStateNext[cur];
+    el._wasOpen = true;
+    el._onChange(filters);
+};
+
+window.__filterReset = function(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el || !el._onChange) return;
+    const filters = _filterMap()[containerId];
+    if (!filters) return;
+    filters.device   = 'all';
+    filters.edu      = 'all';
+    filters.upgrades = {};
+    el._wasOpen = true;
+    el._onChange(filters);
+};
 
 function showLeaderboard() {
     console.log('🏆 [LEADERBOARD] Opening leaderboard...');
@@ -157,55 +295,93 @@ function renderShopItems() {
     container.innerHTML = '';
     Object.values(UPGRADES).forEach(upg => {
         const owned = hasUpgrade(upg.key);
+        const disabled = owned && isUpgradeDisabled(upg.key);
+        const active = owned && !disabled;
         const canAfford = coins >= upg.cost;
+        const refund = Math.floor(upg.cost * 0.75);
+
+        const borderColor = active ? 'rgba(0,255,100,0.4)' : disabled ? 'rgba(255,150,0,0.4)' : canAfford ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)';
+        const bgColor = active ? 'rgba(0,255,100,0.08)' : disabled ? 'rgba(255,150,0,0.06)' : 'rgba(255,255,255,0.05)';
+
         const item = document.createElement('div');
-        item.style.cssText = `
-            padding: 14px 16px;
-            background: ${owned ? 'rgba(0,255,100,0.08)' : 'rgba(255,255,255,0.05)'};
-            border: 1px solid ${owned ? 'rgba(0,255,100,0.4)' : canAfford ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)'};
-            border-radius: 10px;
-            text-align: right;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        `;
+        item.style.cssText = `padding:14px 16px; background:${bgColor}; border:1px solid ${borderColor}; border-radius:10px; text-align:right; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;`;
+
+        const nameColor = active ? '#00ff64' : disabled ? '#ffa040' : '#fff';
+        const statusBadge = active
+            ? '<span style="font-size:0.7rem;background:rgba(0,255,100,0.15);border:1px solid #00ff64;border-radius:4px;padding:1px 6px;color:#00ff64;">✅ פעיל</span>'
+            : disabled
+                ? '<span style="font-size:0.7rem;background:rgba(255,150,0,0.15);border:1px solid #ffa040;border-radius:4px;padding:1px 6px;color:#ffa040;">🚫 מושבת</span>'
+                : '';
+
         const info = document.createElement('div');
+        info.style.cssText = 'flex:1; min-width:0;';
         info.innerHTML = `
-            <div style="font-size:0.95rem; font-weight:bold; color:${owned ? '#00ff64' : '#fff'}; margin-bottom:4px;">${upg.name}</div>
-            <div style="font-size:0.78rem; opacity:0.75;">${upg.desc}</div>
-            ${upg.skin ? `<div style="font-size:0.72rem; opacity:0.5; margin-top:3px;">⚠️ רק לסקין ${upg.skin}</div>` : ''}
+            <div style="font-size:0.95rem;font-weight:bold;color:${nameColor};margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                ${upg.name} ${statusBadge}
+            </div>
+            <div style="font-size:0.78rem;opacity:0.75;">${upg.desc}</div>
+            ${upg.skin ? `<div style="font-size:0.72rem;opacity:0.5;margin-top:3px;">⚠️ רק לסקין ${upg.skin}</div>` : ''}
         `;
-        const btn = document.createElement('button');
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.style.cssText = 'display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;';
+
         if (owned) {
-            btn.textContent = '✅ נרכש';
-            btn.disabled = true;
-            btn.style.cssText = 'background:rgba(0,255,100,0.15); border-color:#00ff64; color:#00ff64; padding:8px 14px; font-size:0.8rem; cursor:default; min-width:80px;';
-            const removeBtn = document.createElement('button');
-            removeBtn.textContent = `↩ החזר (💰${upg.cost})`;
-            removeBtn.style.cssText = 'background:rgba(255,77,77,0.15); border-color:#ff4d4d; color:#ff4d4d; padding:6px 10px; font-size:0.72rem; margin-top:6px; width:100%; cursor:pointer;';
-            removeBtn.onclick = () => {
-                if (removeUpgrade(upg.key)) {
-                    document.getElementById('shop-coins-display').innerText = getCoins();
-                    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
-                    renderShopItems();
-                }
-            };
-            info.appendChild(removeBtn);
+            if (disabled) {
+                // State: owned & disabled — Enable or Return
+                const enableBtn = document.createElement('button');
+                enableBtn.textContent = '▶ הפעל';
+                enableBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:pointer;';
+                enableBtn.onclick = () => { enableUpgrade(upg.key); renderShopItems(); };
+
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = `↩ החזר (💰${refund})`;
+                removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
+                removeBtn.onclick = () => {
+                    const r = removeUpgrade(upg.key);
+                    if (r !== false) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
+                };
+
+                actionsDiv.appendChild(enableBtn);
+                actionsDiv.appendChild(removeBtn);
+            } else {
+                // State: owned & active — Disable or Return
+                const ownedBtn = document.createElement('button');
+                ownedBtn.textContent = '✅ נרכש';
+                ownedBtn.disabled = true;
+                ownedBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:default;';
+
+                const disableBtn = document.createElement('button');
+                disableBtn.textContent = '🚫 השבת';
+                disableBtn.style.cssText = 'background:rgba(255,150,0,0.12);border-color:#ffa040;color:#ffa040;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+                disableBtn.onclick = () => { disableUpgrade(upg.key); renderShopItems(); };
+
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = `↩ החזר (💰${refund})`;
+                removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
+                removeBtn.onclick = () => {
+                    const r = removeUpgrade(upg.key);
+                    if (r !== false) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
+                };
+
+                actionsDiv.appendChild(ownedBtn);
+                actionsDiv.appendChild(disableBtn);
+                actionsDiv.appendChild(removeBtn);
+            }
         } else {
-            btn.textContent = `💰 ${upg.cost}`;
-            btn.disabled = !canAfford;
-            btn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'}; border-color:${canAfford ? '#ffd700' : '#555'}; color:${canAfford ? '#ffd700' : '#555'}; padding:8px 14px; font-size:0.85rem; min-width:80px; cursor:${canAfford ? 'pointer' : 'default'};`;
-            btn.onclick = () => {
-                if (buyUpgrade(upg.key)) {
-                    document.getElementById('shop-coins-display').innerText = getCoins();
-                    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
-                    renderShopItems();
-                }
+            // State: not owned — Buy
+            const buyBtn = document.createElement('button');
+            buyBtn.textContent = `💰 ${upg.cost}`;
+            buyBtn.disabled = !canAfford;
+            buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ffd700' : '#555'};color:${canAfford ? '#ffd700' : '#555'};padding:8px 14px;font-size:0.85rem;min-width:80px;cursor:${canAfford ? 'pointer' : 'default'};`;
+            buyBtn.onclick = () => {
+                if (buyUpgrade(upg.key)) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
             };
+            actionsDiv.appendChild(buyBtn);
         }
+
         item.appendChild(info);
-        item.appendChild(btn);
+        item.appendChild(actionsDiv);
         container.appendChild(item);
     });
 }
@@ -233,8 +409,14 @@ function showEntrySettings(idx) {
         startTime: null
     };
 
-    document.getElementById('leaderboard-container').style.display = 'none';
+    // Hide whichever panel is currently visible and remember it
     const container = document.getElementById('entry-settings-container');
+    let returnTo = 'leaderboard-container';
+    ['leaderboard-container','history-container'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.style.display !== 'none') { el.style.display = 'none'; returnTo = id; }
+    });
+    container.dataset.returnTo = returnTo;
     container.style.display = 'block';
 
     // Meta info
@@ -270,8 +452,12 @@ function showEntrySettings(idx) {
 }
 
 function closeEntrySettings() {
-    document.getElementById('entry-settings-container').style.display = 'none';
-    document.getElementById('leaderboard-container').style.display = 'block';
+    const c = document.getElementById('entry-settings-container');
+    c.style.display = 'none';
+    const returnTo = c.dataset.returnTo || 'leaderboard-container';
+    c.dataset.returnTo = '';
+    c.dataset.backTo = '';
+    document.getElementById(returnTo).style.display = 'block';
 }
 
 function setEntrySettingsFilter(cat) {
@@ -365,41 +551,82 @@ window.showEntrySettings = showEntrySettings;
 window.closeEntrySettings = closeEntrySettings;
 window.setEntrySettingsFilter = setEntrySettingsFilter;
 
-async function displayLeaderboard(category) {
-    console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
-    const content = document.getElementById('leaderboard-content');
+let _rawLeaderboard = [];
 
-    if (!content) {
-        console.error('❌ [DISPLAY] ERROR: leaderboard-content element not found!');
+function _renderLbContent() {
+    const content = document.getElementById('leaderboard-content');
+    if (!content) return;
+
+    renderFilterBar('lb-filter-bar', _lbFilters, () => _renderLbContent());
+
+    const filtered = applyEntryFilters(_rawLeaderboard, _lbFilters);
+    _currentLeaderboardEntries = filtered;
+
+    if (filtered.length === 0) {
+        const hasAny = _rawLeaderboard.length > 0;
+        content.innerHTML = `<div class="lb-empty">${hasAny ? (currentLang === 'en' ? 'No results for these filters' : 'אין תוצאות עם הפילטרים הנוכחיים') : t('lbEmpty')}</div>`;
         return;
     }
 
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    const countNote = countActiveFilters(_lbFilters) > 0
+        ? `<div style="font-size:0.72rem;opacity:0.5;margin-bottom:6px;">${filtered.length} / ${_rawLeaderboard.length} תוצאות</div>` : '';
+
+    content.innerHTML = countNote + filtered.map((entry, index) => {
+        let skinName = '';
+        if (entry.skin) skinName = SKINS[entry.skin] ? `• ${SKINS[entry.skin].name}` : `• ${entry.skin}`;
+        const userName = entry.userName || 'Anonymous';
+        const coinsDisplay = entry.coins != null ? ` <span style="color:#ffd700; font-size:0.8rem;">💰 ${entry.coins.toLocaleString()}</span>` : '';
+        const entryUpgrades = entry.settings?.upgrades || [];
+        const upgradesDisplay = entryUpgrades.length > 0
+            ? ` <span style="color:#c084fc; font-size:0.78rem;" title="${entryUpgrades.map(k => UPGRADES[k]?.name || k).join(', ')}">🛍️ ×${entryUpgrades.length}</span>`
+            : '';
+        const showDevice = _lbFilters.device === 'all';
+        const deviceDisplay = (showDevice && entry.settings?.isMobile != null)
+            ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
+        const eduDisplay = entry.settings?.eduEnabled
+            ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
+        const settingsBtn = entry.settings
+            ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
+            : '';
+        return `
+        <div class="lb-entry rank-${index + 1}">
+            <div class="lb-rank">${medals[index] || (index + 1)}</div>
+            <div class="lb-info">
+                <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
+                    👤 ${userName}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
+                </div>
+                <div class="lb-score">${entry.score.toLocaleString()}</div>
+                <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
+            </div>
+            ${settingsBtn}
+        </div>`;
+    }).join('');
+    console.log('✅ [DISPLAY] Leaderboard displayed successfully');
+}
+
+async function displayLeaderboard(category) {
+    console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
+    const content = document.getElementById('leaderboard-content');
+    if (!content) { console.error('❌ [DISPLAY] leaderboard-content not found'); return; }
+
     content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
 
-    // Money leaderboard
+    // Money leaderboard (no filter support — no settings data)
     if (category === 'money') {
+        document.getElementById('lb-filter-bar').innerHTML = '';
         let entries = [];
-        try {
-            entries = await getMoneyLeaderboard();
-        } catch (e) {
-            console.warn('⚠️ [DISPLAY] Money leaderboard fetch failed');
-        }
-        if (entries.length === 0) {
-            content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
-            return;
-        }
+        try { entries = await getMoneyLeaderboard(); } catch (e) {}
+        if (entries.length === 0) { content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`; return; }
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
         content.innerHTML = entries.map((entry, i) => `
             <div class="lb-entry rank-${i + 1}">
                 <div class="lb-rank">${medals[i] || (i + 1)}</div>
                 <div class="lb-info">
-                    <div class="lb-player-name" style="font-size:0.9rem; font-weight:bold; color:#ffd700; margin-bottom:3px;">
-                        👤 ${entry.userName || 'Anonymous'}
-                    </div>
+                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}</div>
                     <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
                 </div>
-            </div>
-        `).join('');
+            </div>`).join('');
         return;
     }
 
@@ -407,55 +634,14 @@ async function displayLeaderboard(category) {
     let leaderboard = [];
     try {
         const { getLeaderboardFromCloud } = await import('./firestore-sync.js');
-        const cloudLeaderboard = await getLeaderboardFromCloud(category);
-        if (cloudLeaderboard && cloudLeaderboard.length > 0) {
-            leaderboard = cloudLeaderboard;
-        } else {
-            leaderboard = getLeaderboard(category);
-        }
-    } catch (error) {
+        const cloud = await getLeaderboardFromCloud(category);
+        leaderboard = (cloud && cloud.length > 0) ? cloud : getLeaderboard(category);
+    } catch (e) {
         leaderboard = getLeaderboard(category);
     }
 
-    if (leaderboard.length === 0) {
-        content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
-        return;
-    }
-
-    _currentLeaderboardEntries = leaderboard;
-
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-    const html = leaderboard.map((entry, index) => {
-        let skinName = '';
-        if (entry.skin) {
-            skinName = SKINS[entry.skin] ? `• ${SKINS[entry.skin].name}` : `• ${entry.skin}`;
-        }
-        const userName = entry.userName || 'Anonymous';
-        const coinsDisplay = entry.coins != null ? ` <span style="color:#ffd700; font-size:0.8rem;">💰 ${entry.coins.toLocaleString()}</span>` : '';
-        const entryUpgrades = entry.settings?.upgrades || [];
-        const upgradesDisplay = entryUpgrades.length > 0
-            ? ` <span style="color:#c084fc; font-size:0.78rem;" title="${entryUpgrades.map(k => UPGRADES[k]?.name || k).join(', ')}">🛍️ ×${entryUpgrades.length}</span>`
-            : '';
-
-        return `
-        <div class="lb-entry rank-${index + 1}">
-            <div class="lb-rank">${medals[index] || (index + 1)}</div>
-            <div class="lb-info">
-                <div class="lb-player-name" style="font-size: 0.9rem; font-weight: bold; color: var(--primary); margin-bottom: 3px;">
-                    👤 ${userName}${coinsDisplay}${upgradesDisplay}
-                </div>
-                <div class="lb-score">${entry.score.toLocaleString()}</div>
-                <div class="lb-details">
-                    ${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}
-                </div>
-            </div>
-            <button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>
-        </div>
-    `;
-    }).join('');
-
-    content.innerHTML = html;
-    console.log('✅ [DISPLAY] Leaderboard displayed successfully');
+    _rawLeaderboard = leaderboard;
+    _renderLbContent();
 }
 
 // Export to window for HTML onclick
@@ -650,16 +836,12 @@ function handleLevelUp() {
         
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
 
-        if (isEarlyLevel) {
-            addCoins(5);
-            state.coinsEarned += 5;
+        {
+            const coinGain = isEarlyLevel ? state.level : state.level * 10;
+            addCoins(coinGain);
+            state.coinsEarned += coinGain;
             if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
-            showFloatingMessage(`💰 +5 מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
-        } else if (state.level % 2 === 0) {
-            addCoins(50);
-            state.coinsEarned += 50;
-            if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
-            showFloatingMessage(`💰 +50 מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+            showFloatingMessage(`💰 +${coinGain} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
         }
 
         // Education mode: a question on every level up. A wrong answer costs HP.
@@ -1191,8 +1373,9 @@ window.debugResetMoney = function() {
 
 window.debugRemoveUpgrade = function(key) {
     if (!key) { console.warn('❌ [DEBUG] debugRemoveUpgrade: provide upgrade key'); console.log('  Keys:', Object.keys(UPGRADES).join(', ')); return; }
-    if (removeUpgrade(key)) {
-        console.log(`✅ [DEBUG] Removed upgrade: ${key} (coins refunded)`);
+    const refund = removeUpgrade(key);
+    if (refund) {
+        console.log(`✅ [DEBUG] Removed upgrade: ${key} (refunded 💰${refund})`);
     } else {
         console.warn(`⚠️ [DEBUG] Upgrade not found or not owned: ${key}`);
     }
@@ -1702,20 +1885,46 @@ function renderHistoryStats() {
 }
 
 function renderHistoryList() {
-    const history = loadGameHistory();
+    renderFilterBar('hist-filter-bar', _histFilters, () => renderHistoryList());
+
+    const allHistory = loadGameHistory();
     const el = document.getElementById('history-list');
-    if (!history.length) {
+    if (!allHistory.length) {
         el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">עדיין אין היסטוריה — שחק משחק!</div>';
         return;
     }
+
+    const history = applyEntryFilters(allHistory, _histFilters);
     const medals = ['🥇','🥈','🥉'];
-    const sorted = [...history].sort((a,b) => b.score - a.score);
+    const sorted = [...allHistory].sort((a,b) => b.score - a.score);
     const topScores = new Set(sorted.slice(0,3).map(e => e.timestamp));
 
-    el.innerHTML = history.map((entry, i) => {
+    const countNote = countActiveFilters(_histFilters) > 0
+        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${history.length} / ${allHistory.length} משחקים</div>` : '';
+
+    if (!history.length) {
+        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">אין תוצאות עם הפילטרים הנוכחיים</div>`;
+        return;
+    }
+
+    // store for settings button access
+    _currentLeaderboardEntries = history;
+
+    el.innerHTML = countNote + history.map((entry, i) => {
         const isBest = topScores.has(entry.timestamp);
         const medal = isBest ? medals[sorted.findIndex(e => e.timestamp === entry.timestamp)] || '' : '';
         const skinName = SKINS[entry.skin]?.name || entry.skinName || entry.skin || '–';
+        const ups = entry.settings?.upgrades || [];
+        const upgradesTag = ups.length > 0
+            ? `<span style="color:#c084fc;font-size:0.68rem;">🛍️×${ups.length}</span>` : '';
+        const coinsEarned = entry.coins ?? entry.settings?.coins;
+        const coinsTag = coinsEarned != null
+            ? `<span style="color:#ffd700;font-size:0.68rem;">💰${coinsEarned}</span>` : '';
+        const showDevice = _histFilters.device === 'all';
+        const deviceTag = (showDevice && entry.settings?.isMobile != null)
+            ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
+        const settingsBtn = entry.settings
+            ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${isBest ? 'background:rgba(0,242,255,0.07);' : ''}">
             <div style="font-size:1.1rem;min-width:24px">${medal || (i+1)}</div>
             <div style="flex:1;font-size:0.8rem;">
@@ -1723,23 +1932,50 @@ function renderHistoryList() {
                     <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.6">שלב ${entry.level}</span>
                     <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
+                    ${upgradesTag}${coinsTag}${deviceTag}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
+            ${settingsBtn}
         </div>`;
     }).join('');
 }
 
 function renderBestsList(skinKey) {
-    const bests = getPersonalBests(skinKey, 10);
+    renderFilterBar('bests-filter-bar', _bestsFilters, () => renderBestsList(skinKey));
+
+    const allBests = getPersonalBests(skinKey, 50);
     const el = document.getElementById('bests-list');
-    if (!bests.length) {
+    if (!allBests.length) {
         el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">אין שיאים לקטגוריה זו עדיין</div>';
         return;
     }
+
+    const bests = applyEntryFilters(allBests, _bestsFilters);
     const medals = ['🥇','🥈','🥉'];
-    el.innerHTML = bests.map((entry, i) => {
+
+    const countNote = countActiveFilters(_bestsFilters) > 0
+        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${bests.length} / ${allBests.length} שיאים</div>` : '';
+
+    if (!bests.length) {
+        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">אין תוצאות עם הפילטרים הנוכחיים</div>`;
+        return;
+    }
+
+    // store for settings button access
+    _currentBestsEntries = bests;
+
+    el.innerHTML = countNote + bests.map((entry, i) => {
         const skinName = SKINS[entry.skin]?.name || entry.skinName || entry.skin || '–';
+        const ups = entry.settings?.upgrades || [];
+        const upgradesTag = ups.length > 0
+            ? ` <span style="color:#c084fc;font-size:0.72rem;" title="${ups.map(k => UPGRADES[k]?.name || k).join(', ')}">🛍️×${ups.length}</span>` : '';
+        const showDevice = _bestsFilters.device === 'all';
+        const deviceTag = (showDevice && entry.settings?.isMobile != null)
+            ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
+        const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
+        const settingsBtn = entry.settings
+            ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${i===0?'background:rgba(255,215,0,0.06);':''}">
             <div style="font-size:1.2rem;min-width:28px">${medals[i] || (i+1)}</div>
             <div style="flex:1;font-size:0.82rem;">
@@ -1747,12 +1983,25 @@ function renderBestsList(skinKey) {
                     <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.65">שלב ${entry.level}</span>
                     ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
+                    ${upgradesTag}${deviceTag}${eduTag}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
+            ${settingsBtn}
         </div>`;
     }).join('');
 }
+
+function showBestsEntrySettings(idx) {
+    const entry = _currentBestsEntries[idx];
+    if (!entry) return;
+    // Temporarily swap leaderboard entries so showEntrySettings works
+    const saved = _currentLeaderboardEntries;
+    _currentLeaderboardEntries = _currentBestsEntries;
+    showEntrySettings(idx);
+    _currentLeaderboardEntries = saved;
+}
+window.showBestsEntrySettings = showBestsEntrySettings;
 
 // Update the personal-best mini-strip in the main menu
 function refreshPersonalBest() {

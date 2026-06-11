@@ -1146,6 +1146,20 @@ kbd {
 .edu-quiz-feedback.ok { color: #2ecc71; }
 .edu-quiz-feedback.bad { color: var(--danger); }
 
+/* ===== FILTER BAR ===== */
+.filter-bar summary::-webkit-details-marker { display: none; }
+.filter-bar summary::marker { display: none; }
+.filter-bar {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.2);
+}
+.filter-bar[open] {
+    border-color: rgba(0,242,255,0.25);
+    background: rgba(0,242,255,0.04);
+}
+
 /* ===== PERSONAL HISTORY PANEL ===== */
 .history-tab {
     padding: 8px 18px;
