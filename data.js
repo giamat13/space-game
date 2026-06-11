@@ -436,7 +436,7 @@ export const UPGRADES = {
         key: 'dragon_homing_ricochet',
         name: '🐉 כדורי דרגון חכמים',
         desc: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר',
-        cost: 25000,
+        cost: 40000,
         skin: 'dragon'
     }
 };
@@ -627,7 +627,7 @@ export const state = {
     },
     dragonAbility: {
         ready: true,
-        cooldown: 25000,
+        cooldown: 40000,
         lastUsed: 0,
         invincibleUntil: 0
     },
