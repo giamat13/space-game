@@ -913,7 +913,7 @@ function _renderLbContent() {
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
-                    👤 ${userName}${isDevUser(userName)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
+                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
@@ -925,13 +925,10 @@ function _renderLbContent() {
 }
 
 // ===== DEVELOPER BADGE =====
-// Hardcoded developer account identifiers
-const DEV_IDENTIFIERS = new Set(['giamat13', 'ita.furst@gmail.com', 'ita.furst']);
+const DEV_UIDS = new Set(['DKtEN7zq6MchwPdYU8FMahf32wu2', 'uIAbJtHx5vasN0vczBe0aooYv2B3']);
 
-function isDevUser(userName) {
-    if (!userName) return false;
-    const n = userName.toLowerCase().trim();
-    return DEV_IDENTIFIERS.has(n) || n.startsWith('ita.furst');
+function isDevUser(userId) {
+    return !!userId && DEV_UIDS.has(userId);
 }
 
 function devBadge() {
@@ -999,7 +996,7 @@ function _renderSrContent(goalKey) {
         const skinLabel = SKINS[e.skin]?.name || e.skin || '';
         const settingsBtn = e.settings
             ? `<button onclick="window.__srShowSettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
-        const dev = isDevUser(e.userName) ? devBadge() : '';
+        const dev = isDevUser(e.userId) ? devBadge() : '';
         return `<div class="lb-entry rank-${i+1}">
             <div class="lb-rank">${medals[i] || (i+1)}</div>
             <div class="lb-info" style="flex:1;">
@@ -1069,7 +1066,7 @@ async function displayLeaderboard(categoryOrSkinSel) {
             <div class="lb-entry rank-${i+1}">
                 <div class="lb-rank">${medals[i] || (i+1)}</div>
                 <div class="lb-info">
-                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}${isDevUser(entry.userName)?devBadge():''}</div>
+                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}${isDevUser(entry.userId)?devBadge():''}</div>
                     <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
                 </div>
             </div>`).join('');

@@ -49,6 +49,12 @@ service cloud.firestore {
       }
     }
 
+    match /speedrun/{goalKey}/entries/{userId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
