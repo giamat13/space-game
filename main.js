@@ -256,6 +256,10 @@ function showEntrySettings(idx) {
     // Fallback note
     document.getElementById('es-fallback-note').style.display = isFallback ? 'block' : 'none';
 
+    // Hide controls tab on mobile (no keyboard)
+    const controlsBtn = document.querySelector('.es-filter[data-cat="controls"]');
+    if (controlsBtn) controlsBtn.style.display = s.isMobile ? 'none' : '';
+
     // Store settings on container for filter updates
     container._esSettings = s;
 
@@ -318,7 +322,7 @@ function renderEntrySettingsBody(s, cat) {
                 : `🖥️ ${t('deviceDesktop').replace(/^🖥️\s*/, '')}`)}
         </div>`,
 
-        controls: `<div class="es-group" data-cat="controls">
+        controls: s.isMobile ? '' : `<div class="es-group" data-cat="controls">
             <div class="es-group-title">${t('tabControls')}</div>
             ${row(t('controlLabel'), s.controlType === 'mouse' ? t('controlMouse') : t('controlArrows'))}
             ${row(t('shootKeyLabel'), `<kbd>${fmtKey(s.shoot)}</kbd>`)}
