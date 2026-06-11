@@ -527,11 +527,6 @@ function initGame() {
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
 
-    if (hasUpgrade('double_ammo')) {
-        state.maxAmmo *= 2;
-        state.ammo = state.maxAmmo;
-    }
-
     DOM.scoreEl.innerText = '0';
     DOM.levelEl.innerText = state.level;
     updateHPUI();
@@ -630,19 +625,15 @@ function handleLevelUp() {
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
 
         if (isEarlyLevel) {
-            const baseCoins = 5;
-            const earned = hasUpgrade('coin_boost') ? Math.round(baseCoins * 1.5) : baseCoins;
-            addCoins(earned);
-            state.coinsEarned += earned;
+            addCoins(5);
+            state.coinsEarned += 5;
             if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
-            showFloatingMessage(`💰 +${earned} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+            showFloatingMessage(`💰 +5 מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
         } else if (state.level % 2 === 0) {
-            const baseCoins = 50;
-            const earned = hasUpgrade('coin_boost') ? Math.round(baseCoins * 1.5) : baseCoins;
-            addCoins(earned);
-            state.coinsEarned += earned;
+            addCoins(50);
+            state.coinsEarned += 50;
             if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
-            showFloatingMessage(`💰 +${earned} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+            showFloatingMessage(`💰 +50 מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
         }
 
         // Education mode: a question on every level up. A wrong answer costs HP.
