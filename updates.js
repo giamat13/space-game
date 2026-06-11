@@ -1,4 +1,4 @@
-import { DOM, state, gameRules, deviceMode } from './data.js';
+import { DOM, state, gameRules, deviceMode, hasUpgrade } from './data.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
@@ -52,6 +52,36 @@ export function updateBullets() {
 export function updateEnemyBullets() {
     for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
         let eb = state.enemyBullets[i];
+        // Homing ricochet: steer toward nearest enemy.
+        // Uses wrapper-relative coords (same as eb.x/eb.y) so we must read the
+        // enemy's CSS position, NOT getBoundingClientRect (viewport coords).
+        if (eb.homing && state.enemies.length > 0) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const en of state.enemies) {
+                const ex = (parseFloat(en.el.style.left) || 0) + 25;
+                const ey = en.y + 25;
+                const dist = Math.hypot(eb.x - ex, eb.y - ey);
+                if (dist < nearestDist) { nearestDist = dist; nearest = { ex, ey }; }
+            }
+            if (nearest) {
+                const dx = nearest.ex - eb.x;
+                const dy = nearest.ey - eb.y;
+                const desired = Math.atan2(dy, dx);
+                const current = Math.atan2(eb.vy, eb.vx);
+                // Smallest signed angle difference, normalized to [-PI, PI]
+                let diff = desired - current;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff < -Math.PI) diff += 2 * Math.PI;
+                const maxTurn = 0.25; // ~14° per frame for a snappy but smooth lock-on
+                const clamped = Math.max(-maxTurn, Math.min(maxTurn, diff));
+                const newAngle = current + clamped;
+                const speed = eb.speed || Math.hypot(eb.vx, eb.vy) || 8;
+                eb.vx = Math.cos(newAngle) * speed;
+                eb.vy = Math.sin(newAngle) * speed;
+            }
+        }
+
         eb.x += eb.vx;
         eb.y += eb.vy;
         eb.el.style.left = eb.x + 'px';
@@ -67,6 +97,9 @@ export function updateEnemyBullets() {
                     eb.vx = -eb.vx;
                     eb.vy = -(Math.abs(eb.vy) + 5);
                     eb.ricochet = true;
+                    eb.homing = hasUpgrade('dragon_homing_ricochet');
+                    // Lock in a constant flight speed for the homing steering
+                    eb.speed = Math.max(8, Math.hypot(eb.vx, eb.vy));
                     eb.damage = 40;
                     eb.el.style.background = 'radial-gradient(circle, #ffffff, #ffff00, #ffaa33, #ff6600)';
                     eb.el.style.boxShadow = '0 0 30px #ffaa33, 0 0 18px #ff6600, 0 0 8px #fff';

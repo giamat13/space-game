@@ -174,6 +174,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
         console.log(`☁️ [CLOUD] Saving score: ${score} pts, Level ${level}, Skin: ${skinKey}`);
 
         // שמירה ב-collection הספציפי לסקין
+        const currentCoins = parseInt(getCookie('playerCoins') || '0');
         const scoreData = {
             userId: user.uid,
             userName: userName || user.displayName || user.email?.split('@')[0] || 'Anonymous',
@@ -181,6 +182,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
             score: score,
             level: level,
             skin: skinKey,
+            coins: currentCoins,
             timestamp: serverTimestamp(),
             date: new Date().toLocaleDateString('he-IL'),
             settings: settings || null
@@ -359,6 +361,117 @@ export async function unlockSkinInCloud(skinKey) {
     }
 }
 
+// ===== FORCE SET COINS (bypasses max-merge, used for resets) =====
+export async function forceSetCoins(amount) {
+    if (!auth || !db) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        await setDoc(doc(db, 'users', user.uid), { coins: amount, lastUpdated: serverTimestamp() }, { merge: true });
+        try {
+            await setDoc(doc(db, 'moneyLeaderboard', user.uid), {
+                userId: user.uid,
+                userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+                email: user.email,
+                coins: amount,
+                lastUpdated: serverTimestamp()
+            });
+        } catch (e) {
+            console.warn('⚠️ [SYNC] Money leaderboard write failed (deploy Firebase rules):', e.code);
+        }
+    } catch (e) {
+        console.error('❌ [SYNC] forceSetCoins failed:', e);
+    }
+}
+
+// ===== SYNC COINS =====
+export async function syncCoins(localCoins) {
+    if (!auth || !db) return localCoins;
+    const user = auth.currentUser;
+    if (!user) return localCoins;
+
+    try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudCoins = userDoc.exists() ? (userDoc.data().coins || 0) : 0;
+        const merged = Math.max(cloudCoins, localCoins);
+        await setDoc(doc(db, 'users', user.uid), { coins: merged, lastUpdated: serverTimestamp() }, { merge: true });
+        setCookie('playerCoins', merged.toString());
+
+        // Update money leaderboard — separate try so a permissions error here
+        // doesn't roll back the coins save above.
+        try {
+            const moneyRef = doc(db, 'moneyLeaderboard', user.uid);
+            const existing = await getDoc(moneyRef);
+            if (!existing.exists() || merged > (existing.data().coins || 0)) {
+                await setDoc(moneyRef, {
+                    userId: user.uid,
+                    userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+                    email: user.email,
+                    coins: merged,
+                    lastUpdated: serverTimestamp()
+                });
+            }
+        } catch (leaderboardErr) {
+            console.warn('⚠️ [SYNC] Money leaderboard write failed (deploy Firebase rules):', leaderboardErr.code);
+        }
+
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing coins:', e);
+        return localCoins;
+    }
+}
+
+// ===== SYNC UPGRADES =====
+// overwriteCloud=true: local list is authoritative (used after removal).
+// overwriteCloud=false (default): merge cloud + local (used on login).
+export async function syncUpgrades(localUpgrades, overwriteCloud = false) {
+    if (!auth || !db) return localUpgrades;
+    const user = auth.currentUser;
+    if (!user) return localUpgrades;
+
+    try {
+        let final;
+        if (overwriteCloud) {
+            final = localUpgrades;
+        } else {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const cloudUpgrades = userDoc.exists() ? (userDoc.data().ownedUpgrades || []) : [];
+            final = [...new Set([...cloudUpgrades, ...localUpgrades])];
+        }
+        await setDoc(doc(db, 'users', user.uid), { ownedUpgrades: final, lastUpdated: serverTimestamp() }, { merge: true });
+        setCookie('ownedUpgrades', JSON.stringify(final));
+        return final;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing upgrades:', e);
+        return localUpgrades;
+    }
+}
+
+// ===== GET MONEY LEADERBOARD =====
+export async function getMoneyLeaderboard() {
+    if (!db) return [];
+    try {
+        const q = query(collection(db, 'moneyLeaderboard'), orderBy('coins', 'desc'), limit(50));
+        const snap = await getDocs(q);
+        const seen = new Set();
+        const results = [];
+        snap.forEach(d => {
+            const data = d.data();
+            const uid = data.userId || d.id;
+            if (!seen.has(uid)) {
+                seen.add(uid);
+                results.push({ id: d.id, ...data });
+                if (results.length === 10) return;
+            }
+        });
+        return results;
+    } catch (e) {
+        console.error('❌ [CLOUD] Error fetching money leaderboard:', e);
+        return [];
+    }
+}
+
 // ===== SYNC ALL DATA =====
 export async function syncAllData() {
     if (!auth) {
@@ -373,12 +486,24 @@ export async function syncAllData() {
     }
 
     console.log('🔄 [SYNC] Starting full sync...');
-    
+
     try {
-        await Promise.all([
+        const localCoins = parseInt(getCookie('playerCoins') || '0');
+        const localUpgrades = JSON.parse(getCookie('ownedUpgrades') || '[]');
+        const [, , mergedCoins, mergedUpgrades] = await Promise.all([
             syncUnlockedSkins(),
-            syncMaxLevel()
+            syncMaxLevel(),
+            syncCoins(localCoins),
+            syncUpgrades(localUpgrades)
         ]);
+        if (mergedCoins !== undefined) {
+            setCookie('playerCoins', mergedCoins.toString());
+            const coinsEl = document.getElementById('coins');
+            if (coinsEl) coinsEl.innerText = mergedCoins;
+        }
+        if (mergedUpgrades !== undefined) {
+            setCookie('ownedUpgrades', JSON.stringify(mergedUpgrades));
+        }
         console.log('✅ [SYNC] Full sync complete');
     } catch (error) {
         console.error('❌ [SYNC] Error during full sync:', error);

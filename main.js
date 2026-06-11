@@ -1,9 +1,9 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
-import { initFirestoreSync } from './firestore-sync.js';
+import { initFirestoreSync, getMoneyLeaderboard } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { t, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
@@ -20,6 +20,7 @@ loadUnlockedSkins();
 loadKeyBindings();
 loadGameRules();
 loadDeviceMode();
+initCoinsUI();
 loadEduConfig();        // Education mode config (may come from a teacher link)
 loadQuestionBank();     // Load questions.json (async; fallback bundled)
 updateSkinOptions();
@@ -131,6 +132,82 @@ function closeLeaderboard() {
     document.getElementById('main-menu').style.display = 'block';
     document.getElementById('floating-settings-btn').style.display = 'flex';
     console.log('✅ [LEADERBOARD] Leaderboard closed');
+}
+
+// ===== SHOP =====
+
+function showShop() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('floating-settings-btn').style.display = 'none';
+    const shopEl = document.getElementById('shop-container');
+    shopEl.style.display = 'block';
+    document.getElementById('shop-coins-display').innerText = getCoins();
+    renderShopItems();
+}
+
+function closeShop() {
+    document.getElementById('shop-container').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('floating-settings-btn').style.display = 'flex';
+}
+
+function renderShopItems() {
+    const container = document.getElementById('shop-items');
+    const coins = getCoins();
+    container.innerHTML = '';
+    Object.values(UPGRADES).forEach(upg => {
+        const owned = hasUpgrade(upg.key);
+        const canAfford = coins >= upg.cost;
+        const item = document.createElement('div');
+        item.style.cssText = `
+            padding: 14px 16px;
+            background: ${owned ? 'rgba(0,255,100,0.08)' : 'rgba(255,255,255,0.05)'};
+            border: 1px solid ${owned ? 'rgba(0,255,100,0.4)' : canAfford ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)'};
+            border-radius: 10px;
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        `;
+        const info = document.createElement('div');
+        info.innerHTML = `
+            <div style="font-size:0.95rem; font-weight:bold; color:${owned ? '#00ff64' : '#fff'}; margin-bottom:4px;">${upg.name}</div>
+            <div style="font-size:0.78rem; opacity:0.75;">${upg.desc}</div>
+            ${upg.skin ? `<div style="font-size:0.72rem; opacity:0.5; margin-top:3px;">⚠️ רק לסקין ${upg.skin}</div>` : ''}
+        `;
+        const btn = document.createElement('button');
+        if (owned) {
+            btn.textContent = '✅ נרכש';
+            btn.disabled = true;
+            btn.style.cssText = 'background:rgba(0,255,100,0.15); border-color:#00ff64; color:#00ff64; padding:8px 14px; font-size:0.8rem; cursor:default; min-width:80px;';
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = `↩ החזר (💰${upg.cost})`;
+            removeBtn.style.cssText = 'background:rgba(255,77,77,0.15); border-color:#ff4d4d; color:#ff4d4d; padding:6px 10px; font-size:0.72rem; margin-top:6px; width:100%; cursor:pointer;';
+            removeBtn.onclick = () => {
+                if (removeUpgrade(upg.key)) {
+                    document.getElementById('shop-coins-display').innerText = getCoins();
+                    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
+                    renderShopItems();
+                }
+            };
+            info.appendChild(removeBtn);
+        } else {
+            btn.textContent = `💰 ${upg.cost}`;
+            btn.disabled = !canAfford;
+            btn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'}; border-color:${canAfford ? '#ffd700' : '#555'}; color:${canAfford ? '#ffd700' : '#555'}; padding:8px 14px; font-size:0.85rem; min-width:80px; cursor:${canAfford ? 'pointer' : 'default'};`;
+            btn.onclick = () => {
+                if (buyUpgrade(upg.key)) {
+                    document.getElementById('shop-coins-display').innerText = getCoins();
+                    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
+                    renderShopItems();
+                }
+            };
+        }
+        item.appendChild(info);
+        item.appendChild(btn);
+        container.appendChild(item);
+    });
 }
 
 // ===== ENTRY SETTINGS VIEW =====
@@ -269,68 +346,77 @@ window.setEntrySettingsFilter = setEntrySettingsFilter;
 async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
     const content = document.getElementById('leaderboard-content');
-    
+
     if (!content) {
         console.error('❌ [DISPLAY] ERROR: leaderboard-content element not found!');
         return;
     }
-    
-    // Show loading message
+
     content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
-    
-    // Try to get from cloud first
+
+    // Money leaderboard
+    if (category === 'money') {
+        let entries = [];
+        try {
+            entries = await getMoneyLeaderboard();
+        } catch (e) {
+            console.warn('⚠️ [DISPLAY] Money leaderboard fetch failed');
+        }
+        if (entries.length === 0) {
+            content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
+            return;
+        }
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+        content.innerHTML = entries.map((entry, i) => `
+            <div class="lb-entry rank-${i + 1}">
+                <div class="lb-rank">${medals[i] || (i + 1)}</div>
+                <div class="lb-info">
+                    <div class="lb-player-name" style="font-size:0.9rem; font-weight:bold; color:#ffd700; margin-bottom:3px;">
+                        👤 ${entry.userName || 'Anonymous'}
+                    </div>
+                    <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
+                </div>
+            </div>
+        `).join('');
+        return;
+    }
+
+    // Regular leaderboard
     let leaderboard = [];
     try {
         const { getLeaderboardFromCloud } = await import('./firestore-sync.js');
         const cloudLeaderboard = await getLeaderboardFromCloud(category);
         if (cloudLeaderboard && cloudLeaderboard.length > 0) {
-            console.log(`✅ [DISPLAY] Got ${cloudLeaderboard.length} entries from cloud`);
             leaderboard = cloudLeaderboard;
         } else {
-            // Fallback to local
             leaderboard = getLeaderboard(category);
-            console.log(`📊 [DISPLAY] Using local data: ${leaderboard.length} entries`);
         }
     } catch (error) {
-        console.log('⚠️ [DISPLAY] Cloud fetch failed, using local data');
         leaderboard = getLeaderboard(category);
     }
-    
-    console.log(`📊 [DISPLAY] Retrieved ${leaderboard.length} entries`);
-    
+
     if (leaderboard.length === 0) {
-        console.log('⚠️ [DISPLAY] No entries found, showing empty message');
         content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
         return;
     }
-    
+
     _currentLeaderboardEntries = leaderboard;
 
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-    console.log('📊 [DISPLAY] Generating HTML for entries...');
     const html = leaderboard.map((entry, index) => {
-        console.log(`📊 [DISPLAY] Entry ${index + 1}:`, entry);
-
-        // Get skin name, or use the skin key if skin doesn't exist in SKINS
         let skinName = '';
         if (entry.skin) {
-            if (SKINS[entry.skin]) {
-                skinName = `• ${SKINS[entry.skin].name}`;
-            } else {
-                skinName = `• ${entry.skin}`;
-                console.warn(`⚠️ [DISPLAY] Unknown skin: ${entry.skin}`);
-            }
+            skinName = SKINS[entry.skin] ? `• ${SKINS[entry.skin].name}` : `• ${entry.skin}`;
         }
-
-        // Get user name
         const userName = entry.userName || 'Anonymous';
+        const coinsDisplay = entry.coins != null ? ` <span style="color:#ffd700; font-size:0.8rem;">💰 ${entry.coins.toLocaleString()}</span>` : '';
 
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size: 0.9rem; font-weight: bold; color: var(--primary); margin-bottom: 3px;">
-                    👤 ${userName}
+                    👤 ${userName}${coinsDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">
@@ -341,7 +427,7 @@ async function displayLeaderboard(category) {
         </div>
     `;
     }).join('');
-    
+
     content.innerHTML = html;
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
@@ -350,6 +436,8 @@ async function displayLeaderboard(category) {
 console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
 window.closeLeaderboard = closeLeaderboard;
+window.showShop = showShop;
+window.closeShop = closeShop;
 console.log('✅ [EXPORT] Functions exported:', {
     showLeaderboard: typeof window.showLeaderboard,
     closeLeaderboard: typeof window.closeLeaderboard
@@ -439,6 +527,11 @@ function initGame() {
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
 
+    if (hasUpgrade('double_ammo')) {
+        state.maxAmmo *= 2;
+        state.ammo = state.maxAmmo;
+    }
+
     DOM.scoreEl.innerText = '0';
     DOM.levelEl.innerText = state.level;
     updateHPUI();
@@ -500,7 +593,8 @@ console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 // ===== LEVEL UP SYSTEM =====
 
 function handleLevelUp() {
-    const threshold = state.level < state.startingLevel ? 100 : 1000;
+    const isEarlyLevel = state.level < state.startingLevel;
+    const threshold = isEarlyLevel ? 100 : 1000;
     if (state.score >= state.lastLevelScore + threshold) {
         state.lastLevelScore += threshold;
         state.level++;
@@ -534,6 +628,22 @@ function handleLevelUp() {
         }
         
         showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
+
+        if (isEarlyLevel) {
+            const baseCoins = 5;
+            const earned = hasUpgrade('coin_boost') ? Math.round(baseCoins * 1.5) : baseCoins;
+            addCoins(earned);
+            state.coinsEarned += earned;
+            if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
+            showFloatingMessage(`💰 +${earned} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+        } else if (state.level % 2 === 0) {
+            const baseCoins = 50;
+            const earned = hasUpgrade('coin_boost') ? Math.round(baseCoins * 1.5) : baseCoins;
+            addCoins(earned);
+            state.coinsEarned += earned;
+            if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
+            showFloatingMessage(`💰 +${earned} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+        }
 
         // Education mode: a question on every level up. A wrong answer costs HP.
         if (isEduActive()) {
@@ -1050,6 +1160,27 @@ window.spawn = function(type) {
     return true;
 };
 
+window.DebugAddMoney = function(amount) {
+    const n = parseInt(amount);
+    if (isNaN(n)) { console.warn('❌ [DEBUG] DebugAddMoney: provide a number'); return; }
+    const total = addCoins(n);
+    console.log(`💰 [DEBUG] Added ${n} coins. New total: ${total}`);
+};
+
+window.debugResetMoney = function() {
+    resetCoins();
+    console.log('💰 [DEBUG] Coins reset to 0');
+};
+
+window.debugRemoveUpgrade = function(key) {
+    if (!key) { console.warn('❌ [DEBUG] debugRemoveUpgrade: provide upgrade key'); console.log('  Keys:', Object.keys(UPGRADES).join(', ')); return; }
+    if (removeUpgrade(key)) {
+        console.log(`✅ [DEBUG] Removed upgrade: ${key} (coins refunded)`);
+    } else {
+        console.warn(`⚠️ [DEBUG] Upgrade not found or not owned: ${key}`);
+    }
+};
+
 console.log('🛠️ [DEBUG] Debug commands available:');
 console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
@@ -1057,6 +1188,9 @@ console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
 console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "red", "orange"/"elite", "green", "blue"');
 console.log('  - DebugUnlockEdu() - Remove the education lock on this device');
+console.log('  - DebugAddMoney(number) - Add coins to your balance');
+console.log('  - debugResetMoney() - Reset coins to 0');
+console.log('  - debugRemoveUpgrade("key") - Remove an owned upgrade (refunds coins)');
 
 // ===== SETTINGS MENU =====
 

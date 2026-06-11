@@ -8,17 +8,22 @@ export const DOM = {
     hpText: document.getElementById('hp-text'),
     scoreEl: document.getElementById('score'),
     levelEl: document.getElementById('level'),
+    coinsEl: document.getElementById('coins'),
+    coinsEarnedEl: document.getElementById('coins-earned'),
     overlay: document.getElementById('overlay'),
     ammoBar: document.getElementById('top-ammo-bar'),
     ammoText: document.getElementById('ammo-text')
 };
 
 // Import Firestore sync functions
-import { 
-    syncUnlockedSkins, 
-    syncMaxLevel, 
-    saveScoreToCloud, 
-    unlockSkinInCloud 
+import {
+    syncUnlockedSkins,
+    syncMaxLevel,
+    saveScoreToCloud,
+    unlockSkinInCloud,
+    syncCoins,
+    syncUpgrades,
+    forceSetCoins
 } from './firestore-sync.js';
 
 // Skin Configuration
@@ -406,6 +411,92 @@ export async function saveMaxLevel(level) {
     }
 }
 
+// Coins (Money) System
+export function getCoins() {
+    const saved = getCookie('playerCoins');
+    return saved ? parseInt(saved) : 0;
+}
+
+export function addCoins(amount) {
+    const current = getCoins();
+    const newTotal = current + amount;
+    setCookie('playerCoins', newTotal.toString());
+    if (DOM.coinsEl) DOM.coinsEl.innerText = newTotal;
+    syncCoins(newTotal).catch(() => {});
+    return newTotal;
+}
+
+export function initCoinsUI() {
+    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
+}
+
+// Shop Upgrades
+export const UPGRADES = {
+    dragon_homing_ricochet: {
+        key: 'dragon_homing_ricochet',
+        name: '🐉 כדורי דרגון חכמים',
+        desc: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר',
+        cost: 50000,
+        skin: 'dragon'
+    },
+    coin_boost: {
+        key: 'coin_boost',
+        name: '💰 בונוס מטבעות',
+        desc: 'מרוויחים 50% יותר מטבעות בכל עלייה בשלב',
+        cost: 75000,
+        skin: null
+    },
+    double_ammo: {
+        key: 'double_ammo',
+        name: '⚡ כפל תחמושת',
+        desc: 'מקסימום התחמושת מוכפל לכל הסקינים',
+        cost: 50000,
+        skin: null
+    }
+};
+
+export function getOwnedUpgrades() {
+    const saved = getCookie('ownedUpgrades');
+    return saved ? JSON.parse(saved) : [];
+}
+
+export function hasUpgrade(key) {
+    return getOwnedUpgrades().includes(key);
+}
+
+export function buyUpgrade(key) {
+    const upgrade = UPGRADES[key];
+    if (!upgrade) return false;
+    if (hasUpgrade(key)) return false;
+    const coins = getCoins();
+    if (coins < upgrade.cost) return false;
+    addCoins(-upgrade.cost);
+    const owned = getOwnedUpgrades();
+    owned.push(key);
+    setCookie('ownedUpgrades', JSON.stringify(owned));
+    syncUpgrades(owned).catch(() => {});
+    return true;
+}
+
+export function removeUpgrade(key) {
+    const upgrade = UPGRADES[key];
+    if (!upgrade) return false;
+    const owned = getOwnedUpgrades();
+    const idx = owned.indexOf(key);
+    if (idx === -1) return false;
+    owned.splice(idx, 1);
+    setCookie('ownedUpgrades', JSON.stringify(owned));
+    addCoins(upgrade.cost);
+    syncUpgrades(owned, true).catch(() => {});
+    return true;
+}
+
+export function resetCoins() {
+    setCookie('playerCoins', '0');
+    if (DOM.coinsEl) DOM.coinsEl.innerText = 0;
+    forceSetCoins(0).catch(() => {});
+}
+
 // Leaderboard Management
 export function getLeaderboard(skinKey = 'overall') {
     const cookieName = `leaderboard_${skinKey}`;
@@ -522,7 +613,8 @@ export const state = {
     },
     isDebugGame: false,
     paused: false,
-    startTime: 0
+    startTime: 0,
+    coinsEarned: 0
 };
 
 export function resetState() {
@@ -574,5 +666,7 @@ export function resetState() {
     state.isDebugGame = false;
     state.paused = false;
     state.startTime = Date.now();
+    state.coinsEarned = 0;
+    if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = '+0';
     console.log('✅ [STATE] Reset complete');
 }
