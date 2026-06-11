@@ -450,20 +450,29 @@ window.__filterReset = function(cid) {
 };
 
 // ===== LEADERBOARD TAB STATE =====
-let _lbMode     = 'score';   // 'score' | 'speedrun' | 'money'
-let _lbSkinKey  = 'overall';
-let _lbSrGoal   = SPEEDRUN_GOALS[0]?.key || 'score_10k';
+let _lbMode      = 'score';   // 'score' | 'speedrun' | 'money'
+let _lbSkinSel   = [];        // [] = all/overall; ['classic','phoenix'] = multi-select
+let _lbSrGoal    = SPEEDRUN_GOALS[0]?.key || 'score_10k';
+let _lbSrSkinSel = [];        // skin filter for speedrun
 
+// All named skins (no 'overall' entry — 'overall' is the empty-selection state)
 const LB_SKINS = [
-    { key: 'overall',     label: '🏆 כללי'    },
-    { key: 'classic',     label: 'Classic'    },
+    { key: 'classic',     label: 'Classic'     },
     { key: 'interceptor', label: 'Interceptor' },
-    { key: 'tanker',      label: 'Tanker'     },
-    { key: 'phoenix',     label: 'Phoenix'    },
-    { key: 'vortex',      label: 'Vortex'     },
-    { key: 'joker',       label: 'Joker'      },
-    { key: 'dragon',      label: '🐉 Dragon'  },
+    { key: 'tanker',      label: 'Tanker'      },
+    { key: 'phoenix',     label: 'Phoenix'     },
+    { key: 'vortex',      label: 'Vortex'      },
+    { key: 'joker',       label: 'Joker'       },
+    { key: 'dragon',      label: '🐉 Dragon'   },
 ];
+
+function _skinSubHtml(sel, onClickFn) {
+    const isAll = sel.length === 0;
+    return `<button class="lb-tab${isAll?' active':''}" onclick="${onClickFn}(null)">🏆 כללי</button>` +
+        LB_SKINS.map(s =>
+            `<button class="lb-tab${sel.includes(s.key)?' active':''}" onclick="${onClickFn}('${s.key}')">${s.label}</button>`
+        ).join('');
+}
 
 function renderLbTabs() {
     const modeEl = document.getElementById('lb-mode-tabs');
@@ -482,28 +491,53 @@ function renderLbTabs() {
 
     if (_lbMode === 'score') {
         subEl.style.display = '';
-        subEl.innerHTML = LB_SKINS.map(s =>
-            `<button class="lb-tab${_lbSkinKey===s.key?' active':''}" onclick="window.__lbSetSkin('${s.key}')">${s.label}</button>`
-        ).join('');
+        subEl.innerHTML = _skinSubHtml(_lbSkinSel, 'window.__lbToggleSkin');
     } else if (_lbMode === 'speedrun') {
         const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
-        subEl.style.display = '';
-        subEl.innerHTML = allGoals.map(g =>
-            `<button class="lb-tab${_lbSrGoal===g.key?' active':''}${g.key.startsWith('custom_')?` style="border-style:dashed;"`:''}" onclick="window.__lbSetGoal('${g.key}')">${g.icon} ${g.label}${g.key.startsWith('custom_')?` <span onclick="event.stopPropagation();window.__lbRemoveGoal('${g.key}')" style="opacity:0.5;margin-right:4px;" title="מחק">✕</span>`:''}</button>`
+        const goalBtns = allGoals.map(g =>
+            `<button class="lb-tab${_lbSrGoal===g.key?' active':''}${g.key.startsWith('custom_')?' style="border-style:dashed;"':''}" onclick="window.__lbSetGoal('${g.key}')">${g.icon} ${g.label}${g.key.startsWith('custom_')?` <span onclick="event.stopPropagation();window.__lbRemoveGoal('${g.key}')" style="opacity:0.5;margin-right:4px;" title="מחק">✕</span>`:''}</button>`
         ).join('') + `<button class="lb-tab" onclick="window.__lbAddCustomGoal()" style="border-style:dashed;opacity:0.65;">＋ מותאם</button>`;
+
+        const skinBtns = `<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:5px;padding-top:5px;display:flex;gap:4px;flex-wrap:wrap;justify-content:center;font-size:0.75rem;">
+            ${_skinSubHtml(_lbSrSkinSel, 'window.__lbSrToggleSkin')}
+        </div>`;
+
+        subEl.style.display = '';
+        subEl.innerHTML = goalBtns + skinBtns;
     } else {
         subEl.style.display = 'none';
     }
 }
 
 function _lbTriggerDisplay() {
-    if (_lbMode === 'score')    displayLeaderboard(_lbSkinKey);
+    if (_lbMode === 'score')         displayLeaderboard(_lbSkinSel);
     else if (_lbMode === 'speedrun') displaySpeedrunLeaderboard(_lbSrGoal);
-    else                        displayLeaderboard('money');
+    else                             displayLeaderboard('money');
 }
 
+// Multi-select skin toggle (regular LB)
+window.__lbToggleSkin = function(key) {
+    if (!key) { _lbSkinSel = []; }
+    else {
+        const idx = _lbSkinSel.indexOf(key);
+        if (idx >= 0) _lbSkinSel.splice(idx, 1); else _lbSkinSel.push(key);
+    }
+    renderLbTabs();
+    displayLeaderboard(_lbSkinSel);
+};
+
+// Multi-select skin toggle (speedrun)
+window.__lbSrToggleSkin = function(key) {
+    if (!key) { _lbSrSkinSel = []; }
+    else {
+        const idx = _lbSrSkinSel.indexOf(key);
+        if (idx >= 0) _lbSrSkinSel.splice(idx, 1); else _lbSrSkinSel.push(key);
+    }
+    renderLbTabs();
+    _renderSrContent(_lbSrGoal);
+};
+
 window.__lbSetMode = function(mode) { _lbMode = mode; renderLbTabs(); _lbTriggerDisplay(); };
-window.__lbSetSkin = function(key)  { _lbSkinKey = key; renderLbTabs(); displayLeaderboard(key); };
 window.__lbSetGoal = function(key)  { _lbSrGoal = key; renderLbTabs(); displaySpeedrunLeaderboard(key); };
 window.__lbRemoveGoal = function(key) {
     removeCustomSpeedrunGoal(key);
@@ -944,7 +978,12 @@ function _renderSrContent(goalKey) {
     const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
     const goal = allGoals.find(g => g.key === goalKey);
 
-    const filtered = applyEntryFilters(_rawSpeedrunEntries, _lbFilters);
+    // Apply skin filter first, then entry filters
+    let base = _rawSpeedrunEntries;
+    if (_lbSrSkinSel.length > 0) {
+        base = base.filter(e => _lbSrSkinSel.includes(e.skin));
+    }
+    const filtered = applyEntryFilters(base, _lbFilters);
 
     if (!filtered.length) {
         const empty = _rawSpeedrunEntries.length === 0
@@ -1003,23 +1042,32 @@ async function displaySpeedrunLeaderboard(goalKey) {
     _renderSrContent(goalKey);
 }
 
-async function displayLeaderboard(category) {
-    console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
+// Merge entries from multiple skins: deduplicate by user, keep best score
+function _mergeSkinEntries(arrays) {
+    const byUser = new Map();
+    for (const e of arrays.flat()) {
+        const uid = e.userId || e.userName || '';
+        if (!byUser.has(uid) || byUser.get(uid).score < e.score) byUser.set(uid, e);
+    }
+    return [...byUser.values()].sort((a, b) => b.score - a.score).slice(0, 10);
+}
+
+async function displayLeaderboard(categoryOrSkinSel) {
     const content = document.getElementById('leaderboard-content');
-    if (!content) { console.error('❌ [DISPLAY] leaderboard-content not found'); return; }
+    if (!content) return;
 
     content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
 
-    // Money leaderboard (no filter support — no settings data)
-    if (category === 'money') {
+    // Money leaderboard
+    if (categoryOrSkinSel === 'money') {
         document.getElementById('lb-filter-bar').innerHTML = '';
         let entries = [];
         try { entries = await getMoneyLeaderboard(); } catch (e) {}
-        if (entries.length === 0) { content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`; return; }
-        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+        if (!entries.length) { content.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`; return; }
+        const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
         content.innerHTML = entries.map((entry, i) => `
-            <div class="lb-entry rank-${i + 1}">
-                <div class="lb-rank">${medals[i] || (i + 1)}</div>
+            <div class="lb-entry rank-${i+1}">
+                <div class="lb-rank">${medals[i] || (i+1)}</div>
                 <div class="lb-info">
                     <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}${isDevUser(entry.userName)?devBadge():''}</div>
                     <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
@@ -1028,17 +1076,38 @@ async function displayLeaderboard(category) {
         return;
     }
 
-    // Regular leaderboard
-    let leaderboard = [];
+    // Skin selection: array (multi-select) or legacy string
+    const skinSel = Array.isArray(categoryOrSkinSel) ? categoryOrSkinSel
+        : (categoryOrSkinSel && categoryOrSkinSel !== 'overall' ? [categoryOrSkinSel] : []);
+
     try {
         const { getLeaderboardFromCloud } = await import('./firestore-sync.js');
-        const cloud = await getLeaderboardFromCloud(category);
-        leaderboard = (cloud && cloud.length > 0) ? cloud : getLeaderboard(category);
+        if (skinSel.length === 0) {
+            // Overall
+            const cloud = await getLeaderboardFromCloud('overall');
+            _rawLeaderboard = cloud?.length ? cloud : getLeaderboard('overall');
+        } else if (skinSel.length === 1) {
+            // Single skin
+            const cloud = await getLeaderboardFromCloud(skinSel[0]);
+            _rawLeaderboard = cloud?.length ? cloud : getLeaderboard(skinSel[0]);
+        } else {
+            // Multiple skins — fetch each, merge client-side
+            const clouds = await Promise.all(skinSel.map(k => getLeaderboardFromCloud(k).catch(() => [])));
+            const anyCloud = clouds.some(c => c?.length > 0);
+            if (anyCloud) {
+                _rawLeaderboard = _mergeSkinEntries(clouds);
+            } else {
+                _rawLeaderboard = _mergeSkinEntries(skinSel.map(k => getLeaderboard(k)));
+            }
+        }
     } catch (e) {
-        leaderboard = getLeaderboard(category);
+        if (skinSel.length <= 1) {
+            _rawLeaderboard = getLeaderboard(skinSel[0] || 'overall');
+        } else {
+            _rawLeaderboard = _mergeSkinEntries(skinSel.map(k => getLeaderboard(k)));
+        }
     }
 
-    _rawLeaderboard = leaderboard;
     _renderLbContent();
 }
 
@@ -2245,7 +2314,7 @@ function renderBestsTabs() {
 
     if (_bestsMode === 'score') {
         subEl.style.display = '';
-        subEl.innerHTML = [{ key: 'overall', label: '🏆 כללי' }, ...Object.keys(SKINS).map(k => ({ key: k, label: SKINS[k].name || k }))].map(s =>
+        subEl.innerHTML = [{ key: 'overall', label: '🏆 כללי' }, ...LB_SKINS].map(s =>
             `<button class="lb-tab${_currentBestsKey===s.key?' active':''}" onclick="window.__bestsSetSkin('${s.key}')">${s.label}</button>`
         ).join('');
     } else {
