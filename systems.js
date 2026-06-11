@@ -139,6 +139,24 @@ export function damagePlayer(amount, source = 'unknown') {
                 dataModule.saveScore(skinKey, state.score, state.level, userName, settings);
                 console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
 
+                // Save speedrun results
+                const allGoals = [...(dataModule.SPEEDRUN_GOALS || []), ...(dataModule.getCustomSpeedrunGoals?.() || [])];
+                for (const goal of allGoals) {
+                    const t = (state.speedrunHits || {})[goal.key];
+                    if (t != null) {
+                        dataModule.saveSpeedrunResult(goal.key, {
+                            userName,
+                            time: t,
+                            score: state.score,
+                            level: state.level,
+                            skin: skinKey,
+                            date: new Date().toLocaleDateString('he-IL'),
+                            timestamp: Date.now(),
+                            settings
+                        });
+                    }
+                }
+
                 // Save to personal game history
                 histModule.addGameToHistory({
                     score: state.score,

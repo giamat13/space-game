@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -102,34 +102,179 @@ let _currentBestsEntries = [];
 let _esActiveFilter = 'all';
 
 // ===== FILTER SYSTEM =====
-// upgrades is an object: { upgradeKey: 'any' | 'required' | 'forbidden' }
-let _lbFilters    = { device: 'all', upgrades: {}, edu: 'all' };
-let _histFilters  = { device: 'all', upgrades: {}, edu: 'all' };
-let _bestsFilters = { device: 'all', upgrades: {}, edu: 'all' };
+
+const FILTER_CATS = [
+    { key: 'device',   icon: '📱', label: 'מכשיר'   },
+    { key: 'rules',    icon: '📜', label: 'כללים'   },
+    { key: 'controls', icon: '🎮', label: 'שליטה'   },
+    { key: 'edu',      icon: '📚', label: 'חינוכי'  },
+    { key: 'lang',     icon: '🌐', label: 'שפה'     },
+    { key: 'upgrades', icon: '🛍️', label: 'שדרוגים' },
+];
+
+function defaultFilters() {
+    return { activeCategories: [], device: 'all', edu: 'all', lang: 'all', upgrades: {}, rules: {}, controls: {} };
+}
+let _lbFilters    = defaultFilters();
+let _histFilters  = defaultFilters();
+let _bestsFilters = defaultFilters();
 
 const _filterMap = () => ({ 'lb-filter-bar': _lbFilters, 'hist-filter-bar': _histFilters, 'bests-filter-bar': _bestsFilters });
+
+// Tri-state icons/cycles
+const _upgStateIcon = { any: '⬜', required: '✅', forbidden: '🚫' };
+const _upgStateNext = { any: 'required', required: 'forbidden', forbidden: 'any' };
+const _boolIcon     = { any: '⬜', 'true': '✅', 'false': '🚫' };
+const _boolNext     = { any: 'true', 'true': 'false', 'false': 'any' };
+
+function catHasFilter(catKey, f) {
+    if (catKey === 'device')   return f.device !== 'all';
+    if (catKey === 'edu')      return f.edu !== 'all';
+    if (catKey === 'lang')     return f.lang !== 'all';
+    if (catKey === 'upgrades') return f.upgrades && Object.values(f.upgrades).some(v => v !== 'any');
+    if (catKey === 'rules')    return f.rules && Object.values(f.rules).some(v => v !== 'any');
+    if (catKey === 'controls') return f.controls && Object.values(f.controls).some(v => v && v !== 'any');
+    return false;
+}
+
+function resetCatFilters(catKey, f) {
+    if (catKey === 'device')   { f.device = 'all'; return; }
+    if (catKey === 'edu')      { f.edu = 'all'; return; }
+    if (catKey === 'lang')     { f.lang = 'all'; return; }
+    if (catKey === 'upgrades') { f.upgrades = {}; return; }
+    if (catKey === 'rules')    { f.rules = {}; return; }
+    if (catKey === 'controls') { f.controls = {}; return; }
+}
+
+function renderCatPanel(catKey, filters, cid) {
+    const f = filters;
+    switch (catKey) {
+        case 'device':
+            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${['all','mobile','desktop'].map(v =>
+                    `<button class="es-filter${f.device===v?' active':''}" onclick="window.__filterSet('${cid}','device','${v}')">${v==='all'?'הכל':v==='mobile'?'📱 טלפון':'🖥️ מחשב'}</button>`
+                ).join('')}</div>`;
+
+        case 'rules': {
+            const RULES = {
+                enemiesShootThroughAsteroids: 'אויבים ירי דרך סלעים',
+                playerShootThroughAsteroids:  'שחקן ירי דרך סלעים',
+            };
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=כן &nbsp;🚫=לא</div>` +
+                Object.entries(RULES).map(([key, label]) => {
+                    const cur = (f.rules||{})[key] || 'any';
+                    const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+                        <button class="es-filter" onclick="window.__filterBoolState('${cid}','rules','${key}')"
+                            style="font-size:1rem;padding:2px 8px;min-width:36px${aS}">${_boolIcon[cur]}</button>
+                        <span style="font-size:0.75rem;">${label}</span></div>`;
+                }).join('');
+        }
+
+        case 'controls': {
+            const ctrlType   = (f.controls||{}).controlType       || 'any';
+            const rightClick = (f.controls||{}).rightClickAbility || 'any';
+            const rcS = rightClick !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+            return `<div style="display:flex;flex-direction:column;gap:7px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">סוג שליטה:</span>
+                    <div style="display:flex;gap:3px;">
+                        ${['any','mouse','arrows'].map(v =>
+                            `<button class="es-filter${ctrlType===v?' active':''}" onclick="window.__filterSetCtrl('${cid}','controlType','${v}')">${v==='any'?'הכל':v==='mouse'?'🖱️ עכבר':'⬆️ חצים'}</button>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">קליק ימני:</span>
+                    <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','rightClickAbility')"
+                        style="font-size:1rem;padding:2px 8px;min-width:36px${rcS}">${_boolIcon[rightClick]}</button>
+                    <span style="font-size:0.63rem;opacity:0.45;">⬜=לא משנה ✅=כן 🚫=לא</span>
+                </div>
+            </div>`;
+        }
+
+        case 'edu':
+            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${['all','on','off'].map(v =>
+                    `<button class="es-filter${f.edu===v?' active':''}" onclick="window.__filterSet('${cid}','edu','${v}')">${v==='all'?'הכל':v==='on'?'✅ פעיל':'❌ כבוי'}</button>`
+                ).join('')}</div>`;
+
+        case 'lang': {
+            const LANGS = [
+                { code:'all', label:'הכל',     flag:'' },
+                { code:'he',  label:'עברית',   flag:'🇮🇱' },
+                { code:'en',  label:'English',  flag:'🇺🇸' },
+                { code:'ar',  label:'عربي',    flag:'🇸🇦' },
+                { code:'ru',  label:'Русский',  flag:'🇷🇺' },
+                { code:'fr',  label:'Français', flag:'🇫🇷' },
+                { code:'es',  label:'Español',  flag:'🇪🇸' },
+            ];
+            return `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${LANGS.map(l =>
+                    `<button class="es-filter${f.lang===l.code?' active':''}" onclick="window.__filterSet('${cid}','lang','${l.code}')">${l.flag} ${l.label}</button>`
+                ).join('')}</div>`;
+        }
+
+        case 'upgrades':
+            if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">אין שדרוגים</span>`;
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=חובה &nbsp;🚫=אסור</div>` +
+                Object.values(UPGRADES).map(u => {
+                    const cur = (f.upgrades||{})[u.key] || 'any';
+                    const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+                    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+                        <button class="es-filter" onclick="window.__filterCycleUpgrade('${cid}','${u.key}')"
+                            style="font-size:1rem;padding:2px 6px;min-width:34px${aS}">${_upgStateIcon[cur]}</button>
+                        <span style="font-size:0.75rem;">${u.name}</span></div>`;
+                }).join('');
+
+        default: return '';
+    }
+}
 
 function applyEntryFilters(entries, filters) {
     return entries.filter(e => {
         const s = e.settings || null;
 
-        // Device: only filter when entry has settings
+        // Device: only filter when entry has settings; unknown = pass through
         if (filters.device !== 'all' && s) {
             if (filters.device === 'mobile'  && !s.isMobile) return false;
             if (filters.device === 'desktop' &&  s.isMobile) return false;
         }
 
-        // Edu: unknown settings → assume edu OFF
+        // Edu: unknown = off
         const eduEnabled = s ? !!s.eduEnabled : false;
         if (filters.edu === 'on'  && !eduEnabled) return false;
         if (filters.edu === 'off' &&  eduEnabled) return false;
 
-        // Upgrades: unknown settings → assume no upgrades
+        // Lang: unknown = pass through
+        if (filters.lang !== 'all' && s && s.lang !== filters.lang) return false;
+
+        // Upgrades: unknown = no upgrades
         const ups = s ? (s.upgrades || []) : [];
-        const upFilters = filters.upgrades || {};
-        for (const [key, state] of Object.entries(upFilters)) {
+        for (const [key, state] of Object.entries(filters.upgrades || {})) {
             if (state === 'required' && !ups.includes(key)) return false;
             if (state === 'forbidden' &&  ups.includes(key)) return false;
+        }
+
+        // Rules: unknown = defaults (enemies=true, player=false)
+        const ruleDef = { enemiesShootThroughAsteroids: true, playerShootThroughAsteroids: false };
+        for (const [key, state] of Object.entries(filters.rules || {})) {
+            if (state === 'any') continue;
+            const val = s ? !!s[key] : !!ruleDef[key];
+            if (state === 'true'  && !val) return false;
+            if (state === 'false' &&  val) return false;
+        }
+
+        // Controls: unknown = pass through; rightClickAbility default = true
+        for (const [key, value] of Object.entries(filters.controls || {})) {
+            if (!value || value === 'any') continue;
+            if (key === 'rightClickAbility') {
+                const val = s ? !!s.rightClickAbility : true;
+                if (value === 'true'  && !val) return false;
+                if (value === 'false' &&  val) return false;
+            } else if (s) {
+                if (s[key] !== value) return false;
+            }
         }
 
         return true;
@@ -140,28 +285,36 @@ function countActiveFilters(filters) {
     let n = 0;
     if (filters.device !== 'all') n++;
     if (filters.edu    !== 'all') n++;
+    if (filters.lang   !== 'all') n++;
     if (filters.upgrades) n += Object.values(filters.upgrades).filter(v => v !== 'any').length;
+    if (filters.rules)    n += Object.values(filters.rules).filter(v => v !== 'any').length;
+    if (filters.controls) n += Object.values(filters.controls).filter(v => v && v !== 'any').length;
     return n;
 }
-
-const _upgStateIcon = { any: '⬜', required: '✅', forbidden: '🚫' };
-const _upgStateNext = { any: 'required', required: 'forbidden', forbidden: 'any' };
 
 function renderFilterBar(containerId, filters, onChange) {
     const el = document.getElementById(containerId);
     if (!el) return;
 
-    const active = countActiveFilters(filters);
-    const badge  = active > 0 ? ` <span style="background:#00f2ff;color:#000;border-radius:9px;padding:0 5px;font-size:0.65rem;font-weight:bold;">${active}</span>` : '';
+    const active    = countActiveFilters(filters);
+    const badge     = active > 0 ? ` <span style="background:#00f2ff;color:#000;border-radius:9px;padding:0 5px;font-size:0.65rem;font-weight:bold;">${active}</span>` : '';
+    const activeCats = filters.activeCategories || [];
 
-    const upgRows = Object.values(UPGRADES).map(u => {
-        const cur = (filters.upgrades || {})[u.key] || 'any';
-        const icon = _upgStateIcon[cur];
-        const activeStyle = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
-        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
-            <button class="es-filter" onclick="window.__filterCycleUpgrade('${containerId}','${u.key}')"
-                style="font-size:1rem;padding:2px 6px;min-width:34px${activeStyle}">${icon}</button>
-            <span style="font-size:0.75rem;opacity:0.85;">${u.name}</span>
+    const catBtns = FILTER_CATS.map(cat => {
+        const isOpen    = activeCats.includes(cat.key);
+        const hasFilter = catHasFilter(cat.key, filters);
+        let style = '';
+        if (isOpen)       style = 'border-color:var(--primary);color:var(--primary);background:rgba(0,242,255,0.12);';
+        else if (hasFilter) style = 'border-color:rgba(255,215,0,0.55);color:#ffd700;';
+        return `<button class="es-filter" onclick="window.__filterToggleCat('${containerId}','${cat.key}')" style="${style}">${cat.icon} ${cat.label}${hasFilter ? ' ·' : ''}</button>`;
+    }).join('');
+
+    const panels = activeCats.map(catKey => {
+        const catDef = FILTER_CATS.find(c => c.key === catKey);
+        if (!catDef) return '';
+        return `<div style="border:1px solid rgba(0,242,255,0.2);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:right;">
+            <div style="font-size:0.7rem;font-weight:bold;color:var(--primary);margin-bottom:7px;">${catDef.icon} ${catDef.label}</div>
+            ${renderCatPanel(catKey, filters, containerId)}
         </div>`;
     }).join('');
 
@@ -170,98 +323,188 @@ function renderFilterBar(containerId, filters, onChange) {
             <summary style="cursor:pointer;font-size:0.78rem;opacity:0.8;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;justify-content:center;padding:4px 0;">
                 🔍 פילטרים${badge}
             </summary>
-            <div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 4px;justify-content:center;text-align:right;">
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                    <span style="font-size:0.65rem;opacity:0.6;">מכשיר</span>
-                    <div style="display:flex;gap:3px;">
-                        ${['all','mobile','desktop'].map(v =>
-                            `<button class="es-filter${filters.device===v?' active':''}" onclick="window.__filterSet('${containerId}','device','${v}')">${v==='all'?'הכל':v==='mobile'?'📱':'🖥️'}</button>`
-                        ).join('')}
-                    </div>
-                </div>
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                    <span style="font-size:0.65rem;opacity:0.6;">מצב חינוכי</span>
-                    <div style="display:flex;gap:3px;">
-                        ${['all','on','off'].map(v =>
-                            `<button class="es-filter${filters.edu===v?' active':''}" onclick="window.__filterSet('${containerId}','edu','${v}')">${v==='all'?'הכל':v==='on'?'✅':'❌'}</button>`
-                        ).join('')}
-                    </div>
-                </div>
-                ${Object.keys(UPGRADES).length > 0 ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-                    <span style="font-size:0.65rem;opacity:0.6;">שדרוגים <span style="opacity:0.5;">(⬜=לא משנה ✅=חובה 🚫=אסור)</span></span>
-                    ${upgRows}
-                </div>` : ''}
-                ${active > 0 ? `<button class="es-filter" onclick="window.__filterReset('${containerId}')" style="align-self:flex-end;color:#ff4d4d;border-color:#ff4d4d;margin-top:4px;">✕ נקה הכל</button>` : ''}
+            <div style="padding:8px 2px;">
+                <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:2px;">${catBtns}</div>
+                ${panels}
+                ${active > 0 ? `<div style="text-align:center;margin-top:8px;"><button class="es-filter" onclick="window.__filterReset('${containerId}')" style="color:#ff4d4d;border-color:#ff4d4d;">✕ נקה הכל</button></div>` : ''}
             </div>
         </details>
     `;
 
-    // Preserve open state across re-renders
     const wasOpen = el._wasOpen || el.querySelector('details')?.open;
     if (wasOpen) el.querySelector('details').open = true;
     el._wasOpen = false;
-
     el._onChange = onChange;
 }
 
-window.__filterSet = function(containerId, key, value) {
-    const el = document.getElementById(containerId);
+// ── filter event handlers ──────────────────────────────────────────────────
+
+window.__filterToggleCat = function(cid, catKey) {
+    const el = document.getElementById(cid);
     if (!el || !el._onChange) return;
-    const filters = _filterMap()[containerId];
-    if (!filters) return;
-    filters[key] = filters[key] === value ? 'all' : value;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    if (!f.activeCategories) f.activeCategories = [];
+    const idx = f.activeCategories.indexOf(catKey);
+    if (idx >= 0) { f.activeCategories.splice(idx, 1); resetCatFilters(catKey, f); }
+    else          { f.activeCategories.push(catKey); }
     el._wasOpen = true;
-    el._onChange(filters);
+    el._onChange(f);
 };
 
-window.__filterCycleUpgrade = function(containerId, upgradeKey) {
-    const el = document.getElementById(containerId);
+window.__filterSet = function(cid, key, value) {
+    const el = document.getElementById(cid);
     if (!el || !el._onChange) return;
-    const filters = _filterMap()[containerId];
-    if (!filters) return;
-    if (!filters.upgrades) filters.upgrades = {};
-    const cur = filters.upgrades[upgradeKey] || 'any';
-    filters.upgrades[upgradeKey] = _upgStateNext[cur];
+    const f = _filterMap()[cid];
+    if (!f) return;
+    f[key] = f[key] === value ? 'all' : value;
     el._wasOpen = true;
-    el._onChange(filters);
+    el._onChange(f);
 };
 
-window.__filterReset = function(containerId) {
-    const el = document.getElementById(containerId);
+window.__filterBoolState = function(cid, group, key) {
+    const el = document.getElementById(cid);
     if (!el || !el._onChange) return;
-    const filters = _filterMap()[containerId];
-    if (!filters) return;
-    filters.device   = 'all';
-    filters.edu      = 'all';
-    filters.upgrades = {};
+    const f = _filterMap()[cid];
+    if (!f || !f[group]) return;
+    const cur = f[group][key] || 'any';
+    f[group][key] = _boolNext[cur];
     el._wasOpen = true;
-    el._onChange(filters);
+    el._onChange(f);
+};
+
+window.__filterSetCtrl = function(cid, key, value) {
+    const el = document.getElementById(cid);
+    if (!el || !el._onChange) return;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    if (!f.controls) f.controls = {};
+    f.controls[key] = f.controls[key] === value ? 'any' : value;
+    el._wasOpen = true;
+    el._onChange(f);
+};
+
+window.__filterCycleUpgrade = function(cid, upgradeKey) {
+    const el = document.getElementById(cid);
+    if (!el || !el._onChange) return;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    if (!f.upgrades) f.upgrades = {};
+    f.upgrades[upgradeKey] = _upgStateNext[f.upgrades[upgradeKey] || 'any'];
+    el._wasOpen = true;
+    el._onChange(f);
+};
+
+window.__filterReset = function(cid) {
+    const el = document.getElementById(cid);
+    if (!el || !el._onChange) return;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    const openCats = [...(f.activeCategories || [])];
+    Object.assign(f, defaultFilters());
+    f.activeCategories = openCats; // keep panels open, just clear values
+    el._wasOpen = true;
+    el._onChange(f);
+};
+
+// ===== LEADERBOARD TAB STATE =====
+let _lbMode     = 'score';   // 'score' | 'speedrun' | 'money'
+let _lbSkinKey  = 'overall';
+let _lbSrGoal   = SPEEDRUN_GOALS[0]?.key || 'score_10k';
+
+const LB_SKINS = [
+    { key: 'overall',     label: '🏆 כללי'    },
+    { key: 'classic',     label: 'Classic'    },
+    { key: 'interceptor', label: 'Interceptor' },
+    { key: 'tanker',      label: 'Tanker'     },
+    { key: 'phoenix',     label: 'Phoenix'    },
+    { key: 'vortex',      label: 'Vortex'     },
+    { key: 'joker',       label: 'Joker'      },
+    { key: 'dragon',      label: '🐉 Dragon'  },
+];
+
+function renderLbTabs() {
+    const modeEl = document.getElementById('lb-mode-tabs');
+    if (modeEl) {
+        modeEl.innerHTML = [
+            { key: 'score',    label: '🏆 ניקוד'   },
+            { key: 'speedrun', label: '⚡ ספידראן' },
+            { key: 'money',    label: '💰 כסף'     },
+        ].map(m =>
+            `<button class="lb-tab${_lbMode===m.key?' active':''}" onclick="window.__lbSetMode('${m.key}')">${m.label}</button>`
+        ).join('');
+    }
+
+    const subEl = document.getElementById('lb-sub-tabs');
+    if (!subEl) return;
+
+    if (_lbMode === 'score') {
+        subEl.style.display = '';
+        subEl.innerHTML = LB_SKINS.map(s =>
+            `<button class="lb-tab${_lbSkinKey===s.key?' active':''}" onclick="window.__lbSetSkin('${s.key}')">${s.label}</button>`
+        ).join('');
+    } else if (_lbMode === 'speedrun') {
+        const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+        subEl.style.display = '';
+        subEl.innerHTML = allGoals.map(g =>
+            `<button class="lb-tab${_lbSrGoal===g.key?' active':''}${g.key.startsWith('custom_')?` style="border-style:dashed;"`:''}" onclick="window.__lbSetGoal('${g.key}')">${g.icon} ${g.label}${g.key.startsWith('custom_')?` <span onclick="event.stopPropagation();window.__lbRemoveGoal('${g.key}')" style="opacity:0.5;margin-right:4px;" title="מחק">✕</span>`:''}</button>`
+        ).join('') + `<button class="lb-tab" onclick="window.__lbAddCustomGoal()" style="border-style:dashed;opacity:0.65;">＋ מותאם</button>`;
+    } else {
+        subEl.style.display = 'none';
+    }
+}
+
+function _lbTriggerDisplay() {
+    if (_lbMode === 'score')    displayLeaderboard(_lbSkinKey);
+    else if (_lbMode === 'speedrun') displaySpeedrunLeaderboard(_lbSrGoal);
+    else                        displayLeaderboard('money');
+}
+
+window.__lbSetMode = function(mode) { _lbMode = mode; renderLbTabs(); _lbTriggerDisplay(); };
+window.__lbSetSkin = function(key)  { _lbSkinKey = key; renderLbTabs(); displayLeaderboard(key); };
+window.__lbSetGoal = function(key)  { _lbSrGoal = key; renderLbTabs(); displaySpeedrunLeaderboard(key); };
+window.__lbRemoveGoal = function(key) {
+    removeCustomSpeedrunGoal(key);
+    if (_lbSrGoal === key) _lbSrGoal = SPEEDRUN_GOALS[0]?.key || '';
+    renderLbTabs();
+    displaySpeedrunLeaderboard(_lbSrGoal);
+};
+window.__lbAddCustomGoal = function() {
+    const container = document.getElementById('lb-sub-tabs');
+    if (!container) return;
+    const formId = 'sr-custom-goal-form';
+    const existing = document.getElementById(formId);
+    if (existing) { existing.remove(); return; }
+    const form = document.createElement('div');
+    form.id = formId;
+    form.style.cssText = 'margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;';
+    form.innerHTML = `
+        <select id="sr-goal-type" style="padding:4px 8px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;">
+            <option value="score">ניקוד</option>
+            <option value="level">שלב</option>
+        </select>
+        <input id="sr-goal-target" type="number" min="1" placeholder="ערך יעד"
+            style="width:110px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 8px;font-size:0.85rem;" />
+        <button class="es-filter" onclick="window.__lbSaveCustomGoal()" style="color:#00f2ff;border-color:#00f2ff;">✅ הוסף</button>
+        <button class="es-filter" onclick="document.getElementById('sr-custom-goal-form')?.remove()">✕</button>`;
+    container.parentNode.insertBefore(form, container.nextSibling);
+};
+window.__lbSaveCustomGoal = function() {
+    const type   = document.getElementById('sr-goal-type')?.value;
+    const target = parseInt(document.getElementById('sr-goal-target')?.value);
+    if (!type || !target || target < 1) return;
+    const goal = addCustomSpeedrunGoal(type, target);
+    document.getElementById('sr-custom-goal-form')?.remove();
+    if (goal) { _lbSrGoal = goal.key; _lbMode = 'speedrun'; }
+    renderLbTabs();
+    displaySpeedrunLeaderboard(_lbSrGoal);
 };
 
 function showLeaderboard() {
-    console.log('🏆 [LEADERBOARD] Opening leaderboard...');
-    console.log('🏆 [LEADERBOARD] Hiding main menu');
     document.getElementById('main-menu').style.display = 'none';
-    console.log('🏆 [LEADERBOARD] Showing leaderboard container');
     document.getElementById('leaderboard-container').style.display = 'block';
-    console.log('🏆 [LEADERBOARD] Displaying overall category');
-    displayLeaderboard('overall');
-    
-    // Setup tab listeners
-    console.log('🏆 [LEADERBOARD] Setting up tab listeners');
-    const tabs = document.querySelectorAll('.lb-tab');
-    console.log(`🏆 [LEADERBOARD] Found ${tabs.length} tabs`);
-    tabs.forEach((tab, index) => {
-        console.log(`🏆 [LEADERBOARD] Setting up tab ${index}: ${tab.dataset.tab}`);
-        tab.onclick = function() {
-            console.log(`👆 [TAB CLICK] User clicked tab: ${this.dataset.tab}`);
-            document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            console.log(`👆 [TAB CLICK] Displaying leaderboard for: ${this.dataset.tab}`);
-            displayLeaderboard(this.dataset.tab);
-        };
-    });
-    console.log('✅ [LEADERBOARD] Leaderboard opened successfully');
+    renderLbTabs();
+    _lbTriggerDisplay();
 }
 
 function closeLeaderboard() {
@@ -605,6 +848,89 @@ function _renderLbContent() {
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
 }
 
+// ===== SPEEDRUN HELPERS =====
+
+function formatTime(ms) {
+    if (ms == null) return '—';
+    const totalSec = Math.floor(ms / 1000);
+    const m  = Math.floor(totalSec / 60);
+    const s  = totalSec % 60;
+    const cs = Math.floor((ms % 1000) / 10);
+    return m > 0
+        ? `${m}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`
+        : `${s}.${String(cs).padStart(2,'0')}`;
+}
+
+function checkSpeedrunMilestones() {
+    if (!state.active || !state.startTime || state.isDebugGame) return;
+    const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+    let hitAny = false;
+    for (const goal of allGoals) {
+        if (state.speedrunHits[goal.key] != null) continue;
+        const val = goal.type === 'score' ? state.score : state.level;
+        if (val >= goal.target) {
+            const elapsed = Date.now() - state.startTime;
+            state.speedrunHits[goal.key] = elapsed;
+            hitAny = true;
+            // Use playerRect cached this frame (set just before update calls)
+            const rect = state.playerRect || DOM.player.getBoundingClientRect();
+            showFloatingMessage(`⚡ ${goal.label} — ${formatTime(elapsed)}`, rect.left, rect.top - 24, '#00f2ff');
+        }
+    }
+}
+
+async function displaySpeedrunLeaderboard(goalKey) {
+    const content = document.getElementById('leaderboard-content');
+    if (!content) return;
+    const filterBar = document.getElementById('lb-filter-bar');
+    if (filterBar) filterBar.innerHTML = '';
+
+    const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+    const goal = allGoals.find(g => g.key === goalKey);
+    if (!goal) { content.innerHTML = '<div class="lb-empty">קטגוריה לא נמצאה</div>'; return; }
+
+    content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
+
+    let entries = [];
+    try {
+        const { getSpeedrunLeaderboardFromCloud } = await import('./firestore-sync.js');
+        const cloud = await getSpeedrunLeaderboardFromCloud(goalKey);
+        entries = (cloud && cloud.length > 0) ? cloud : getSpeedrunLeaderboard(goalKey);
+    } catch (e) {
+        entries = getSpeedrunLeaderboard(goalKey);
+    }
+
+    if (entries.length === 0) {
+        content.innerHTML = `<div class="lb-empty">אין שיאים עדיין — השלם את "${goal.label}" כמה שיותר מהר!</div>`;
+        return;
+    }
+
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+    content.innerHTML = entries.map((e, i) => {
+        const skinLabel = SKINS[e.skin]?.name || e.skin || '';
+        const settingsBtn = e.settings
+            ? `<button onclick="window.__srShowSettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
+        return `<div class="lb-entry rank-${i+1}">
+            <div class="lb-rank">${medals[i] || (i+1)}</div>
+            <div class="lb-info" style="flex:1;">
+                <div class="lb-player-name">👤 ${e.userName || 'Anonymous'}</div>
+                <div class="lb-score" style="color:#00f2ff;font-size:1.2rem;">⏱️ ${formatTime(e.time)}</div>
+                <div class="lb-details">${skinLabel} • ${e.date || ''}</div>
+            </div>
+            ${settingsBtn}
+        </div>`;
+    }).join('');
+
+    // Store for settings button
+    window.__srEntries = entries;
+    window.__srShowSettings = function(idx) {
+        const orig = _currentLeaderboardEntries;
+        _currentLeaderboardEntries = window.__srEntries;
+        showEntrySettings(idx);
+        _currentLeaderboardEntries = orig;
+    };
+}
+
 async function displayLeaderboard(category) {
     console.log(`📊 [DISPLAY] Displaying leaderboard for category: ${category}`);
     const content = document.getElementById('leaderboard-content');
@@ -870,6 +1196,7 @@ function update() {
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
+    checkSpeedrunMilestones();
     trackScoreUpdate(state.score);
 
     // Read the player's rect once per frame; every collision pass reuses it
@@ -1826,13 +2153,72 @@ function clearDevConsole() {
 import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration } from './game-history.js';
 
 let _currentHistoryTab = 'history';
-let _currentBestsKey = 'overall';
+let _currentBestsKey  = 'overall';
+let _bestsMode        = 'score';   // 'score' | 'speedrun'
+let _bestsSrGoal      = SPEEDRUN_GOALS[0]?.key || 'score_10k';
+
+function renderBestsTabs() {
+    const modeEl = document.getElementById('bests-mode-tabs');
+    if (modeEl) {
+        modeEl.innerHTML = [
+            { key: 'score',    label: '🏆 ניקוד'   },
+            { key: 'speedrun', label: '⚡ ספידראן' },
+        ].map(m =>
+            `<button class="lb-tab${_bestsMode===m.key?' active':''}" onclick="window.__bestsSetMode('${m.key}')">${m.label}</button>`
+        ).join('');
+    }
+
+    const subEl = document.getElementById('bests-sub-tabs');
+    if (!subEl) return;
+
+    if (_bestsMode === 'score') {
+        subEl.style.display = '';
+        subEl.innerHTML = [{ key: 'overall', label: '🏆 כללי' }, ...Object.keys(SKINS).map(k => ({ key: k, label: SKINS[k].name || k }))].map(s =>
+            `<button class="lb-tab${_currentBestsKey===s.key?' active':''}" onclick="window.__bestsSetSkin('${s.key}')">${s.label}</button>`
+        ).join('');
+    } else {
+        const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+        subEl.style.display = '';
+        subEl.innerHTML = allGoals.map(g =>
+            `<button class="lb-tab${_bestsSrGoal===g.key?' active':''}" onclick="window.__bestsSetGoal('${g.key}')">${g.icon} ${g.label}</button>`
+        ).join('');
+    }
+}
+
+window.__bestsSetMode = function(mode) { _bestsMode = mode; renderBestsTabs(); _bestsTriggerDisplay(); };
+window.__bestsSetSkin = function(key)  { _currentBestsKey = key; renderBestsTabs(); renderBestsList(key); };
+window.__bestsSetGoal = function(key)  { _bestsSrGoal = key; renderBestsTabs(); renderBestsSpeedrun(key); };
+
+function _bestsTriggerDisplay() {
+    if (_bestsMode === 'score') renderBestsList(_currentBestsKey);
+    else renderBestsSpeedrun(_bestsSrGoal);
+}
+
+function renderBestsSpeedrun(goalKey) {
+    renderFilterBar('bests-filter-bar', _bestsFilters, () => renderBestsSpeedrun(goalKey));
+    const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
+    const goal = allGoals.find(g => g.key === goalKey);
+    const el   = document.getElementById('bests-list');
+    if (!el) return;
+    const entries = getSpeedrunLeaderboard(goalKey);
+    if (!entries.length) {
+        el.innerHTML = `<div style="opacity:0.5;font-size:0.85rem;text-align:center;padding:16px 0;">עדיין אין שיאים אישיים ב"${goal?.label || goalKey}"</div>`;
+        return;
+    }
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+    el.innerHTML = entries.map((e, i) =>
+        `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-size:1.1rem;min-width:28px;">${medals[i] || (i+1)}</span>
+            <span style="color:#00f2ff;font-size:1rem;font-weight:bold;">⏱️ ${formatTime(e.time)}</span>
+            <span style="font-size:0.75rem;opacity:0.6;">${SKINS[e.skin]?.name || e.skin || ''} • ${e.date || ''}</span>
+        </div>`
+    ).join('');
+}
 
 function showPersonalHistory() {
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('history-container').style.display = 'block';
     _currentHistoryTab = 'history';
-    _currentBestsKey = 'overall';
     document.getElementById('htab-history').classList.add('active');
     document.getElementById('htab-bests').classList.remove('active');
     document.getElementById('history-list-panel').style.display = 'block';
@@ -1852,13 +2238,12 @@ function switchHistoryTab(tab) {
     document.getElementById('htab-bests').classList.toggle('active', tab === 'bests');
     document.getElementById('history-list-panel').style.display = tab === 'history' ? 'block' : 'none';
     document.getElementById('history-bests-panel').style.display = tab === 'bests' ? 'block' : 'none';
-    if (tab === 'bests') renderBestsList(_currentBestsKey);
+    if (tab === 'bests') { renderBestsTabs(); _bestsTriggerDisplay(); }
 }
 
 function switchBestsTab(btn, skinKey) {
     _currentBestsKey = skinKey;
-    document.querySelectorAll('#history-bests-panel .lb-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    renderBestsTabs();
     renderBestsList(skinKey);
 }
 

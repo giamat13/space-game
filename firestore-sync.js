@@ -472,6 +472,52 @@ export async function getMoneyLeaderboard() {
     }
 }
 
+// ===== SPEEDRUN LEADERBOARD =====
+export async function saveSpeedrunToCloud(goalKey, entry) {
+    if (!db || !auth?.currentUser) return;
+    const user = auth.currentUser;
+    try {
+        const colRef = collection(db, `speedrun/${goalKey}/entries`);
+        // Check existing personal best for this user
+        const existing = query(colRef, where('userId', '==', user.uid), limit(1));
+        const snap = await getDocs(existing);
+        if (!snap.empty) {
+            const doc0 = snap.docs[0];
+            if ((doc0.data().time || Infinity) <= entry.time) return; // not faster
+            await setDoc(doc(db, `speedrun/${goalKey}/entries`, doc0.id), {
+                ...entry, userId: user.uid, updatedAt: serverTimestamp()
+            });
+        } else {
+            await addDoc(colRef, { ...entry, userId: user.uid, createdAt: serverTimestamp() });
+        }
+    } catch (e) {
+        console.warn('⚠️ [SPEEDRUN] Cloud save failed:', e.code);
+    }
+}
+
+export async function getSpeedrunLeaderboardFromCloud(goalKey) {
+    if (!db) return [];
+    try {
+        const q = query(collection(db, `speedrun/${goalKey}/entries`), orderBy('time', 'asc'), limit(50));
+        const snap = await getDocs(q);
+        const seen = new Set();
+        const results = [];
+        snap.forEach(d => {
+            const data = d.data();
+            const uid = data.userId || d.id;
+            if (!seen.has(uid)) {
+                seen.add(uid);
+                results.push({ id: d.id, ...data });
+                if (results.length === 10) return;
+            }
+        });
+        return results;
+    } catch (e) {
+        console.error('❌ [CLOUD] Error fetching speedrun leaderboard:', e);
+        return [];
+    }
+}
+
 // ===== SYNC ALL DATA =====
 export async function syncAllData() {
     if (!auth) {

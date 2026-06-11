@@ -23,7 +23,9 @@ import {
     unlockSkinInCloud,
     syncCoins,
     syncUpgrades,
-    forceSetCoins
+    forceSetCoins,
+    saveSpeedrunToCloud,
+    getSpeedrunLeaderboardFromCloud
 } from './firestore-sync.js';
 
 // Skin Configuration
@@ -212,6 +214,52 @@ export let keyBindings = {
     rightClickAbility: true,
     controlType: 'mouse' // 'mouse' or 'arrows'
 };
+
+// ===== SPEEDRUN GOALS =====
+export const SPEEDRUN_GOALS = [
+    { key: 'score_10k',  label: '10,000 נק׳',     icon: '🎯', type: 'score', target: 10_000   },
+    { key: 'score_100k', label: '100,000 נק׳',    icon: '🎯', type: 'score', target: 100_000  },
+    { key: 'score_1m',   label: '1,000,000 נק׳',  icon: '🎯', type: 'score', target: 1_000_000 },
+    { key: 'level_10',   label: 'שלב 10',          icon: '📈', type: 'level', target: 10       },
+    { key: 'level_50',   label: 'שלב 50',          icon: '📈', type: 'level', target: 50       },
+    { key: 'level_100',  label: 'שלב 100',         icon: '📈', type: 'level', target: 100      },
+];
+
+export function getCustomSpeedrunGoals() {
+    const saved = getCookie('customSpeedrunGoals');
+    return saved ? JSON.parse(saved) : [];
+}
+
+export function addCustomSpeedrunGoal(type, target) {
+    const goals = getCustomSpeedrunGoals();
+    const key = `custom_${type}_${target}`;
+    if (goals.find(g => g.key === key)) return null;
+    const label = type === 'score' ? `${Number(target).toLocaleString()} נק׳` : `שלב ${target}`;
+    const goal = { key, label, icon: '⭐', type, target: Number(target) };
+    goals.push(goal);
+    setCookie('customSpeedrunGoals', JSON.stringify(goals));
+    return goal;
+}
+
+export function removeCustomSpeedrunGoal(key) {
+    const goals = getCustomSpeedrunGoals().filter(g => g.key !== key);
+    setCookie('customSpeedrunGoals', JSON.stringify(goals));
+}
+
+export function getSpeedrunLeaderboard(goalKey) {
+    try { return JSON.parse(localStorage.getItem(`sr_lb_${goalKey}`) || '[]'); } catch { return []; }
+}
+
+export function saveSpeedrunResult(goalKey, entry) {
+    let lb = getSpeedrunLeaderboard(goalKey);
+    lb = lb.filter(e => e.userName !== entry.userName || e.time > entry.time);
+    lb.push(entry);
+    lb.sort((a, b) => a.time - b.time);
+    lb = lb.slice(0, 10);
+    localStorage.setItem(`sr_lb_${goalKey}`, JSON.stringify(lb));
+    // Cloud save (fire and forget)
+    saveSpeedrunToCloud(goalKey, entry).catch(() => {});
+}
 
 // Game Rules
 export let gameRules = {
@@ -634,7 +682,8 @@ export const state = {
     isDebugGame: false,
     paused: false,
     startTime: 0,
-    coinsEarned: 0
+    coinsEarned: 0,
+    speedrunHits: {},
 };
 
 export function resetState() {
@@ -687,6 +736,7 @@ export function resetState() {
     state.paused = false;
     state.startTime = Date.now();
     state.coinsEarned = 0;
+    state.speedrunHits = {};
     if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = '+0';
     console.log('✅ [STATE] Reset complete');
 }
