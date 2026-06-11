@@ -131,7 +131,8 @@ export function damagePlayer(amount, source = 'unknown') {
                     eduGrade: eduModule.eduConfig.grade,
                     lang: i18nModule.currentLang,
                     gameDuration,
-                    startTime: state.startTime || null
+                    startTime: state.startTime || null,
+                    upgrades: dataModule.getOwnedUpgrades()
                 };
 
                 // Save to global leaderboard (cloud + local)

@@ -297,6 +297,19 @@ function renderEntrySettingsBody(s, cat) {
     const row = (label, value) =>
         `<div class="es-row"><span class="es-label">${label}</span><span class="es-value">${value}</span></div>`;
 
+    const ownedUpgrades = s.upgrades || [];
+    const upgradesHtml = ownedUpgrades.length > 0
+        ? ownedUpgrades.map(key => {
+            const upg = UPGRADES[key];
+            return upg
+                ? `<div class="es-row" style="flex-direction:column; align-items:flex-start; gap:2px;">
+                    <span style="font-weight:bold;">${upg.name}</span>
+                    <span style="font-size:0.78rem; opacity:0.75;">${upg.desc}</span>
+                  </div>`
+                : `<div class="es-row"><span class="es-value">${key}</span></div>`;
+          }).join('')
+        : `<div class="es-row"><span style="opacity:0.6;">${currentLang === 'en' ? 'No upgrades' : 'אין שדרוגים'}</span></div>`;
+
     const groups = {
         device: `<div class="es-group" data-cat="device">
             <div class="es-group-title">${t('tabDevice')}</div>
@@ -331,6 +344,11 @@ function renderEntrySettingsBody(s, cat) {
         lang: `<div class="es-group" data-cat="lang">
             <div class="es-group-title">${t('tabLang')}</div>
             ${row(t('langLabel'), `${langInfo.flag} ${langInfo.name}`)}
+        </div>`,
+
+        upgrades: `<div class="es-group" data-cat="upgrades">
+            <div class="es-group-title">🛍️ ${currentLang === 'en' ? 'Upgrades' : 'שדרוגים'}</div>
+            ${upgradesHtml}
         </div>`
     };
 
@@ -410,13 +428,17 @@ async function displayLeaderboard(category) {
         }
         const userName = entry.userName || 'Anonymous';
         const coinsDisplay = entry.coins != null ? ` <span style="color:#ffd700; font-size:0.8rem;">💰 ${entry.coins.toLocaleString()}</span>` : '';
+        const entryUpgrades = entry.settings?.upgrades || [];
+        const upgradesDisplay = entryUpgrades.length > 0
+            ? ` <span style="color:#c084fc; font-size:0.78rem;" title="${entryUpgrades.map(k => UPGRADES[k]?.name || k).join(', ')}">🛍️ ×${entryUpgrades.length}</span>`
+            : '';
 
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size: 0.9rem; font-weight: bold; color: var(--primary); margin-bottom: 3px;">
-                    👤 ${userName}${coinsDisplay}
+                    👤 ${userName}${coinsDisplay}${upgradesDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">
