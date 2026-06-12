@@ -40,8 +40,8 @@
         <button id="pause-btn" onclick="togglePause(); event.stopPropagation();" onmousedown="event.stopPropagation();" style="display: none;">⏸</button>
 
         <div id="pause-overlay" style="display: none;">
-            <div class="pause-title">⏸ מושהה</div>
-            <button onclick="togglePause()">▶ המשך</button>
+            <div class="pause-title">⏸ Paused</div>
+            <button onclick="togglePause()">▶ Resume</button>
         </div>
 
         <div id="overlay">
@@ -222,13 +222,13 @@
             <button onclick="initGame()" data-i18n="startBtn">צא למשימה</button>
             <button id="login-button" onclick="toggleLoginMenu()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="loginBtn">🔐 התחבר</button>
             <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="leaderboardBtn">🏆 לוח שיאים</button>
-            <button onclick="showPersonalHistory()" style="margin-top: 10px; background: rgba(0,242,255,0.1); border-color: var(--primary); color: var(--primary);">📊 ההיסטוריה שלי</button>
-            <button onclick="showShop()" style="margin-top: 10px; background: rgba(255,215,0,0.15); border-color: #ffd700; color: #ffd700;">🛍️ חנות שדרוגים</button>
+            <button onclick="showPersonalHistory()" style="margin-top: 10px; background: rgba(0,242,255,0.1); border-color: var(--primary); color: var(--primary);">📊 My History</button>
+            <button onclick="showShop()" style="margin-top: 10px; background: rgba(255,215,0,0.15); border-color: #ffd700; color: #ffd700;">🛍️ Upgrade Shop</button>
             <button onclick="showSettings()" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;" data-i18n="settingsBtn">⚙️ הגדרות</button>
 
             <!-- Coins display -->
             <div id="home-coins-display" style="margin-top:10px; padding:8px 16px; background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.4); border-radius:8px; font-size:0.9rem; color:#ffd700; text-align:center; max-width:340px; width:100%;">
-                💰 מטבעות: <span id="coins">0</span>
+                💰 Coins: <span id="coins">0</span>
             </div>
 
             <!-- Personal best mini-strip shown in main menu -->
@@ -239,24 +239,24 @@
 
             <!-- ===== SHOP ===== -->
             <div id="shop-container" style="display: none; width: 100%; max-width: 420px; text-align: center;">
-                <h2 style="margin-bottom: 6px;">🛍️ חנות שדרוגים</h2>
-                <div style="margin-bottom: 16px; font-size: 1rem; color: #ffd700;">💰 יתרה: <span id="shop-coins-display">0</span></div>
+                <h2 style="margin-bottom: 6px;">🛍️ Upgrade Shop</h2>
+                <div style="margin-bottom: 16px; font-size: 1rem; color: #ffd700;">💰 Balance: <span id="shop-coins-display">0</span></div>
                 <div id="shop-items" style="display: flex; flex-direction: column; gap: 12px;"></div>
                 <button onclick="closeShop()" style="margin-top: 20px;">◀ חזרה</button>
             </div>
 
             <!-- ===== PERSONAL HISTORY PANEL ===== -->
             <div id="history-container" style="display:none; width:100%; max-width:420px; text-align:center;">
-                <h2 style="margin-bottom:6px;">📊 ההיסטוריה שלי</h2>
+                <h2 style="margin-bottom:6px;">📊 My History</h2>
 
                 <!-- Stats summary -->
                 <div id="history-stats" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px;"></div>
 
                 <!-- Tabs: History / Personal Bests / Achievements -->
                 <div style="display:flex; gap:8px; justify-content:center; margin-bottom:12px; flex-wrap:wrap;">
-                    <button class="history-tab active" id="htab-history" onclick="switchHistoryTab('history')">🕒 היסטוריה</button>
-                    <button class="history-tab" id="htab-bests" onclick="switchHistoryTab('bests')">🥇 שיאים אישיים</button>
-                    <button class="history-tab" id="htab-achievements" onclick="switchHistoryTab('achievements')">🏅 הישגים</button>
+                    <button class="history-tab active" id="htab-history" onclick="switchHistoryTab('history')">🕒 History</button>
+                    <button class="history-tab" id="htab-bests" onclick="switchHistoryTab('bests')">🥇 Personal Bests</button>
+                    <button class="history-tab" id="htab-achievements" onclick="switchHistoryTab('achievements')">🏅 Achievements</button>
                 </div>
 
                 <!-- History list -->
@@ -342,7 +342,7 @@
                     </div>
                 </div>
 
-                <!-- TAB: כללי משחק -->
+                <!-- TAB: Game Rules -->
                 <div class="settings-tab-pane" data-tab="rules" style="display:none;">
                     <div class="settings-group">
                         <label data-i18n="enemiesAsteLabel">אויבים יורים דרך סלעים:</label>
@@ -396,8 +396,8 @@
                     <div class="settings-group" id="edu-lock-group">
                         <label data-i18n="lockLabel">נעילת המצב הנוכחי עם סיסמה:</label>
                         <div class="key-display">
-                            <input type="password" id="edu-lock-password" data-i18n="lockPh" data-i18n-attr="placeholder" placeholder="בחר סיסמה" style="flex:1; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;">
-                            <button onclick="eduLock()" class="change-key-btn" data-i18n="lockBtn">🔒 נעל</button>
+                            <input type="password" id="edu-lock-password" data-i18n="lockPh" data-i18n-attr="placeholder" placeholder="Choose a password" style="flex:1; padding:10px; border:2px solid var(--primary); background:rgba(0,0,0,0.5); color:white; border-radius:5px; font-family:'Orbitron',sans-serif;">
+                            <button onclick="eduLock()" class="change-key-btn" data-i18n="lockBtn">🔒 Lock</button>
                         </div>
                         <small style="opacity: 0.7;" data-i18n="lockNote">לאחר נעילה לא ניתן לשנות מקצוע/כיתה או לכבות בלי הסיסמה. ייפתח אוטומטית אחרי 45 דקות.</small>
                     </div>
@@ -409,7 +409,7 @@
                             <button onclick="eduCreateLink()" class="change-key-btn" data-i18n="linkBtn">🔗 צור קישור</button>
                         </div>
                         <small style="opacity: 0.7;" data-i18n="linkNote">הקישור מקבע את המקצוע והכיתה שנבחרו. עם סיסמה — נעול ל-45 דקות. בלי סיסמה — רק בוחר מקצוע וכיתה, ללא נעילה.</small>
-                        <textarea id="edu-link-output" class="dev-console-input" rows="2" dir="ltr" readonly data-i18n="linkPlaceholder" data-i18n-attr="placeholder" placeholder="הקישור יופיע כאן" style="margin-top:8px;"></textarea>
+                        <textarea id="edu-link-output" class="dev-console-input" rows="2" dir="ltr" readonly data-i18n="linkPlaceholder" data-i18n-attr="placeholder" placeholder="Link will appear here" style="margin-top:8px;"></textarea>
                         <div class="button-group" style="margin-top:8px;">
                             <button class="setting-btn" onclick="eduCopyLink()" data-i18n="copyLink">📋 העתק קישור</button>
                         </div>
@@ -482,8 +482,8 @@
             </div>
         </div>
         <div class="replay-controls">
-            <button id="replay-playpause-btn" onclick="window.__replayPlayPause()">⏸ עצור</button>
-            <button onclick="window.__replayClose()">✕ סגור</button>
+            <button id="replay-playpause-btn" onclick="window.__replayPlayPause()">⏸ Stop</button>
+            <button onclick="window.__replayClose()">✕ Close</button>
         </div>
         <input type="range" id="replay-timeline" min="0" max="100" value="0" oninput="window.__replaySeek(this.value)">
         <div id="replay-info"></div>

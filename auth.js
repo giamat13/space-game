@@ -1,7 +1,7 @@
 // ===== FIREBASE AUTH SYSTEM =====
-// התחברות עם Google ומייל/סיסמה + Account Linking
+// Google & Email/Password login + Account Linking
 // ⚠️ NO STORAGE USED - 100% FREE! ⚠️
-// תמונות פרופיל מגיעות ישירות מ-Google (photoURL) - לא מ-Firebase Storage
+// Profile images come directly from Google (photoURL) - not from Firebase Storage
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { 
@@ -90,53 +90,53 @@ export async function signUpWithEmail(email, password, displayName) {
     console.log('📧 [SIGNUP] Attempting email signup for:', email);
     
     try {
-        // בדיקה אם המייל כבר קיים
+        // Check if email already exists
         const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-        
+
         if (signInMethods.length > 0) {
             console.log('⚠️ [SIGNUP] Email already exists with providers:', signInMethods);
-            
-            // אם יש חשבון Google, מציעים לקשר
+
+            // If Google account exists, offer to link
             if (signInMethods.includes('google.com')) {
-                showMessage('המייל הזה כבר קיים עם Google. מתחבר...', 'info');
-                
-                // מנסים להתחבר עם Google ואז לקשר
+                showMessage('This email already exists with Google. Connecting...', 'info');
+
+                // Try to sign in with Google then link
                 const googleResult = await signInWithPopup(auth, googleProvider);
-                
+
                 if (googleResult.user.email === email) {
-                    // עכשיו מקשרים את סיסמת המייל
+                    // Now link the email/password
                     const credential = EmailAuthProvider.credential(email, password);
                     await linkWithCredential(googleResult.user, credential);
-                    
-                    showMessage('החשבונות קושרו בהצלחה! 🎉', 'success');
-                    
+
+                    showMessage('Accounts linked successfully! 🎉', 'success');
+
                     // Return to main menu
                     setTimeout(() => {
                         showMainMenu();
                     }, 800);
-                    
+
                     return googleResult.user;
                 }
             }
-            
-            // אם יש סיסמה, מציעים להתחבר
+
+            // If password method exists, suggest signing in instead
             if (signInMethods.includes('password')) {
-                showMessage('המייל הזה כבר רשום. נסה להתחבר במקום', 'warning');
+                showMessage('This email is already registered. Try signing in instead', 'warning');
                 return null;
             }
         }
-        
-        // יצירת חשבון חדש
+
+        // Create new account
         const result = await createUserWithEmailAndPassword(auth, email, password);
         console.log('✅ [SIGNUP] Successfully created account:', email);
-        
-        // עדכון שם תצוגה
+
+        // Update display name
         if (displayName) {
             await updateProfile(result.user, { displayName });
             console.log('✅ [SIGNUP] Updated display name to:', displayName);
         }
-        
-        showMessage('נרשמת בהצלחה! 🎉', 'success');
+
+        showMessage('Signed up successfully! 🎉', 'success');
         
         // Return to main menu
         setTimeout(() => {
@@ -209,28 +209,28 @@ export async function logout() {
         }, 800);
     } catch (error) {
         console.error('❌ [LOGOUT] Error during sign out:', error);
-        showMessage('שגיאה בהתנתקות', 'error');
+        showMessage('Error signing out', 'error');
     }
 }
 
 // ===== UPDATE DISPLAY NAME =====
 export async function updateDisplayName(newName) {
     console.log('✏️ [PROFILE] Updating display name to:', newName);
-    
+
     if (!auth.currentUser) {
-        showMessage('עליך להתחבר קודם', 'warning');
+        showMessage('You need to sign in first', 'warning');
         return false;
     }
-    
+
     try {
         await updateProfile(auth.currentUser, { displayName: newName });
         currentUser.displayName = newName;
         console.log('✅ [PROFILE] Display name updated successfully');
-        showMessage('השם עודכן בהצלחה! ✅', 'success');
+        showMessage('Name updated successfully! ✅', 'success');
         return true;
     } catch (error) {
         console.error('❌ [PROFILE] Error updating display name:', error);
-        showMessage('שגיאה בעדכון השם', 'error');
+        showMessage('Error updating name', 'error');
         return false;
     }
 }
@@ -277,15 +277,15 @@ function updateUserProfile() {
     document.getElementById('user-name').textContent = currentUser.displayName;
     document.getElementById('user-email').textContent = currentUser.email;
     
-    // עדכון אייקון פרופיל
+    // Update profile icon
     const userIcon = document.getElementById('user-icon');
     if (currentUser.photoURL) {
         userIcon.innerHTML = `<img src="${currentUser.photoURL}" alt="Profile" style="width: 100%; height: 100%; border-radius: 50%;">`;
     } else {
         userIcon.innerHTML = '👤';
     }
-    
-    // הצגת ספקי התחברות
+
+    // Show login providers
     const providersDiv = document.getElementById('user-providers');
     providersDiv.innerHTML = currentUser.providers.map(p => {
         if (p === 'google.com') return '🔵 Google';
@@ -299,17 +299,17 @@ function handleAuthError(error) {
     console.error('❌ [ERROR]', error.code, error.message);
     
     const errorMessages = {
-        'auth/email-already-in-use': 'המייל כבר בשימוש',
-        'auth/weak-password': 'הסיסמה חלשה מדי (לפחות 6 תווים)',
-        'auth/invalid-email': 'כתובת מייל לא תקינה',
-        'auth/user-not-found': 'משתמש לא נמצא',
-        'auth/wrong-password': 'סיסמה שגויה',
-        'auth/popup-closed-by-user': 'החלון נסגר',
-        'auth/account-exists-with-different-credential': 'חשבון קיים עם שיטת התחברות אחרת',
-        'auth/credential-already-in-use': 'האישורים כבר בשימוש'
+        'auth/email-already-in-use': 'Email is already in use',
+        'auth/weak-password': 'Password is too weak (at least 6 characters)',
+        'auth/invalid-email': 'Invalid email address',
+        'auth/user-not-found': 'User not found',
+        'auth/wrong-password': 'Wrong password',
+        'auth/popup-closed-by-user': 'Sign-in window was closed',
+        'auth/account-exists-with-different-credential': 'Account exists with different sign-in method',
+        'auth/credential-already-in-use': 'Credentials are already in use'
     };
-    
-    const message = errorMessages[error.code] || 'שגיאה לא צפויה';
+
+    const message = errorMessages[error.code] || 'Unexpected error';
     showMessage(message, 'error');
 }
 

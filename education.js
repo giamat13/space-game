@@ -1,7 +1,7 @@
 // ===== EDUCATION / QUIZ MODE =====
-// מצב חינוכי: מציג שאלות בעת עליית שלב / הריגת אויב / תחילת משחק.
-// אפשר להפעיל מצב חינוכי רגיל (אפשר לשנות מקצוע/כיתה) או מצב נעול דרך קישור
-// (הסיסמה, המקצוע והכיתה מקודדים בתוך הקישור עצמו).
+// Education mode: shows questions on level-up / enemy kill / game start
+// Can be normal mode (change subject/grade) or locked mode via teacher link
+// (password, subject, and grade are encoded in the link itself)
 
 import { state } from './data.js';
 import { t, currentLang } from './i18n.js';
@@ -41,13 +41,13 @@ const GRADE_LETTERS = {
     '7': 'ז', '8': 'ח', '9': 'ט', '10': 'י', '11': 'י״א', '12': 'י״ב'
 };
 
-// "1" -> "כיתה א'", "10" -> "כיתה י'", "11" -> "כיתה י״א"
+// "1" -> "Grade A", "10" -> "Grade 10", "11" -> "Grade 11"
 export function gradeLabel(grade) {
     const g = String(grade);
     const letter = GRADE_LETTERS[g];
-    if (!letter) return 'כיתה ' + g;
-    // single letters get a geresh, the two-letter ones already carry gershayim
-    return letter.length === 1 ? `כיתה ${letter}'` : `כיתה ${letter}`;
+    if (!letter) return 'Grade ' + g;
+    // Return with "Grade" prefix in English
+    return `Grade ${g}`;
 }
 
 // Stable, obfuscation-grade session id derived from the password so every

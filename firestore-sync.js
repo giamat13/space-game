@@ -1,6 +1,6 @@
 // ===== FIRESTORE SYNC SYSTEM =====
-// סנכרון ציונים ומקסימום רמה בין מכשירים
-// משתמש ב-Firestore לשמירה בענן + Cookies למטמון מקומי
+// Syncs scores and max level across devices
+// Uses Firestore for cloud storage + Cookies for local cache
 
 import { 
     getFirestore, 
@@ -74,17 +74,17 @@ export async function syncUnlockedSkins() {
     try {
         console.log('🔄 [SYNC] Syncing unlocked skins...');
         
-        // קריאה מ-Firestore
+        // Read from Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         
         if (userDoc.exists()) {
             const cloudSkins = userDoc.data().unlockedSkins || ['classic', 'interceptor', 'tanker'];
             const localSkins = JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
             
-            // מיזוג - כל סקין שקיים באחד מהמקורות
+            // Merge - any skin in either source
             const mergedSkins = [...new Set([...cloudSkins, ...localSkins])];
             
-            // עדכון בענן וב-Cookies
+            // Update in cloud and cookies
             await setDoc(doc(db, 'users', user.uid), {
                 unlockedSkins: mergedSkins,
                 lastUpdated: serverTimestamp()
@@ -94,7 +94,7 @@ export async function syncUnlockedSkins() {
             console.log('✅ [SYNC] Skins synced:', mergedSkins);
             return mergedSkins;
         } else {
-            // אין מסמך - צור חדש
+            // No document - create new
             const localSkins = JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
             await setDoc(doc(db, 'users', user.uid), {
                 unlockedSkins: localSkins,
@@ -131,10 +131,10 @@ export async function syncMaxLevel() {
             const cloudMaxLevel = userDoc.data().maxLevel || 1;
             const localMaxLevel = parseInt(getCookie('maxLevel') || '1');
             
-            // השתמש בגבוה מבין השניים
+            // Use the higher of the two
             const maxLevel = Math.max(cloudMaxLevel, localMaxLevel);
             
-            // עדכון בענן וב-Cookies
+            // Update in cloud and cookies
             await setDoc(doc(db, 'users', user.uid), {
                 maxLevel: maxLevel,
                 lastUpdated: serverTimestamp()
@@ -173,7 +173,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
     try {
         console.log(`☁️ [CLOUD] Saving score: ${score} pts, Level ${level}, Skin: ${skinKey}`);
 
-        // שמירה ב-collection הספציפי לסקין
+        // Save to skin-specific collection
         const currentCoins = parseInt(getCookie('playerCoins') || '0');
         const scoreData = {
             userId: user.uid,
@@ -188,21 +188,21 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
             settings: settings || null
         };
         
-        // שמירה ב-leaderboard הכללי - רק שיא אחד למשתמש
+        // Save to general leaderboard - only one record per user
         const overallRef = doc(db, 'leaderboard', user.uid);
         const existingOverall = await getDoc(overallRef);
         if (!existingOverall.exists() || score > existingOverall.data().score) {
             await setDoc(overallRef, scoreData);
         }
 
-        // שמירה ב-leaderboard לפי סקין - רק שיא אחד למשתמש
+        // Save to skin leaderboard - only one record per user
         const skinRef = doc(db, `scores/${skinKey}/entries`, user.uid);
         const existingSkin = await getDoc(skinRef);
         if (!existingSkin.exists() || score > existingSkin.data().score) {
             await setDoc(skinRef, scoreData);
         }
         
-        // עדכון סטטיסטיקות משתמש
+        // Update user statistics
         const userStatsRef = doc(db, 'userStats', user.uid);
         const userStats = await getDoc(userStatsRef);
         

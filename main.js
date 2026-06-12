@@ -107,12 +107,12 @@ let _esActiveFilter = 'all';
 // EXCEPT for filters with meaningful defaults (edu=off, upgrades=none, rules=defaults, rightClick=true).
 
 const FILTER_CATS = [
-    { key: 'device',   icon: '📱', label: 'מכשיר'   },
-    { key: 'rules',    icon: '📜', label: 'כללים'   },
-    { key: 'controls', icon: '🎮', label: 'שליטה'   },
-    { key: 'edu',      icon: '📚', label: 'חינוכי'  },
-    { key: 'lang',     icon: '🌐', label: 'שפה'     },
-    { key: 'upgrades', icon: '🛍️', label: 'שדרוגים' },
+    { key: 'device',   icon: '📱', label: 'Device'   },
+    { key: 'rules',    icon: '📜', label: 'Rules'   },
+    { key: 'controls', icon: '🎮', label: 'Controls'   },
+    { key: 'edu',      icon: '📚', label: 'Education'  },
+    { key: 'lang',     icon: '🌐', label: 'Language'     },
+    { key: 'upgrades', icon: '🛍️', label: 'Upgrades' },
 ];
 
 function defaultFilters() {
@@ -162,19 +162,19 @@ function renderCatPanel(catKey, filters, cid) {
     const f = filters;
     switch (catKey) {
         case 'device': {
-            const note = `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">ללא הגדרות → מוצג רק ב"הכל"</div>`;
+            const note = `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">No settings → shown only in "All"</div>`;
             return note + `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${[['all','הכל'],['mobile','📱 טלפון'],['desktop','🖥️ מחשב']].map(([v,lbl]) =>
+                ${[['all','All'],['mobile','📱 Mobile'],['desktop','🖥️ Desktop']].map(([v,lbl]) =>
                     `<button class="es-filter${f.device===v?' active':''}" onclick="window.__filterSet('${cid}','device','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
         }
 
         case 'rules': {
             const RULES = {
-                enemiesShootThroughAsteroids: 'אויבים ירי דרך סלעים',
-                playerShootThroughAsteroids:  'שחקן ירי דרך סלעים',
+                enemiesShootThroughAsteroids: 'Enemies shoot through asteroids',
+                playerShootThroughAsteroids:  'Player shoots through asteroids',
             };
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=כן &nbsp;🚫=לא &nbsp;· ללא הגדרות → ברירת מחדל</div>` +
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=Any &nbsp;✅=Yes &nbsp;🚫=No &nbsp;· No settings → defaults</div>` +
                 Object.entries(RULES).map(([key, label]) => {
                     const cur = (f.rules||{})[key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -191,35 +191,35 @@ function renderCatPanel(catKey, filters, cid) {
             const rcS = rightClick !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
             return `<div style="display:flex;flex-direction:column;gap:7px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">סוג שליטה:</span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">Control type:</span>
                     <div style="display:flex;gap:3px;">
-                        ${[['any','הכל'],['mouse','🖱️ עכבר'],['arrows','⬆️ חצים']].map(([v,lbl]) =>
+                        ${[['any','All'],['mouse','🖱️ Mouse'],['arrows','⬆️ Arrows']].map(([v,lbl]) =>
                             `<button class="es-filter${ctrlType===v?' active':''}" onclick="window.__filterSetCtrl('${cid}','controlType','${v}')">${lbl}</button>`
                         ).join('')}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">קליק ימני:</span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">Right-click:</span>
                     <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','rightClickAbility')"
                         style="font-size:1rem;padding:2px 8px;min-width:36px${rcS}">${_boolIcon[rightClick]}</button>
-                    <span style="font-size:0.63rem;opacity:0.45;">⬜=לא משנה ✅=כן 🚫=לא &nbsp;· ללא הגדרות → כן</span>
+                    <span style="font-size:0.63rem;opacity:0.45;">⬜=Any ✅=Yes 🚫=No &nbsp;· No settings → Yes</span>
                 </div>
             </div>`;
         }
 
         case 'edu':
-            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">ללא הגדרות → כבוי</div>
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">No settings → Off</div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${[['all','הכל'],['on','✅ פעיל'],['off','❌ כבוי']].map(([v,lbl]) =>
+                ${[['all','All'],['on','✅ On'],['off','❌ Off']].map(([v,lbl]) =>
                     `<button class="es-filter${f.edu===v?' active':''}" onclick="window.__filterSet('${cid}','edu','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
 
         case 'lang': {
             const sel = Array.isArray(f.lang) ? f.lang : [];
             const isAll = sel.length === 0;
-            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">מולטי-בחירה · ללא הגדרות → מוצג רק ב"הכל"</div>
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">Multi-select · No settings → shown only in "All"</div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <button class="es-filter${isAll?' active':''}" onclick="window.__filterToggleLang('${cid}',null)">הכל</button>
+                    <button class="es-filter${isAll?' active':''}" onclick="window.__filterToggleLang('${cid}',null)">All</button>
                     ${LANGS.map(l =>
                         `<button class="es-filter${sel.includes(l.code)?' active':''}" onclick="window.__filterToggleLang('${cid}','${l.code}')">${l.flag} ${l.label}</button>`
                     ).join('')}
@@ -227,8 +227,8 @@ function renderCatPanel(catKey, filters, cid) {
         }
 
         case 'upgrades':
-            if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">אין שדרוגים</span>`;
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=לא משנה &nbsp;✅=חובה &nbsp;🚫=אסור &nbsp;· ללא הגדרות → ללא שדרוגים</div>` +
+            if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">No upgrades</span>`;
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=Any &nbsp;✅=Required &nbsp;🚫=Forbidden &nbsp;· No settings → No upgrades</div>` +
                 Object.values(UPGRADES).map(u => {
                     const cur = (f.upgrades||{})[u.key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -342,12 +342,12 @@ function renderFilterBar(containerId, filters, onChange) {
     el.innerHTML = `
         <details class="filter-bar">
             <summary style="cursor:pointer;font-size:0.78rem;opacity:0.8;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;justify-content:center;padding:4px 0;">
-                🔍 פילטרים${badge}
+                🔍 Filters${badge}
             </summary>
             <div style="padding:8px 2px;">
                 <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:2px;">${catBtns}</div>
                 ${panels}
-                ${active > 0 ? `<div style="text-align:center;margin-top:8px;"><button class="es-filter" onclick="window.__filterReset('${containerId}')" style="color:#ff4d4d;border-color:#ff4d4d;">✕ נקה הכל</button></div>` : ''}
+                ${active > 0 ? `<div style="text-align:center;margin-top:8px;"><button class="es-filter" onclick="window.__filterReset('${containerId}')" style="color:#ff4d4d;border-color:#ff4d4d;">✕ Clear All</button></div>` : ''}
             </div>
         </details>
     `;
@@ -816,7 +816,7 @@ function renderEntrySettingsBody(s, cat) {
                   </div>`
                 : `<div class="es-row"><span class="es-value">${key}</span></div>`;
           }).join('')
-        : `<div class="es-row"><span style="opacity:0.6;">${currentLang === 'en' ? 'No upgrades' : 'אין שדרוגים'}</span></div>`;
+        : `<div class="es-row"><span style="opacity:0.6;">No upgrades</span></div>`;
 
     const groups = {
         device: `<div class="es-group" data-cat="device">
@@ -855,7 +855,7 @@ function renderEntrySettingsBody(s, cat) {
         </div>`,
 
         upgrades: `<div class="es-group" data-cat="upgrades">
-            <div class="es-group-title">🛍️ ${currentLang === 'en' ? 'Upgrades' : 'שדרוגים'}</div>
+            <div class="es-group-title">🛍️ Upgrades</div>
             ${upgradesHtml}
         </div>`
     };
@@ -882,13 +882,13 @@ function _renderLbContent() {
 
     if (filtered.length === 0) {
         const hasAny = _rawLeaderboard.length > 0;
-        content.innerHTML = `<div class="lb-empty">${hasAny ? (currentLang === 'en' ? 'No results for these filters' : 'אין תוצאות עם הפילטרים הנוכחיים') : t('lbEmpty')}</div>`;
+        content.innerHTML = `<div class="lb-empty">${hasAny ? 'No results for these filters' : t('lbEmpty')}</div>`;
         return;
     }
 
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     const countNote = countActiveFilters(_lbFilters) > 0
-        ? `<div style="font-size:0.72rem;opacity:0.5;margin-bottom:6px;">${filtered.length} / ${_rawLeaderboard.length} תוצאות</div>` : '';
+        ? `<div style="font-size:0.72rem;opacity:0.5;margin-bottom:6px;">${filtered.length} / ${_rawLeaderboard.length} results</div>` : '';
 
     content.innerHTML = countNote + filtered.map((entry, index) => {
         let skinName = '';
@@ -983,8 +983,8 @@ function _renderSrContent(goalKey) {
 
     if (!filtered.length) {
         const empty = _rawSpeedrunEntries.length === 0
-            ? `אין שיאים עדיין — השלם את "${goal?.label || goalKey}" כמה שיותר מהר!`
-            : `אין תוצאות עם הפילטרים הנוכחיים`;
+            ? `No records yet — complete "${goal?.label || goalKey}" as fast as possible!`
+            : `No results for these filters`;
         content.innerHTML = `<div class="lb-empty">${empty}</div>`;
         return;
     }
@@ -2937,7 +2937,7 @@ function renderHistoryList() {
         ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${history.length} / ${allHistory.length} משחקים</div>` : '';
 
     if (!history.length) {
-        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">אין תוצאות עם הפילטרים הנוכחיים</div>`;
+        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">No results for these filters</div>`;
         return;
     }
 
@@ -2995,7 +2995,7 @@ function renderBestsList(skinKey) {
         ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${bests.length} / ${allBests.length} שיאים</div>` : '';
 
     if (!bests.length) {
-        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">אין תוצאות עם הפילטרים הנוכחיים</div>`;
+        el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">No results for these filters</div>`;
         return;
     }
 

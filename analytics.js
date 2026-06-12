@@ -1,8 +1,8 @@
 // ===== GAME ANALYTICS & FULL EVENT LOGGING =====
-// שומר נתונים מסיביים על כל משחק + לוג מלא של כל אירוע
-// מבנה Firebase:
-//   gameSessions/{sessionId}          – סיכום המשחק
-//   gameSessions/{sessionId}/logs     – כל האירועים הכרונולוגיים
+// Saves massive data per game + complete log of all events
+// Firebase structure:
+//   gameSessions/{sessionId}          – game summary
+//   gameSessions/{sessionId}/logs     – all chronological events
 
 import {
     getFirestore,
@@ -33,13 +33,13 @@ function ensureDb() {
 }
 
 // ===== SESSION STATE =====
-// כל המשתנים האלה מאופסים ב-startAnalyticsSession()
+// All these variables are reset in startAnalyticsSession()
 
-let sessionId = null;           // מזהה ייחודי למשחק הנוכחי
-let sessionStartTime = null;    // Date.now() בתחילת משחק
+let sessionId = null;           // Unique ID for current game
+let sessionStartTime = null;    // Date.now() at game start
 let currentLevel = 1;
 let shotsFired = 0;
-let shotsHit = 0;               // ניתן לעדכן מ-updates.js
+let shotsHit = 0;               // Can be updated from updates.js
 let totalDamageDealt = 0;
 let totalDamageTaken = 0;
 let enemiesKilled = { red: 0, orange: 0, green: 0, blue: 0 };
@@ -56,19 +56,19 @@ let peakScore = 0;
 let deathCause = null;          // 'enemy_bullet' | 'enemy_collision' | 'asteroid'
 let asteroidsDestroyed = 0;
 let powerupsCollected = 0;
-let friendlyFireEvents = 0;     // אויב שיורה על אויב
-let chaoticKills = 0;           // אויב כאוטי שהורג אויב
+let friendlyFireEvents = 0;     // Enemy shooting enemy
+let chaoticKills = 0;           // Chaotic enemy killing enemy
 let comboMultiplier = 1;
 let maxComboReached = 1;
 let skinKey = 'classic';
 let userName = 'Anonymous';
 let deviceInfo = {};
 
-// לוג האירועים – נאסף בזיכרון ונשלח בבאץ' בסוף המשחק
-// כל רשומה: { t (ms מתחילת משחק), type, ...data }
+// Event log – collected in memory and sent in batches at end of game
+// Each record: { t (ms from game start), type, ...data }
 let eventLog = [];
 
-// פונקציית עזר: הוסף אירוע ללוג
+// Helper function: add event to log
 function logEvent(type, data = {}) {
     if (!sessionId) return;
     const t = sessionStartTime ? Date.now() - sessionStartTime : 0;
@@ -124,7 +124,7 @@ export function startAnalyticsSession(skin, user, device = {}) {
     console.log(`📊 [ANALYTICS] Session started: ${sessionId}`);
 }
 
-// ===== מעקב ירי =====
+// ===== Shot tracking =====
 
 export function trackShot(x, y, damage) {
     if (!sessionId) return;
@@ -139,7 +139,7 @@ export function trackShotHit(enemyType, damage, enemyHP, enemyMaxHP) {
     logEvent('shot_hit', { enemyType, damage, enemyHP: Math.round(enemyHP), enemyMaxHP });
 }
 
-// ===== מעקב נזק לשחקן =====
+// ===== Player damage tracking =====
 
 export function trackDamageTaken(amount, source, playerHPBefore, playerHPAfter) {
     if (!sessionId) return;
@@ -153,7 +153,7 @@ export function trackDamageTaken(amount, source, playerHPBefore, playerHPAfter) 
     });
 }
 
-// ===== מעקב ריפוי =====
+// ===== Heal tracking =====
 
 export function trackHeal(amount, source, playerHPBefore, playerHPAfter) {
     if (!sessionId) return;
@@ -166,7 +166,7 @@ export function trackHeal(amount, source, playerHPBefore, playerHPAfter) {
     });
 }
 
-// ===== מעקב הריגת אויב =====
+// ===== Enemy kill tracking =====
 
 export function trackEnemyKilled(type, score, level, method = 'bullet') {
     if (!sessionId) return;
@@ -174,7 +174,7 @@ export function trackEnemyKilled(type, score, level, method = 'bullet') {
     logEvent('enemy_killed', { type, score, level, method });
 }
 
-// ===== מעקב ירי ידידותי / כאוטי =====
+// ===== Friendly fire / chaotic tracking =====
 
 export function trackFriendlyFire(shooterType, victimType, damage) {
     if (!sessionId) return;
@@ -188,7 +188,7 @@ export function trackChaoticKill(victimType) {
     logEvent('chaotic_kill', { victimType });
 }
 
-// ===== מעקב אסטרואידים =====
+// ===== Asteroid tracking =====
 
 export function trackAsteroidDestroyed(method = 'bullet') {
     if (!sessionId) return;
@@ -196,7 +196,7 @@ export function trackAsteroidDestroyed(method = 'bullet') {
     logEvent('asteroid_destroyed', { method });
 }
 
-// ===== מעקב כוח =====
+// ===== Ability tracking =====
 
 export function trackAbilityUsed(abilityName, level, playerHP) {
     if (!sessionId) return;
@@ -209,7 +209,7 @@ export function trackAbilityUsed(abilityName, level, playerHP) {
     });
 }
 
-// ===== מעקב פריטים =====
+// ===== Item tracking =====
 
 export function trackBurgerEaten(hpGain, playerHPBefore, playerHPAfter, becameFat) {
     if (!sessionId) return;
@@ -234,14 +234,14 @@ export function trackPowerupCollected(type) {
     logEvent('powerup_collected', { type });
 }
 
-// ===== מעקב שלבים =====
+// ===== Level tracking =====
 
 export function trackLevelUp(newLevel, score, playerHP, playerMaxHP) {
     if (!sessionId) return;
     const now = Date.now();
     const duration = now - levelEnterTime;
 
-    // רשום את השלב שהסתיים
+    // Record the level that just ended
     levelTimestamps.push({
         level: newLevel - 1,
         enteredAt: levelEnterTime - sessionStartTime,
@@ -262,7 +262,7 @@ export function trackLevelUp(newLevel, score, playerHP, playerMaxHP) {
     });
 }
 
-// ===== מעקב הפסקה =====
+// ===== Pause tracking =====
 
 export function trackPauseStart() {
     if (!sessionId) return;
@@ -280,14 +280,14 @@ export function trackPauseEnd() {
     logEvent('game_resumed', { pauseDurationMs: pauseDuration });
 }
 
-// ===== מעקב ציון =====
+// ===== Score tracking =====
 
 export function trackScoreUpdate(score) {
     if (!sessionId) return;
     if (score > peakScore) peakScore = score;
 }
 
-// ===== מעקב מוות =====
+// ===== Death tracking =====
 
 export function trackDeath(cause, finalHP, finalScore, finalLevel) {
     if (!sessionId) return;
@@ -300,7 +300,7 @@ export function trackDeath(cause, finalHP, finalScore, finalLevel) {
     });
 }
 
-// ===== שמירה ל-FIREBASE בסוף משחק =====
+// ===== FIREBASE save at end of game =====
 
 /**
  * קרא בסוף כל משחק (מ-damagePlayer / systems.js לאחר state.active = false)
@@ -316,9 +316,9 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
 
     const userId = auth?.currentUser?.uid || 'anonymous';
     const now = Date.now();
-    const gameDurationMs = now - sessionStartTime - totalPauseTime; // זמן משחק אמיתי ללא הפסקות
+    const gameDurationMs = now - sessionStartTime - totalPauseTime; // Actual game time without pauses
 
-    // סיים את השלב האחרון
+    // End the last level
     const lastLevelDuration = now - levelEnterTime;
     levelTimestamps.push({
         level: finalState.level,
@@ -326,7 +326,7 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         durationMs: lastLevelDuration
     });
 
-    // --- חישוב נתונים נגזרים ---
+    // --- Compute derived data ---
     const totalEnemiesKilled = Object.values(enemiesKilled).reduce((a, b) => a + b, 0);
     const accuracy = shotsFired > 0 ? Math.round((shotsHit / shotsFired) * 100) : 0;
     const avgLevelDuration = levelTimestamps.length > 0
@@ -346,21 +346,21 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         ? Math.round((totalDamageDealt / totalDamageTaken) * 100) / 100
         : totalDamageDealt;
 
-    // --- סיכום המשחק ---
+    // --- Game summary ---
     const sessionSummary = {
-        // מזהים
+        // Identifiers
         sessionId,
         userId,
         userName,
         skin: skinKey,
 
-        // תוצאות סופיות
+        // Final results
         finalScore: finalState.score,
         finalLevel: finalState.level,
         peakScore,
         deathCause: deathCause || 'unknown',
 
-        // זמנים
+        // Times
         startedAt: new Date(sessionStartTime).toISOString(),
         endedAt: new Date(now).toISOString(),
         gameDurationMs,
@@ -368,42 +368,42 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         realPlaytimeMs: gameDurationMs,
         pauseCount: pauseEvents.length,
 
-        // שלבים
+        // Levels
         levelTimestamps,
         avgLevelDurationMs: avgLevelDuration,
         fastestLevel: fastestLevel ? { level: fastestLevel.level, ms: fastestLevel.durationMs } : null,
         slowestLevel: slowestLevel ? { level: slowestLevel.level, ms: slowestLevel.durationMs } : null,
 
-        // ירי ודיוק
+        // Shots and accuracy
         shotsFired,
         shotsHit,
-        accuracy,         // אחוז
+        accuracy,         // percentage
         totalDamageDealt: Math.round(totalDamageDealt),
         totalDamageTaken: Math.round(totalDamageTaken),
-        damageEfficiency, // יחס damage dealt / taken
+        damageEfficiency, // ratio damage dealt / taken
 
-        // אויבים
+        // Enemies
         enemiesKilled,
         totalEnemiesKilled,
         asteroidsDestroyed,
         friendlyFireEvents,
         chaoticKills,
 
-        // כוחות
+        // Abilities
         abilitiesUsed,
         totalAbilitiesUsed,
 
-        // פריטים
+        // Items
         burstersEaten,
         ingredientsCollected,
         powerupsCollected,
         healEvents,
 
-        // סטטיסטיקות נוספות
+        // Additional statistics
         scorePerMinute,
         maxComboReached,
 
-        // הגדרות המשחק
+        // Game settings
         settings,
         device: deviceInfo,
 
@@ -413,12 +413,12 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
     };
 
     try {
-        // 1. שמור את סיכום המשחק
+        // 1. Save the game summary
         const sessionRef = doc(db, 'gameSessions', sessionId);
         await setDoc(sessionRef, sessionSummary);
         console.log(`✅ [ANALYTICS] Session summary saved: ${sessionId}`);
 
-        // 2. שמור את הלוג המלא בבאץ'ים (Firestore מגביל 500 פעולות לבאץ')
+        // 2. Save full log in batches (Firestore limits 500 operations per batch)
         const logsRef = collection(db, 'gameSessions', sessionId, 'logs');
         const BATCH_SIZE = 400;
         for (let i = 0; i < eventLog.length; i += BATCH_SIZE) {
@@ -432,7 +432,7 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         }
         console.log(`✅ [ANALYTICS] ${eventLog.length} log events saved`);
 
-        // 3. עדכן אינדקס מהיר לפי משתמש (לשאילתות עתידיות)
+        // 3. Update fast index by user (for future queries)
         if (userId !== 'anonymous') {
             const userAnalyticsRef = doc(db, 'userAnalytics', userId, 'sessions', sessionId);
             await setDoc(userAnalyticsRef, {
@@ -449,7 +449,7 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         }
 
         console.log(`📊 [ANALYTICS] Full save complete for session: ${sessionId}`);
-        sessionId = null; // נקה כדי שלא ישמר שוב
+        sessionId = null; // Clear so it doesn't save again
         return true;
     } catch (err) {
         console.error('❌ [ANALYTICS] Save failed:', err);
@@ -457,7 +457,7 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
     }
 }
 
-// ===== עזר: עדכן combo =====
+// ===== Helper: update combo =====
 export function trackCombo(multiplier) {
     if (!sessionId) return;
     comboMultiplier = multiplier;
@@ -467,7 +467,7 @@ export function trackCombo(multiplier) {
     }
 }
 
-// ===== חשיפה גלובלית לשימוש מכל מקום =====
+// ===== Global exports for use everywhere =====
 window.__analytics = {
     startSession: startAnalyticsSession,
     trackShot,

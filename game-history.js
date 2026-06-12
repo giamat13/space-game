@@ -1,6 +1,6 @@
 // ===== GAME HISTORY & PERSONAL LEADERBOARD =====
-// היסטוריה כרונולוגית: localStorage נפרד
-// שיאים אישיים: קורא ישירות מקוקי leaderboard_* הקיים
+// Chronological history: separate localStorage
+// Personal bests: reads directly from existing leaderboard_* cookies
 
 const HISTORY_KEY = 'gameHistory_v2';
 const MAX_HISTORY = 50;
