@@ -323,7 +323,12 @@ export function loadKeyBindings() {
     const saved = getCookie('keyBindings');
     if (saved) {
         try {
-            keyBindings = JSON.parse(saved);
+            const parsed = JSON.parse(saved);
+            keyBindings = { ...keyBindings, ...parsed };
+            // If shoot key is missing, derive default from controlType
+            if (!keyBindings.shoot) {
+                keyBindings.shoot = keyBindings.controlType === 'arrows' ? 'ArrowUp' : 'Space';
+            }
             console.log('✅ [KEYS] Loaded:', keyBindings);
         } catch (e) {
             console.error('❌ [KEYS] Error:', e);

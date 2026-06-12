@@ -1560,6 +1560,7 @@ window.addEventListener('keydown', (e) => {
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
         shoot(); // Shoot immediately on press
+        e.preventDefault();
     }
 
     // Handle special ability for all control types
@@ -1569,7 +1570,7 @@ window.addEventListener('keydown', (e) => {
 
     // Handle movement keys only for arrows control type
     if (!state.active || keyBindings.controlType !== 'arrows') return;
-    
+
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         arrowKeysPressed.left = true;
         e.preventDefault();
@@ -1577,6 +1578,10 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         arrowKeysPressed.right = true;
         e.preventDefault();
+    }
+    if (e.code === 'ArrowUp') {
+        // ArrowUp might be used for shooting, so don't override it as movement
+        // The shoot handler above will have already handled it
     }
 });
 
@@ -2150,6 +2155,7 @@ function eduCopyLink() {
 }
 
 function formatKeyName(code) {
+    if (!code) return '?';
     if (code === 'Space') return 'Space';
     if (code.startsWith('Key')) return code.replace('Key', '');
     if (code.startsWith('Digit')) return code.replace('Digit', '');
@@ -2160,6 +2166,12 @@ function formatKeyName(code) {
 function setControl(type) {
     console.log(`⚙️ [SETTINGS] Control type set to: ${type}`);
     setKeyBinding('controlType', type);
+    // Automatically set the default shoot key for the control type
+    if (type === 'arrows') {
+        setKeyBinding('shoot', 'ArrowUp');
+    } else if (type === 'mouse') {
+        setKeyBinding('shoot', 'Space');
+    }
     updateSettingsDisplay();
 }
 
