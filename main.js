@@ -3083,8 +3083,7 @@ function showBestsEntrySettings(idx) {
 window.showBestsEntrySettings = showBestsEntrySettings;
 
 // Update the personal-best mini-strip in the main menu
-function refreshPersonalBest() {
-    const best = getPersonalBest();
+function _applyPersonalBest(best) {
     const strip = document.getElementById('personal-best-strip');
     const text = document.getElementById('personal-best-text');
     if (!strip || !text) return;
@@ -3092,6 +3091,39 @@ function refreshPersonalBest() {
     strip.style.display = 'block';
     const skinName = SKINS[best.skin]?.name || best.skin || '';
     text.textContent = `השיא שלך: ${best.score.toLocaleString()} נקודות • שלב ${best.level}${skinName ? ' • ' + skinName : ''}`;
+}
+
+function refreshPersonalBest() {
+    // Show local best immediately, then overwrite with cloud data
+    _applyPersonalBest(getPersonalBest());
+
+    import('./auth.js').then(({ currentUser }) => {
+        if (!currentUser) return;
+        import('./firestore-sync.js').then(async ({ db }) => {
+            if (!db) return;
+            const { getFirestore, doc, getDoc, collection, query, where, orderBy, limit, getDocs } =
+                await import('https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js');
+            try {
+                // Fetch best from game_sessions (covers all games including custom settings)
+                const snap = await getDocs(query(
+                    collection(db, 'game_sessions'),
+                    where('userId', '==', currentUser.uid),
+                    orderBy('level', 'desc'),
+                    limit(100)
+                ));
+                let cloudBest = null;
+                snap.forEach(d => {
+                    const e = d.data();
+                    if (!cloudBest ||
+                        (e.level || 0) > (cloudBest.level || 0) ||
+                        ((e.level || 0) === (cloudBest.level || 0) && (e.score || 0) > (cloudBest.score || 0))) {
+                        cloudBest = e;
+                    }
+                });
+                if (cloudBest) _applyPersonalBest(cloudBest);
+            } catch (e) { /* cloud unavailable, local best stays */ }
+        });
+    });
 }
 
 // Called from systems.js after a game ends
