@@ -2782,7 +2782,17 @@ function renderAchievementsPanel() {
 
     const all = getAchievementProgress();
     const unlocked = all.filter(a => a.unlocked).length;
-    if (progress) progress.textContent = `${unlocked} / ${all.length} Achievements Unlocked`;
+
+    const progressLabels = {
+        he: `${unlocked} / ${all.length} הישגים פוצחו`,
+        en: `${unlocked} / ${all.length} Achievements Unlocked`,
+        ar: `${unlocked} / ${all.length} إنجازات تم فتحها`,
+        ru: `${unlocked} / ${all.length} Достижений разблокировано`,
+        fr: `${unlocked} / ${all.length} Exploits débloqués`,
+        es: `${unlocked} / ${all.length} Logros desbloqueados`
+    };
+
+    if (progress) progress.textContent = progressLabels[currentLang] || progressLabels.en;
 
     list.innerHTML = all.map(a => `
         <div class="achievement-card${a.unlocked ? '' : ' locked'}">
