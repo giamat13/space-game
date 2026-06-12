@@ -609,7 +609,7 @@ export async function saveScore(skinKey, score, level, userName = null, settings
     };
     skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
     skinLeaderboard.push(newEntry);
-    skinLeaderboard.sort((a, b) => b.score - a.score);
+    skinLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
 
@@ -624,7 +624,7 @@ export async function saveScore(skinKey, score, level, userName = null, settings
     };
     overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
     overallLeaderboard.push(overallEntry);
-    overallLeaderboard.sort((a, b) => b.score - a.score);
+    overallLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
 
