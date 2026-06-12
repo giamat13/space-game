@@ -249,43 +249,60 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
 
     try {
         console.log(`🏆 [CLOUD] Fetching ${skinKey} leaderboard...`);
-        
-        let q;
+
+        // Rank by level first (then score) to match how records are kept and
+        // displayed. Ordering by score would cut off high-level / modest-score
+        // runs before the client-side sort ever sees them.
+        const collected = [];
+
         if (skinKey === 'overall') {
-            q = query(
+            const snap = await getDocs(query(
                 collection(db, 'leaderboard'),
-                orderBy('score', 'desc'),
-                limit(50)
-            );
+                orderBy('level', 'desc'),
+                limit(100)
+            ));
+            snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
         } else {
-            q = query(
+            // Per-skin runs written at game-over.
+            const snap = await getDocs(query(
                 collection(db, `scores/${skinKey}/entries`),
-                orderBy('score', 'desc'),
-                limit(50)
-            );
-        }
+                orderBy('level', 'desc'),
+                limit(100)
+            ));
+            snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
 
-        const querySnapshot = await getDocs(q);
-        const allScores = [];
-
-        querySnapshot.forEach((doc) => {
-            allScores.push({
-                id: doc.id,
-                ...doc.data()
-            });
-        });
-
-        // deduplicate: keep only the best score per user
-        const seen = new Set();
-        const scores = [];
-        for (const entry of allScores) {
-            const uid = entry.userId || entry.id;
-            if (!seen.has(uid)) {
-                seen.add(uid);
-                scores.push(entry);
-                if (scores.length === 10) break;
+            // Historical runs that only ever landed in the overall leaderboard
+            // (the per-skin collections were populated later). Pull the matching
+            // skin from there so old records show up in their category too.
+            try {
+                const overallSnap = await getDocs(query(
+                    collection(db, 'leaderboard'),
+                    orderBy('level', 'desc'),
+                    limit(100)
+                ));
+                overallSnap.forEach((d) => {
+                    const data = d.data();
+                    if (data.skin === skinKey) collected.push({ id: d.id, ...data });
+                });
+            } catch (e) {
+                console.warn('⚠️ [CLOUD] Skin backfill from overall failed:', e);
             }
         }
+
+        // Keep the best run per user, ranked by level then score.
+        const best = new Map();
+        const isBetter = (a, b) =>
+            (a.level || 0) > (b.level || 0) ||
+            ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
+        for (const entry of collected) {
+            const uid = entry.userId || entry.id;
+            const cur = best.get(uid);
+            if (!cur || isBetter(entry, cur)) best.set(uid, entry);
+        }
+
+        const scores = [...best.values()]
+            .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
+            .slice(0, 50);
 
         console.log(`✅ [CLOUD] Fetched ${scores.length} scores`);
         return scores;

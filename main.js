@@ -1042,11 +1042,17 @@ async function displaySpeedrunLeaderboard(goalKey) {
 // Merge entries from multiple skins: deduplicate by user, keep best score
 function _mergeSkinEntries(arrays) {
     const byUser = new Map();
+    const isBetter = (a, b) =>
+        (a.level || 0) > (b.level || 0) ||
+        ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
     for (const e of arrays.flat()) {
         const uid = e.userId || e.userName || '';
-        if (!byUser.has(uid) || byUser.get(uid).score < e.score) byUser.set(uid, e);
+        const cur = byUser.get(uid);
+        if (!cur || isBetter(e, cur)) byUser.set(uid, e);
     }
-    return [...byUser.values()].sort((a, b) => b.score - a.score).slice(0, 10);
+    return [...byUser.values()]
+        .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
+        .slice(0, 50);
 }
 
 async function displayLeaderboard(categoryOrSkinSel) {
