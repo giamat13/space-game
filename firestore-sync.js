@@ -518,6 +518,159 @@ export async function getSpeedrunLeaderboardFromCloud(goalKey) {
     }
 }
 
+// ===== SYNC ACHIEVEMENTS =====
+export async function syncAchievements(localAchievements = []) {
+    if (!auth || !db) return localAchievements;
+    const user = auth.currentUser;
+    if (!user) return localAchievements;
+
+    try {
+        console.log('🔄 [SYNC] Syncing achievements...');
+        
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudAchievements = userDoc.exists() ? (userDoc.data().achievements || []) : [];
+        
+        // Merge - any achievement in either source (union)
+        const merged = [...new Set([...cloudAchievements, ...localAchievements])];
+        
+        // Update in cloud
+        await setDoc(doc(db, 'users', user.uid), {
+            achievements: merged,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        console.log('✅ [SYNC] Achievements synced:', merged);
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing achievements:', e);
+        return localAchievements;
+    }
+}
+
+// ===== SYNC KEY BINDINGS =====
+export async function syncKeyBindings(localBindings = {}) {
+    if (!auth || !db) return localBindings;
+    const user = auth.currentUser;
+    if (!user) return localBindings;
+
+    try {
+        console.log('🔄 [SYNC] Syncing key bindings...');
+        
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudBindings = userDoc.exists() ? (userDoc.data().keyBindings || {}) : {};
+        
+        // Merge - cloud takes precedence
+        const merged = { ...localBindings, ...cloudBindings };
+        
+        // Update in cloud and cookies
+        await setDoc(doc(db, 'users', user.uid), {
+            keyBindings: merged,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        setCookie('keyBindings', JSON.stringify(merged));
+        console.log('✅ [SYNC] Key bindings synced');
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing key bindings:', e);
+        return localBindings;
+    }
+}
+
+// ===== SYNC GAME RULES =====
+export async function syncGameRules(localRules = {}) {
+    if (!auth || !db) return localRules;
+    const user = auth.currentUser;
+    if (!user) return localRules;
+
+    try {
+        console.log('🔄 [SYNC] Syncing game rules...');
+        
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudRules = userDoc.exists() ? (userDoc.data().gameRules || {}) : {};
+        
+        // Merge - cloud takes precedence
+        const merged = { ...localRules, ...cloudRules };
+        
+        // Update in cloud and cookies
+        await setDoc(doc(db, 'users', user.uid), {
+            gameRules: merged,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        setCookie('gameRules', JSON.stringify(merged));
+        console.log('✅ [SYNC] Game rules synced');
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing game rules:', e);
+        return localRules;
+    }
+}
+
+// ===== SYNC DEVICE MODE =====
+export async function syncDeviceMode(localDeviceMode = {}) {
+    if (!auth || !db) return localDeviceMode;
+    const user = auth.currentUser;
+    if (!user) return localDeviceMode;
+
+    try {
+        console.log('🔄 [SYNC] Syncing device mode...');
+        
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudDeviceMode = userDoc.exists() ? (userDoc.data().deviceMode || {}) : {};
+        
+        // Merge - cloud takes precedence
+        const merged = { ...localDeviceMode, ...cloudDeviceMode };
+        
+        // Update in cloud and cookies
+        await setDoc(doc(db, 'users', user.uid), {
+            deviceMode: merged,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        setCookie('deviceMode', JSON.stringify(merged));
+        console.log('✅ [SYNC] Device mode synced');
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing device mode:', e);
+        return localDeviceMode;
+    }
+}
+
+// ===== SYNC CUSTOM SPEEDRUN GOALS =====
+export async function syncCustomSpeedrunGoals(localGoals = []) {
+    if (!auth || !db) return localGoals;
+    const user = auth.currentUser;
+    if (!user) return localGoals;
+
+    try {
+        console.log('🔄 [SYNC] Syncing custom speedrun goals...');
+        
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const cloudGoals = userDoc.exists() ? (userDoc.data().customSpeedrunGoals || []) : [];
+        
+        // Merge - keep unique goals by key
+        const goalMap = new Map();
+        [...cloudGoals, ...localGoals].forEach(goal => {
+            goalMap.set(goal.key, goal);
+        });
+        const merged = Array.from(goalMap.values());
+        
+        // Update in cloud and cookies
+        await setDoc(doc(db, 'users', user.uid), {
+            customSpeedrunGoals: merged,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        setCookie('customSpeedrunGoals', JSON.stringify(merged));
+        console.log('✅ [SYNC] Custom speedrun goals synced');
+        return merged;
+    } catch (e) {
+        console.error('❌ [SYNC] Error syncing custom speedrun goals:', e);
+        return localGoals;
+    }
+}
+
 // ===== SYNC ALL DATA =====
 export async function syncAllData() {
     if (!auth) {
@@ -536,12 +689,25 @@ export async function syncAllData() {
     try {
         const localCoins = parseInt(getCookie('playerCoins') || '0');
         const localUpgrades = JSON.parse(getCookie('ownedUpgrades') || '[]');
-        const [, , mergedCoins, mergedUpgrades] = await Promise.all([
+        const localAchievements = JSON.parse(localStorage.getItem('achievements_v1') || '[]');
+        const localKeyBindings = JSON.parse(getCookie('keyBindings') || '{}');
+        const localGameRules = JSON.parse(getCookie('gameRules') || '{}');
+        const localDeviceMode = JSON.parse(getCookie('deviceMode') || '{}');
+        const localCustomGoals = JSON.parse(getCookie('customSpeedrunGoals') || '[]');
+
+        const [, , mergedCoins, mergedUpgrades, mergedAchievements, mergedKeyBindings, mergedGameRules, mergedDeviceMode, mergedCustomGoals] = await Promise.all([
             syncUnlockedSkins(),
             syncMaxLevel(),
             syncCoins(localCoins),
-            syncUpgrades(localUpgrades)
+            syncUpgrades(localUpgrades),
+            syncAchievements(localAchievements),
+            syncKeyBindings(localKeyBindings),
+            syncGameRules(localGameRules),
+            syncDeviceMode(localDeviceMode),
+            syncCustomSpeedrunGoals(localCustomGoals)
         ]);
+
+        // Update cookies and UI with synced values
         if (mergedCoins !== undefined) {
             setCookie('playerCoins', mergedCoins.toString());
             const coinsEl = document.getElementById('coins');
@@ -550,7 +716,23 @@ export async function syncAllData() {
         if (mergedUpgrades !== undefined) {
             setCookie('ownedUpgrades', JSON.stringify(mergedUpgrades));
         }
-        console.log('✅ [SYNC] Full sync complete');
+        if (mergedAchievements !== undefined) {
+            localStorage.setItem('achievements_v1', JSON.stringify(mergedAchievements));
+        }
+        if (mergedKeyBindings !== undefined) {
+            setCookie('keyBindings', JSON.stringify(mergedKeyBindings));
+        }
+        if (mergedGameRules !== undefined) {
+            setCookie('gameRules', JSON.stringify(mergedGameRules));
+        }
+        if (mergedDeviceMode !== undefined) {
+            setCookie('deviceMode', JSON.stringify(mergedDeviceMode));
+        }
+        if (mergedCustomGoals !== undefined) {
+            setCookie('customSpeedrunGoals', JSON.stringify(mergedCustomGoals));
+        }
+
+        console.log('✅ [SYNC] Full sync complete - all data synchronized');
     } catch (error) {
         console.error('❌ [SYNC] Error during full sync:', error);
     }

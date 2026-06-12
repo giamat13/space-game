@@ -25,7 +25,12 @@ import {
     syncUpgrades,
     forceSetCoins,
     saveSpeedrunToCloud,
-    getSpeedrunLeaderboardFromCloud
+    getSpeedrunLeaderboardFromCloud,
+    syncAchievements,
+    syncKeyBindings,
+    syncGameRules,
+    syncDeviceMode,
+    syncCustomSpeedrunGoals
 } from './firestore-sync.js';
 
 // Skin Configuration
@@ -238,12 +243,16 @@ export function addCustomSpeedrunGoal(type, target) {
     const goal = { key, label, icon: '⭐', type, target: Number(target) };
     goals.push(goal);
     setCookie('customSpeedrunGoals', JSON.stringify(goals));
+    // Sync to cloud (fire and forget)
+    syncCustomSpeedrunGoals(goals).catch(e => console.warn('⚠️ [SPEEDRUN] Cloud sync failed:', e));
     return goal;
 }
 
 export function removeCustomSpeedrunGoal(key) {
     const goals = getCustomSpeedrunGoals().filter(g => g.key !== key);
     setCookie('customSpeedrunGoals', JSON.stringify(goals));
+    // Sync to cloud (fire and forget)
+    syncCustomSpeedrunGoals(goals).catch(e => console.warn('⚠️ [SPEEDRUN] Cloud sync failed:', e));
 }
 
 export function getSpeedrunLeaderboard(goalKey) {
@@ -325,6 +334,8 @@ export function loadKeyBindings() {
 export function saveKeyBindings() {
     setCookie('keyBindings', JSON.stringify(keyBindings));
     console.log('💾 [KEYS] Saved:', keyBindings);
+    // Sync to cloud (fire and forget)
+    syncKeyBindings(keyBindings).catch(e => console.warn('⚠️ [KEYS] Cloud sync failed:', e));
 }
 
 export function setKeyBinding(action, value) {
@@ -348,6 +359,8 @@ export function loadGameRules() {
 export function saveGameRules() {
     setCookie('gameRules', JSON.stringify(gameRules));
     console.log('💾 [RULES] Saved:', gameRules);
+    // Sync to cloud (fire and forget)
+    syncGameRules(gameRules).catch(e => console.warn('⚠️ [RULES] Cloud sync failed:', e));
 }
 
 export function setGameRule(rule, value) {
@@ -376,6 +389,8 @@ export function loadDeviceMode() {
 export function saveDeviceMode() {
     setCookie('deviceMode', JSON.stringify(deviceMode));
     console.log('💾 [DEVICE] Saved:', deviceMode);
+    // Sync to cloud (fire and forget)
+    syncDeviceMode(deviceMode).catch(e => console.warn('⚠️ [DEVICE] Cloud sync failed:', e));
 }
 
 export function setDeviceMode(isMobile, isManual = true) {

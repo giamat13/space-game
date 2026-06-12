@@ -3,6 +3,7 @@
 // All strings are multilingual (he, en, ar, ru, fr, es)
 
 import { currentLang } from './i18n.js';
+import { syncAchievements } from './firestore-sync.js';
 
 const ACHIEVEMENTS_KEY = 'achievements_v1';
 
@@ -158,7 +159,10 @@ export function loadUnlockedAchievements() {
 
 function saveUnlockedAchievements(set) {
     try {
-        localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify([...set]));
+        const achievementsArray = [...set];
+        localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(achievementsArray));
+        // Sync to cloud (fire and forget)
+        syncAchievements(achievementsArray).catch(e => console.warn('⚠️ [ACH] Cloud sync failed:', e));
     } catch(e) {}
 }
 
