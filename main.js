@@ -10,7 +10,6 @@ import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
     trackPauseEnd, trackScoreUpdate, trackAbilityUsed
 } from './analytics.js';
-
 // ===== INITIALIZATION =====
 
 console.log('🚀 [INIT] Game loading...');
@@ -1247,6 +1246,7 @@ function initGame() {
     updateSkinOptions();
     updatePlayerPos();
     resetQuizCooldown();
+    replayReset();
     requestAnimationFrame(update);
 
     // Education mode: opening question before the action ramps up.
@@ -1277,6 +1277,7 @@ function handleLevelUp() {
         
         trackLevelUp(state.level, state.score, state.playerHP, state.playerMaxHP);
         saveMaxLevel(state.level);
+        replayRecordEvent('levelup', { level: state.level });
         
         let unlocked = false;
         Object.keys(SKINS).forEach(skinKey => {
@@ -1336,6 +1337,7 @@ function update() {
     updateArrowMovement();
     checkSpeedrunMilestones();
     trackScoreUpdate(state.score);
+    replayRecordPos(now);
 
     // Read the player's rect once per frame; every collision pass reuses it
     // instead of triggering its own layout reflow.
@@ -1449,23 +1451,25 @@ function updateAbilityCooldown(now) {
 
 function activateSpecialAbility() {
     if (!state.active) return;
-    
+
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) return;
-        
+
         useVortexLaser();
         state.specialAbility.ready = false;
         state.specialAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('vortex_laser', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'vortex' });
     } else if (currentSkinKey === 'phoenix') {
         if (!state.phoenixAbility.ready) return;
-        
+
         usePhoenixFeathers();
         state.phoenixAbility.ready = false;
         state.phoenixAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('phoenix_feathers', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'phoenix' });
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
 
@@ -1474,6 +1478,7 @@ function activateSpecialAbility() {
         state.jokerAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('joker_chaos', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'joker' });
     } else if (currentSkinKey === 'dragon') {
         if (!state.dragonAbility.ready) return;
 
@@ -1482,6 +1487,7 @@ function activateSpecialAbility() {
         state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('dragon_fire', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'dragon' });
     }
 }
 
@@ -2289,6 +2295,508 @@ function clearDevConsole() {
 // ===== PERSONAL HISTORY & PERSONAL LEADERBOARD =====
 
 import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration } from './game-history.js';
+import { getAchievementProgress } from './achievements.js';
+
+// ===== REPLAY LOGGING — Snapshot-based =====
+// Every 200ms: snapshot player stats + all visible objects, read from state arrays (no layout queries).
+// Each object is a compact array whose LAST element is a stable id, so frames can be
+// interpolated by matching the SAME object across frames (not by array index, which shifts on splice).
+//   enemy:           ['e', x, y, color, hp, id]
+//   burger:          ['B', x, y, id]
+//   asteroid:        ['a', x, y, id]
+//   player bullet:   ['p', x, y, id]
+//   ability flame:   ['f', x, y, id]   (phoenix feathers / dragon flames)
+//   enemy bullet:    ['q', x, y, angle, id]
+// x/y are permille (0-1000) of the wrapper dimensions.
+
+let _replayFrames = [];
+let _replayLastFrameTime = 0;
+let _ridCounter = 1;
+const REPLAY_INTERVAL  = 200;   // ms between snapshots
+const REPLAY_MAX_FRAMES = 1800; // 6 min @ 200ms
+
+// Stamp a stable id on a live game object (object references persist across frames).
+function _rid(obj) { return obj._rid || (obj._rid = _ridCounter++); }
+
+function replayRecordPos(now) {
+    if (!state.active || state.isDebugGame) return;
+    if (now - _replayLastFrameTime < REPLAY_INTERVAL) return;
+    _replayLastFrameTime = now;
+    if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
+
+    const W = DOM.wrapper.clientWidth  || 500;
+    const H = DOM.wrapper.clientHeight || 700;
+    const px = v => Math.round((v / W) * 1000);
+    const py = v => Math.round((v / H) * 1000);
+
+    const objs = [];
+
+    for (const e of state.enemies) {
+        const ex = parseFloat(e.el.style.left) || 0;
+        const c = { red:'r', orange:'o', green:'g', blue:'b' }[e.type] || 'r';
+        const ehp = Math.round((e.hp / e.maxHP) * 100);
+        objs.push(['e', px(ex), py(e.y), c, ehp, _rid(e)]);
+    }
+    for (const b of state.burgers) {
+        objs.push(['B', px(parseFloat(b.el.style.left) || 0), py(b.y), _rid(b)]);
+    }
+    for (const a of state.asteroids) {
+        objs.push(['a', px(parseFloat(a.el.style.left) || 0), py(a.y), _rid(a)]);
+    }
+    for (const b of state.bullets) {
+        const bx = parseFloat(b.el.style.left) || 0;
+        if (b.isFeather || b.directional) {
+            // Ability projectiles (feathers / dragon flames) use style.top
+            const by = parseFloat(b.el.style.top) || 0;
+            objs.push(['f', px(bx), py(by), _rid(b)]);
+        } else {
+            // Regular bullets use style.bottom — convert to top-based coords
+            const bottomPx = parseFloat(b.el.style.bottom) || 0;
+            objs.push(['p', px(bx), py(H - bottomPx - 15), _rid(b)]);
+        }
+    }
+    for (const b of state.enemyBullets) {
+        const angle = Math.round(Math.atan2(b.vy || 0, b.vx || 0) * 180 / Math.PI);
+        // Derive a color char from the bullet's inline background (set per enemy type)
+        const bg = b.el.style.background || '';
+        let c = 'r';
+        if (b.chaotic) c = 'c';
+        else if (bg.includes('elite')) c = 'o';
+        else if (bg.includes('00cc44')) c = 'g';
+        else if (bg.includes('0088ff')) c = 'b';
+        objs.push(['q', px(b.x), py(b.y), angle, c, _rid(b)]);
+    }
+
+    // Dragon shield active?
+    const shielded = state.dragonAbility && now < state.dragonAbility.invincibleUntil ? 1 : 0;
+
+    _replayFrames.push({
+        t:     now - (state.startTime || now),
+        px:    Math.round(state.playerX),
+        hp:    Math.round((state.playerHP / state.playerMaxHP) * 100),
+        ammo:  Math.round((state.ammo / state.maxAmmo) * 100),
+        score: state.score,
+        level: state.level,
+        sh:    shielded,
+        W, H, objs
+    });
+}
+
+// Record a discrete event (levelup marker, ability activation) for the viewer to flash.
+function replayRecordEvent(type, extra) {
+    if (!state.active || state.isDebugGame) return;
+    if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
+    _replayFrames.push({ t: Date.now() - (state.startTime || Date.now()), ev: type, ...extra });
+}
+window.__replayRecordEvent = replayRecordEvent;
+
+function replayReset() {
+    _replayFrames = [];
+    _replayLastFrameTime = 0;
+    _ridCounter = 1;
+}
+
+window.__flushReplayLog = function() {
+    const frames = _replayFrames.slice();
+    replayReset();
+    return frames.length > 1 ? frames : null;
+};
+
+// ===== REPLAY VIEWER =====
+
+let _replayData    = null;
+let _replaySkin    = 'classic';
+let _replayPlaying = false;
+let _replayRAF     = null;
+let _replayStartWall = 0;
+let _replayOffsetMs  = 0;
+let _replayDuration  = 0;
+
+// Object dimensions [w, h] per type — used for centering. 'p' is overridden per-skin at openReplay.
+const OBJ_DIM = { e: [40, 48], B: [40, 40], a: [36, 36], p: [4, 15], f: [20, 20], q: [8, 20] };
+
+// Pre-built DOM elements — innerHTML set once at creation, only position updated each frame.
+// Enemy ('e') and enemy-bullet ('q') are pooled per color.
+const _replayPool = { e: {}, B: [], a: [], p: [], f: [], q: {} };
+
+const ENEMY_COLORS_HEX = { r: '#ff4d4d', o: '#ff9900', g: '#00cc44', b: '#0088ff' };
+const EBULLET_COLORS   = { r: ['#ff4444','#ff0000'], o: ['#ff9900','#ff9900'], g: ['#00cc44','#00cc44'], b: ['#0088ff','#0088ff'], c: ['#00f2ff','#00f2ff'] };
+
+// Player-bullet style derived from the recorded run's skin (constant per run).
+let _replayPBulletStyle = '';
+
+function _computePlayerBulletStyle(skinKey) {
+    const skin = SKINS[skinKey] || SKINS.classic;
+    const col  = skin.color || '#00f2ff';
+    const dmg  = skin.bulletDamage || 1.0;
+    if (dmg >= 3.0) {
+        // Fire bullet (joker / dragon)
+        OBJ_DIM.p = [8, 25];
+        _replayPBulletStyle = `background:linear-gradient(to top,#ff4500,#ffa500,#ffff00);border-radius:50% 50% 40% 40%;box-shadow:0 0 16px #ff4500,0 0 8px #ffff00;`;
+    } else if (dmg > 1.5) {
+        OBJ_DIM.p = [6, 20];
+        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 14px ${col},0 0 6px #fff;`;
+    } else if (dmg > 1.0) {
+        OBJ_DIM.p = [5, 18];
+        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 12px ${col};`;
+    } else {
+        OBJ_DIM.p = [4, 15];
+        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 8px ${col};`;
+    }
+}
+
+function _buildEl(type, color) {
+    const el = document.createElement('div');
+    el.className = 'replay-obj';
+    el.dataset.rtype = type;
+    el.dataset.rcolor = color || '';
+    const [w, h] = OBJ_DIM[type] || [20, 20];
+    el.style.cssText = `position:absolute;pointer-events:none;width:${w}px;height:${h}px;`;
+    if (type === 'e') {
+        const c = ENEMY_COLORS_HEX[color] || '#ff4d4d';
+        el.innerHTML = `
+            <div style="height:4px;background:rgba(0,0,0,0.5);border-radius:2px;margin-bottom:2px;overflow:hidden;">
+                <div class="replay-enemy-hp" style="height:100%;width:100%;background:${c};border-radius:2px;"></div>
+            </div>
+            <svg viewBox="0 0 100 100" style="width:40px;height:40px;display:block;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${c}" stroke="#fff" stroke-width="2"/></svg>`;
+    } else if (type === 'B') {
+        el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><path d="M10 50 Q50 10 90 50 Z" fill="#e67e22"/><rect x="10" y="50" width="80" height="15" fill="#6d4c41"/><path d="M10 65 L90 65 L80 85 L20 85 Z" fill="#e67e22"/></svg>`;
+    } else if (type === 'a') {
+        el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#444" stroke="#777" stroke-width="3"/></svg>`;
+    } else if (type === 'p') {
+        // Player bullet — styled to match the recorded run's skin
+        el.style.cssText += _replayPBulletStyle;
+    } else if (type === 'f') {
+        // Ability projectile (phoenix feather / dragon flame) — glowing orb
+        el.style.cssText += `background:radial-gradient(circle,#ffd700,#ff6b35);border-radius:50%;box-shadow:0 0 12px #ff6b35;`;
+    } else if (type === 'q') {
+        // Enemy bullet — color per shooter type; rotate applied per-frame
+        const [bg, glow] = EBULLET_COLORS[color] || EBULLET_COLORS.r;
+        el.style.cssText += `background:${bg};border-radius:4px;box-shadow:0 0 10px ${glow};transform-origin:center center;`;
+    }
+    return el;
+}
+
+function _getEl(type, color) {
+    let pool;
+    if (type === 'e' || type === 'q') pool = _replayPool[type][color] || (_replayPool[type][color] = []);
+    else pool = _replayPool[type] || (_replayPool[type] = []);
+    return pool.length ? pool.pop() : _buildEl(type, color);
+}
+
+function _recycleEl(el) {
+    const type  = el.dataset.rtype;
+    const color = el.dataset.rcolor;
+    el.style.display = 'none';
+    if (type === 'e' || type === 'q') (_replayPool[type][color] || (_replayPool[type][color] = [])).push(el);
+    else (_replayPool[type] || (_replayPool[type] = [])).push(el);
+}
+
+// All active replay objects currently in the stage
+let _replayActiveEls = [];
+
+function openReplay(histEntry) {
+    const log = histEntry.replayLog;
+    if (!log || !log.length) {
+        alert('אין נתוני Replay לריצה זו');
+        return;
+    }
+
+    _replayData     = log.filter(f => f.objs || f.ev);
+    _replaySkin     = histEntry.skin || 'classic';
+    _replayDuration = log[log.length - 1]?.t || 1;
+    _replayOffsetMs = 0;
+
+    // Compute player-bullet appearance for this run's skin, then reset the element
+    // pool so previously-styled 'p' elements don't carry over from another run.
+    _computePlayerBulletStyle(_replaySkin);
+    _replayPool.e = {}; _replayPool.q = {};
+    _replayPool.B = []; _replayPool.a = []; _replayPool.p = []; _replayPool.f = [];
+
+    const container = document.getElementById('replay-container');
+    const stage     = document.getElementById('replay-stage');
+    container.style.display = 'flex';
+    // Remove stale pooled object elements from a previous replay
+    stage.querySelectorAll('.replay-obj').forEach(el => el.remove());
+    _replayActiveEls = [];
+
+    // Set player skin SVG
+    const playerEl = document.getElementById('replay-player-dot');
+    if (playerEl) playerEl.innerHTML = SKINS[_replaySkin]?.svg || SKINS.classic.svg;
+
+    // Stars — create once, pause animation when viewer is paused
+    const starsEl = document.getElementById('replay-stage-stars');
+    if (starsEl && !starsEl.children.length) {
+        for (let i = 0; i < 20; i++) {
+            const s = document.createElement('div');
+            s.className = 'star';
+            s.style.cssText = `width:2px;height:2px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${Math.random()*4+2}s`;
+            starsEl.appendChild(s);
+        }
+    }
+    _replaySetStarsPaused(false); // start playing
+
+    const info = document.getElementById('replay-info');
+    const skinName = SKINS[_replaySkin]?.name || _replaySkin;
+    info.textContent = `${histEntry.score?.toLocaleString()} נקודות • שלב ${histEntry.level} • ${skinName} • ${histEntry.date || ''}`;
+
+    document.getElementById('replay-timeline').value = 0;
+
+    // Auto-play immediately
+    _replayOffsetMs  = 0;
+    _replayStartWall = Date.now();
+    _replayPlaying   = true;
+    document.getElementById('replay-playpause-btn').textContent = '⏸ עצור';
+    _replayRender(0);
+    _replayLoop();
+}
+
+function _replaySetStarsPaused(paused) {
+    const starsEl = document.getElementById('replay-stage-stars');
+    if (!starsEl) return;
+    starsEl.querySelectorAll('.star').forEach(s => {
+        s.style.animationPlayState = paused ? 'paused' : 'running';
+    });
+}
+
+// Binary search: returns { frameA, frameB, alpha } for interpolation between frames.
+// alpha=0 → pure frameA, alpha=1 → pure frameB.
+function _findFramePair(offsetMs) {
+    let lo = 0, hi = _replayData.length - 1;
+    let idxA = -1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (_replayData[mid].t <= offsetMs) { idxA = mid; lo = mid + 1; }
+        else hi = mid - 1;
+    }
+    if (idxA < 0) return { frameA: null, frameB: null, alpha: 0 };
+    // Walk back to the latest SNAPSHOT frame (skip event-only frames)
+    let frameA = null;
+    for (let i = idxA; i >= 0; i--) {
+        if (_replayData[i].objs) { frameA = _replayData[i]; break; }
+    }
+    if (!frameA) return { frameA: null, frameB: null, alpha: 0 };
+    // Next snapshot frame after frameA for interpolation
+    let frameB = null;
+    for (let i = _replayData.indexOf(frameA) + 1; i < _replayData.length; i++) {
+        if (_replayData[i].objs) { frameB = _replayData[i]; break; }
+    }
+    const alpha = (frameB && frameB.t > frameA.t)
+        ? Math.min(1, (offsetMs - frameA.t) / (frameB.t - frameA.t))
+        : 0;
+    return { frameA, frameB, alpha };
+}
+
+function _lerp(a, b, t) { return a + (b - a) * t; }
+
+// The stable id is always the LAST element of an object array.
+function _objId(o) { return o[o.length - 1]; }
+
+function _replayRender(offsetMs) {
+    const stage = document.getElementById('replay-stage');
+    if (!stage || !_replayData) return;
+
+    const { frameA, frameB, alpha } = _findFramePair(offsetMs);
+
+    // Recycle previous active elements
+    for (const el of _replayActiveEls) _recycleEl(el);
+    _replayActiveEls = [];
+
+    const stageW = stage.clientWidth  || 420;
+    const stageH = stage.clientHeight || 700;
+
+    if (frameA) {
+        // Player — interpolate X between frames
+        const playerEl = document.getElementById('replay-player-dot');
+        if (playerEl) {
+            const gameW = frameA.W || 500;
+            let px = frameA.px;
+            if (frameB && alpha > 0) px = _lerp(frameA.px, frameB.px, alpha);
+            playerEl.style.left = ((px / gameW) * stageW) + 'px';
+            // Dragon shield ring
+            playerEl.classList.toggle('replay-shielded', frameA.sh === 1);
+        }
+
+        // Stats UI
+        const hpBar = document.getElementById('replay-hp-bar');
+        if (hpBar) {
+            const hp = frameA.hp ?? 100;
+            hpBar.style.width = hp + '%';
+            hpBar.style.background = hp > 50 ? 'var(--health)' : hp > 25 ? '#ffa500' : 'var(--danger)';
+        }
+        const ammoBar = document.getElementById('replay-ammo-bar');
+        if (ammoBar) ammoBar.style.width = (frameA.ammo ?? 100) + '%';
+        const scoreEl = document.getElementById('replay-score');
+        if (scoreEl) scoreEl.textContent = (frameA.score ?? 0).toLocaleString();
+        const levelEl = document.getElementById('replay-level');
+        if (levelEl) levelEl.textContent = frameA.level ?? 1;
+
+        // Build frameB lookup by stable id so the SAME object is interpolated across frames
+        const bById = {};
+        if (frameB && alpha > 0) {
+            for (const o of frameB.objs) bById[_objId(o)] = o;
+        }
+
+        for (const obj of frameA.objs) {
+            const type = obj[0], xp = obj[1], yp = obj[2];
+            const eColor = type === 'e' ? obj[3] : undefined;
+            const qColor = type === 'q' ? obj[4] : undefined;
+            const angle  = type === 'q' ? obj[3] : undefined;
+            const ehp    = type === 'e' ? obj[4] : undefined;
+
+            const el = _getEl(type, type === 'e' ? eColor : (type === 'q' ? qColor : ''));
+
+            let rx = xp, ry = yp;
+            if (alpha > 0) {
+                const bObj = bById[_objId(obj)];
+                // Only interpolate if matched obj is the same type (id is unique, so type always matches)
+                if (bObj) { rx = _lerp(xp, bObj[1], alpha); ry = _lerp(yp, bObj[2], alpha); }
+            }
+
+            const [w, h] = OBJ_DIM[type] || [20, 20];
+            el.style.left = ((rx / 1000) * stageW - w / 2) + 'px';
+            el.style.top  = ((ry / 1000) * stageH - h / 2) + 'px';
+
+            if (type === 'q' && angle != null) {
+                el.style.transform = `rotate(${angle - 90}deg)`;
+            }
+
+            if (type === 'e' && ehp != null) {
+                const hpFill = el.querySelector('.replay-enemy-hp');
+                if (hpFill) hpFill.style.width = ehp + '%';
+            }
+
+            el.style.display = '';
+            if (!el.parentElement) stage.appendChild(el);
+            _replayActiveEls.push(el);
+        }
+    }
+
+    // Ability flash — show a pulse when playback is near an ability-use event
+    _replayRenderAbilityFlash(offsetMs);
+
+    // Update timeline slider (skip if user is dragging it)
+    const tl = document.getElementById('replay-timeline');
+    if (tl && !tl.matches(':active')) {
+        tl.value = (_replayDuration > 0) ? (offsetMs / _replayDuration) * 100 : 0;
+    }
+}
+
+const ABILITY_INFO = {
+    vortex:  { icon: '⚡', color: '#9b59b6', label: 'Vortex Laser' },
+    phoenix: { icon: '🔥', color: '#ff6b35', label: 'Phoenix' },
+    joker:   { icon: '🃏', color: '#ff4500', label: 'Joker Chaos' },
+    dragon:  { icon: '🐉', color: '#ff2d2d', label: 'Dragon Fire' },
+};
+
+function _replayRenderAbilityFlash(offsetMs) {
+    const stage = document.getElementById('replay-stage');
+    if (!stage) return;
+    let flash = document.getElementById('replay-ability-flash');
+
+    // Find an ability event within the last 700ms of playback
+    let active = null;
+    for (const f of _replayData) {
+        if (f.ev === 'ability' && offsetMs >= f.t && offsetMs - f.t < 700) { active = f; break; }
+    }
+
+    if (!active) { if (flash) flash.style.display = 'none'; return; }
+
+    const info = ABILITY_INFO[active.ability] || { icon: '✨', color: '#fff', label: '' };
+    const age = offsetMs - active.t;
+    const opacity = Math.max(0, 1 - age / 700);
+
+    if (!flash) {
+        flash = document.createElement('div');
+        flash.id = 'replay-ability-flash';
+        flash.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:15;';
+        stage.appendChild(flash);
+    }
+    flash.style.display = 'flex';
+    flash.style.background = `radial-gradient(circle, ${info.color}33 0%, transparent 70%)`;
+    flash.style.opacity = opacity;
+    flash.innerHTML = `<div style="font-size:2.4rem;">${info.icon}</div>
+        <div style="font-size:0.8rem;color:${info.color};font-family:Orbitron,sans-serif;text-shadow:0 0 8px ${info.color};">${info.label}</div>`;
+}
+
+function _replayLoop() {
+    if (!_replayPlaying) return;
+    _replayOffsetMs = Date.now() - _replayStartWall;
+
+    if (_replayOffsetMs >= _replayDuration) {
+        _replayOffsetMs = _replayDuration;
+        _replayPlaying  = false;
+        _replaySetStarsPaused(true);
+        document.getElementById('replay-playpause-btn').textContent = '▶ הפעל מחדש';
+        _replayRender(_replayOffsetMs);
+        return;
+    }
+
+    _replayRender(_replayOffsetMs);
+    _replayRAF = requestAnimationFrame(_replayLoop);
+}
+
+window.__replayPlayPause = function() {
+    if (!_replayData) return;
+    if (_replayPlaying) {
+        _replayPlaying = false;
+        cancelAnimationFrame(_replayRAF);
+        _replaySetStarsPaused(true);
+        document.getElementById('replay-playpause-btn').textContent = '▶ המשך';
+    } else {
+        if (_replayOffsetMs >= _replayDuration) _replayOffsetMs = 0;
+        _replayStartWall = Date.now() - _replayOffsetMs;
+        _replayPlaying   = true;
+        _replaySetStarsPaused(false);
+        document.getElementById('replay-playpause-btn').textContent = '⏸ עצור';
+        _replayLoop();
+    }
+};
+
+window.__replaySeek = function(pct) {
+    _replayOffsetMs  = (_replayDuration * Number(pct)) / 100;
+    _replayStartWall = Date.now() - _replayOffsetMs;
+    _replayRender(_replayOffsetMs);
+};
+
+window.__replayClose = function() {
+    _replayPlaying = false;
+    cancelAnimationFrame(_replayRAF);
+    for (const el of _replayActiveEls) { el.style.display = 'none'; }
+    _replayActiveEls = [];
+    _replayData = null;
+    _replaySetStarsPaused(true);
+    const flash = document.getElementById('replay-ability-flash');
+    if (flash) flash.style.display = 'none';
+    document.getElementById('replay-container').style.display = 'none';
+};
+
+window.openReplay = openReplay;
+
+// ===== ACHIEVEMENTS GALLERY =====
+
+function renderAchievementsPanel() {
+    const list = document.getElementById('achievements-list');
+    const progress = document.getElementById('achievements-progress');
+    if (!list) return;
+
+    const all = getAchievementProgress();
+    const unlocked = all.filter(a => a.unlocked).length;
+    if (progress) progress.textContent = `${unlocked} / ${all.length} הישגים פוצחו`;
+
+    list.innerHTML = all.map(a => `
+        <div class="achievement-card${a.unlocked ? '' : ' locked'}">
+            <div class="ach-icon">${a.icon}</div>
+            <div class="ach-info">
+                <div class="ach-name">${a.unlocked ? a.name : '???'}</div>
+                <div class="ach-desc">${a.unlocked ? a.desc : 'טרם פוצח'}</div>
+            </div>
+            ${a.unlocked ? '<div style="font-size:0.8rem;color:#ffd700;">✓</div>' : ''}
+        </div>
+    `).join('');
+}
+
+// ===== PERSONAL HISTORY =====
 
 let _currentHistoryTab = 'history';
 let _currentBestsKey  = 'overall';
@@ -2374,9 +2882,12 @@ function switchHistoryTab(tab) {
     _currentHistoryTab = tab;
     document.getElementById('htab-history').classList.toggle('active', tab === 'history');
     document.getElementById('htab-bests').classList.toggle('active', tab === 'bests');
+    document.getElementById('htab-achievements')?.classList.toggle('active', tab === 'achievements');
     document.getElementById('history-list-panel').style.display = tab === 'history' ? 'block' : 'none';
     document.getElementById('history-bests-panel').style.display = tab === 'bests' ? 'block' : 'none';
+    document.getElementById('history-achievements-panel').style.display = tab === 'achievements' ? 'block' : 'none';
     if (tab === 'bests') { renderBestsTabs(); _bestsTriggerDisplay(); }
+    if (tab === 'achievements') renderAchievementsPanel();
 }
 
 function switchBestsTab(btn, skinKey) {
@@ -2432,6 +2943,7 @@ function renderHistoryList() {
 
     // store for settings button access
     _currentLeaderboardEntries = history;
+    window.__histEntries = history;
 
     el.innerHTML = countNote + history.map((entry, i) => {
         const isBest = topScores.has(entry.timestamp);
@@ -2448,7 +2960,9 @@ function renderHistoryList() {
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${isBest ? 'background:rgba(0,242,255,0.07);' : ''}">
+        const replayBtn = entry.replayLog
+            ? `<button onclick="openReplay(window.__histEntries[${i}])" style="background:none;border:1px solid rgba(0,242,255,0.4);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(0,242,255,0.7);min-width:24px;" title="צפה בReplays">▶</button>` : '';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${isBest ? 'background:rgba(0,242,255,0.07);' : ''}">
             <div style="font-size:1.1rem;min-width:24px">${medal || (i+1)}</div>
             <div style="flex:1;font-size:0.8rem;">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -2459,7 +2973,7 @@ function renderHistoryList() {
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
-            ${settingsBtn}
+            ${replayBtn}${settingsBtn}
         </div>`;
     }).join('');
 }

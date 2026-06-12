@@ -157,8 +157,10 @@ export function damagePlayer(amount, source = 'unknown') {
                     }
                 }
 
-                // Save to personal game history
-                histModule.addGameToHistory({
+                // Attach replay log (compact events recorded during gameplay)
+                const replayLog = window.__flushReplayLog ? window.__flushReplayLog() : null;
+
+                const histEntry = {
                     score: state.score,
                     level: state.level,
                     skin: skinKey,
@@ -168,9 +170,26 @@ export function damagePlayer(amount, source = 'unknown') {
                     timestamp: Date.now(),
                     userName,
                     isDebug: false,
-                    settings
-                });
+                    settings,
+                    replayLog: replayLog || undefined
+                };
+
+                // Save to personal game history
+                histModule.addGameToHistory(histEntry);
                 console.log(`✅ [GAME OVER] Game added to personal history`);
+
+                // Check achievements
+                import('./achievements.js').then(({ checkAchievements, showAchievementToast }) => {
+                    const extraStats = {
+                        totalGames: (histModule.loadGameHistory().length),
+                        skinsUnlocked: dataModule.loadUnlockedSkins ? Object.keys(dataModule.SKINS).filter(k => dataModule.isSkinUnlocked(k)).length : 1,
+                        totalCoins: dataModule.getCoins ? dataModule.getCoins() : 0,
+                    };
+                    const newAchs = checkAchievements(histEntry, extraStats);
+                    newAchs.forEach((ach, i) => {
+                        setTimeout(() => showAchievementToast(ach), i * 1200);
+                    });
+                }).catch(() => {});
 
                 // ===== ANALYTICS: log death + save full session to Firebase =====
                 trackDeath(source, 0, state.score, state.level);
