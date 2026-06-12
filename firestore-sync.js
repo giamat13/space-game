@@ -762,8 +762,66 @@ export async function syncAllData() {
         }
 
         console.log('✅ [SYNC] Full sync complete - all data synchronized');
+
+        // One-time migration of local game history to cloud
+        migrateLocalHistoryToCloud(user).catch(() => {});
     } catch (error) {
         console.error('❌ [SYNC] Error during full sync:', error);
+    }
+}
+
+// ===== MIGRATE LOCAL GAME HISTORY TO CLOUD =====
+async function migrateLocalHistoryToCloud(user) {
+    const MIGRATION_KEY = `history_migrated_${user.uid}`;
+    if (localStorage.getItem(MIGRATION_KEY)) return; // already done
+
+    try {
+        const raw = localStorage.getItem('gameHistory');
+        if (!raw) { localStorage.setItem(MIGRATION_KEY, '1'); return; }
+        const history = JSON.parse(raw);
+        if (!Array.isArray(history) || history.length === 0) {
+            localStorage.setItem(MIGRATION_KEY, '1');
+            return;
+        }
+
+        // Fetch existing game_sessions timestamps to avoid duplicates
+        const existingSnap = await getDocs(query(
+            collection(db, 'game_sessions'),
+            where('userId', '==', user.uid),
+            limit(500)
+        ));
+        const existingTs = new Set();
+        existingSnap.forEach(d => {
+            const ts = d.data().clientTimestamp;
+            if (ts) existingTs.add(ts);
+        });
+
+        const toUpload = history.filter(e =>
+            !e.isDebug &&
+            e.score != null &&
+            e.level != null &&
+            (!e.timestamp || !existingTs.has(e.timestamp))
+        );
+
+        console.log(`🔄 [MIGRATE] Uploading ${toUpload.length} local games to cloud...`);
+        await Promise.all(toUpload.map(e => addDoc(collection(db, 'game_sessions'), {
+            userId: user.uid,
+            userName: e.userName || user.displayName || 'Anonymous',
+            email: user.email || null,
+            score: e.score || 0,
+            level: e.level || 1,
+            skin: e.skin || 'classic',
+            coins: null,
+            timestamp: serverTimestamp(),
+            clientTimestamp: e.timestamp || null,
+            date: e.date || null,
+            settings: e.settings || null
+        })));
+
+        localStorage.setItem(MIGRATION_KEY, '1');
+        console.log(`✅ [MIGRATE] Done — ${toUpload.length} games uploaded`);
+    } catch (e) {
+        console.warn('⚠️ [MIGRATE] Local history migration failed:', e);
     }
 }
 
