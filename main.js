@@ -884,9 +884,17 @@ function _renderLbContent() {
 
     const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
-    _currentLeaderboardEntries = filtered;
+    // Keep only best entry per player (already sorted best-first)
+    const seen = new Set();
+    const deduped = filtered.filter(e => {
+        const key = (e.userName || 'Anonymous').toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    _currentLeaderboardEntries = deduped;
 
-    if (filtered.length === 0) {
+    if (deduped.length === 0) {
         const hasAny = _rawLeaderboard.length > 0;
         content.innerHTML = `<div class="lb-empty">${hasAny ? 'No results for these filters' : t('lbEmpty')}</div>`;
         return;
@@ -894,9 +902,9 @@ function _renderLbContent() {
 
     const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     const countNote = countActiveFilters(_lbFilters) > 0
-        ? `<div style="font-size:0.72rem;opacity:0.5;margin-bottom:6px;">${filtered.length} / ${_rawLeaderboard.length} results</div>` : '';
+        ? `<div style="font-size:0.72rem;opacity:0.5;margin-bottom:6px;">${deduped.length} / ${_rawLeaderboard.length} results</div>` : '';
 
-    content.innerHTML = countNote + filtered.map((entry, index) => {
+    content.innerHTML = countNote + deduped.map((entry, index) => {
         let skinName = '';
         if (entry.skin) skinName = SKINS[entry.skin] ? `• ${SKINS[entry.skin].name}` : `• ${entry.skin}`;
         const userName = entry.userName || 'Anonymous';
