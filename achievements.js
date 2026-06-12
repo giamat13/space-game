@@ -95,22 +95,6 @@ const ACHIEVEMENT_STRINGS = {
         fr: { name: 'Accro aux jeux', desc: 'Jouer 100 jeux' },
         es: { name: 'Adicto a los juegos', desc: 'Juega 100 juegos' }
     },
-    survive_5min: {
-        he: { name: 'סבלן', desc: 'שרוד 5 דקות במשחק אחד' },
-        en: { name: 'Patient', desc: 'Survive 5 minutes in one game' },
-        ar: { name: 'صبور', desc: 'البقاء على قيد الحياة 5 دقائق في لعبة واحدة' },
-        ru: { name: 'Терпеливый', desc: 'Выжить 5 минут в одной игре' },
-        fr: { name: 'Patient', desc: 'Survivre 5 minutes en un seul jeu' },
-        es: { name: 'Paciente', desc: 'Sobrevive 5 minutos en un juego' }
-    },
-    survive_10min: {
-        he: { name: 'מתמיד', desc: 'שרוד 10 דקות במשחק אחד' },
-        en: { name: 'Persistent', desc: 'Survive 10 minutes in one game' },
-        ar: { name: 'مثابر', desc: 'البقاء على قيد الحياة 10 دقائق في لعبة واحدة' },
-        ru: { name: 'Настойчивый', desc: 'Выжить 10 минут в одной игре' },
-        fr: { name: 'Persévérant', desc: 'Survivre 10 minutes en un seul jeu' },
-        es: { name: 'Persistente', desc: 'Sobrevive 10 minutos en un juego' }
-    },
     coins_1k: {
         he: { name: 'עשיר', desc: 'צבור 1,000 מטבעות' },
         en: { name: 'Wealthy', desc: 'Collect 1,000 coins' },
@@ -126,14 +110,6 @@ const ACHIEVEMENT_STRINGS = {
         ru: { name: 'Космический миллионер', desc: 'Собрать 10,000 монет' },
         fr: { name: 'Millionnaire de l\'espace', desc: 'Collecter 10 000 pièces' },
         es: { name: 'Millonario espacial', desc: 'Colecciona 10,000 monedas' }
-    },
-    fast_5k: {
-        he: { name: 'בזק', desc: 'הגע ל-5,000 נקודות תוך דקה אחת' },
-        en: { name: 'Lightning Fast', desc: 'Reach 5,000 points in under 1 minute' },
-        ar: { name: 'سريع البرق', desc: 'احصل على 5,000 نقطة في أقل من دقيقة واحدة' },
-        ru: { name: 'Молниеносно быстро', desc: 'Получить 5,000 очков менее чем за 1 минуту' },
-        fr: { name: 'Rapide comme l\'éclair', desc: 'Atteindre 5 000 points en moins d\'1 minute' },
-        es: { name: 'Rápido como un rayo', desc: 'Alcanza 5,000 puntos en menos de 1 minuto' }
     }
 };
 
@@ -156,15 +132,12 @@ export const ACHIEVEMENTS = [
     { key: 'games_100',  icon: '💎', check: (e, stats) => stats.totalGames >= 100 },
 
     // Survival
-    { key: 'survive_5min',  icon: '⏱️', check: e => (e.duration || 0) >= 300000 },
-    { key: 'survive_10min', icon: '🕐', check: e => (e.duration || 0) >= 600000 },
 
     // Coins
     { key: 'coins_1k',   icon: '💰', check: (e, stats) => stats.totalCoins >= 1000 },
     { key: 'coins_10k',  icon: '🤑', check: (e, stats) => stats.totalCoins >= 10000 },
 
     // Speedrun-flavored
-    { key: 'fast_5k',    icon: '⚡', check: e => e.score >= 5000 && (e.duration || Infinity) <= 60000 },
 ].map(a => ({
     ...a,
     name: ACHIEVEMENT_STRINGS[a.key][currentLang]?.name || ACHIEVEMENT_STRINGS[a.key].en.name,
