@@ -576,8 +576,8 @@ export async function syncKeyBindings(localBindings = {}) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const cloudBindings = userDoc.exists() ? (userDoc.data().keyBindings || {}) : {};
         
-        // Merge - cloud takes precedence
-        const merged = { ...localBindings, ...cloudBindings };
+        // Merge - local takes precedence (user's current settings override cloud)
+        const merged = { ...cloudBindings, ...localBindings };
         
         // Update in cloud and cookies
         await setDoc(doc(db, 'users', user.uid), {
@@ -738,6 +738,10 @@ export async function syncAllData() {
         }
         if (mergedKeyBindings !== undefined) {
             setCookie('keyBindings', JSON.stringify(mergedKeyBindings));
+            // Notify main.js to reload keyBindings into memory
+            if (typeof window.__onKeyBindingsSynced === 'function') {
+                window.__onKeyBindingsSynced(mergedKeyBindings);
+            }
         }
         if (mergedGameRules !== undefined) {
             setCookie('gameRules', JSON.stringify(mergedGameRules));

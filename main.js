@@ -17,6 +17,11 @@ initAuth(); // Initialize Firebase Auth
 initFirestoreSync(); // Initialize Firestore sync
 loadUnlockedSkins();
 loadKeyBindings();
+// After cloud sync, reload keyBindings into memory so they take effect immediately
+window.__onKeyBindingsSynced = (merged) => {
+    Object.assign(keyBindings, merged);
+    console.log('🎮 [KEYS] Reloaded from cloud sync:', keyBindings);
+};
 loadGameRules();
 loadDeviceMode();
 initCoinsUI();
