@@ -1116,6 +1116,19 @@ async function displayLeaderboard(categoryOrSkinSel) {
         }
     }
 
+    // Merge personal game history so filters can find all games (including
+    // non-leaderboard ones with custom settings). Avoid duplicates by timestamp.
+    try {
+        const { loadGameHistory } = await import('./game-history.js');
+        const history = loadGameHistory();
+        const lbTimestamps = new Set(_rawLeaderboard.map(e => e.timestamp).filter(Boolean));
+        const histEntries = history
+            .filter(e => !e.isDebug)
+            .filter(e => skinSel.length === 0 || skinSel.includes(e.skin))
+            .filter(e => !e.timestamp || !lbTimestamps.has(e.timestamp));
+        _rawLeaderboard = [..._rawLeaderboard, ...histEntries];
+    } catch (e) { /* local history unavailable */ }
+
     _renderLbContent();
 }
 
