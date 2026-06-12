@@ -191,14 +191,14 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
         // Save to general leaderboard - only one record per user
         const overallRef = doc(db, 'leaderboard', user.uid);
         const existingOverall = await getDoc(overallRef);
-        if (!existingOverall.exists() || score > existingOverall.data().score) {
+        if (!existingOverall.exists() || level > (existingOverall.data().level || 0) || (level === (existingOverall.data().level || 0) && score > existingOverall.data().score)) {
             await setDoc(overallRef, scoreData);
         }
 
         // Save to skin leaderboard - only one record per user
         const skinRef = doc(db, `scores/${skinKey}/entries`, user.uid);
         const existingSkin = await getDoc(skinRef);
-        if (!existingSkin.exists() || score > existingSkin.data().score) {
+        if (!existingSkin.exists() || level > (existingSkin.data().level || 0) || (level === (existingSkin.data().level || 0) && score > existingSkin.data().score)) {
             await setDoc(skinRef, scoreData);
         }
         

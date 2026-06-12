@@ -877,7 +877,8 @@ function _renderLbContent() {
 
     renderFilterBar('lb-filter-bar', _lbFilters, () => _renderLbContent());
 
-    const filtered = applyEntryFilters(_rawLeaderboard, _lbFilters);
+    const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
+    const filtered = applyEntryFilters(sortedRaw, _lbFilters);
     _currentLeaderboardEntries = filtered;
 
     if (filtered.length === 0) {
