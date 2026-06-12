@@ -2782,14 +2782,14 @@ function renderAchievementsPanel() {
 
     const all = getAchievementProgress();
     const unlocked = all.filter(a => a.unlocked).length;
-    if (progress) progress.textContent = `${unlocked} / ${all.length} הישגים פוצחו`;
+    if (progress) progress.textContent = `${unlocked} / ${all.length} Achievements Unlocked`;
 
     list.innerHTML = all.map(a => `
         <div class="achievement-card${a.unlocked ? '' : ' locked'}">
             <div class="ach-icon">${a.icon}</div>
             <div class="ach-info">
-                <div class="ach-name">${a.unlocked ? a.name : '???'}</div>
-                <div class="ach-desc">${a.unlocked ? a.desc : 'טרם פוצח'}</div>
+                <div class="ach-name">${a.unlocked ? a.name : '🔒 Locked'}</div>
+                <div class="ach-desc">${a.desc}</div>
             </div>
             ${a.unlocked ? '<div style="font-size:0.8rem;color:#ffd700;">✓</div>' : ''}
         </div>

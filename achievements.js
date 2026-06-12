@@ -5,32 +5,32 @@ const ACHIEVEMENTS_KEY = 'achievements_v1';
 
 export const ACHIEVEMENTS = [
     // Score milestones
-    { key: 'score_1k',   icon: '🌟', name: 'כוכב עולה',      desc: 'הגע ל-1,000 נקודות',       check: e => e.score >= 1000 },
-    { key: 'score_5k',   icon: '💫', name: 'נווט מיומן',      desc: 'הגע ל-5,000 נקודות',       check: e => e.score >= 5000 },
-    { key: 'score_10k',  icon: '🏆', name: 'אלוף החלל',       desc: 'הגע ל-10,000 נקודות',      check: e => e.score >= 10000 },
-    { key: 'score_25k',  icon: '👑', name: 'מלך החלל',        desc: 'הגע ל-25,000 נקודות',      check: e => e.score >= 25000 },
-    { key: 'score_50k',  icon: '⚡', name: 'אגדת החלל',       desc: 'הגע ל-50,000 נקודות',      check: e => e.score >= 50000 },
-    { key: 'score_100k', icon: '🔥', name: 'פרו של space-game',     desc: 'הגע ל-100,000 נקודות',     check: e => e.score >= 100000 },
+    { key: 'score_1k',   icon: '🌟', name: 'Rising Star',      desc: 'Reach 1,000 points',       check: e => e.score >= 1000 },
+    { key: 'score_5k',   icon: '💫', name: 'Skilled Navigator',      desc: 'Reach 5,000 points',       check: e => e.score >= 5000 },
+    { key: 'score_10k',  icon: '🏆', name: 'Space Champion',       desc: 'Reach 10,000 points',      check: e => e.score >= 10000 },
+    { key: 'score_25k',  icon: '👑', name: 'Space King',        desc: 'Reach 25,000 points',      check: e => e.score >= 25000 },
+    { key: 'score_50k',  icon: '⚡', name: 'Space Legend',       desc: 'Reach 50,000 points',      check: e => e.score >= 50000 },
+    { key: 'score_100k', icon: '🔥', name: 'Space-Game Pro',     desc: 'Reach 100,000 points',     check: e => e.score >= 100000 },
 
     // Skin milestones
-    { key: 'first_unlock', icon: '🎨', name: 'אוסף ספינות',   desc: 'פתח סקין חדש בפעם הראשונה', check: (e, stats) => stats.skinsUnlocked >= 2 },
-    { key: 'all_skins',    icon: '🌈', name: 'אוסף שלם',       desc: 'פתח את כל הסקינים',         check: (e, stats) => stats.skinsUnlocked >= 7 },
+    { key: 'first_unlock', icon: '🎨', name: 'Ship Collector',   desc: 'Unlock a new skin for the first time', check: (e, stats) => stats.skinsUnlocked >= 2 },
+    { key: 'all_skins',    icon: '🌈', name: 'Complete Collection',       desc: 'Unlock all skins',         check: (e, stats) => stats.skinsUnlocked >= 7 },
 
     // Play count
-    { key: 'games_10',   icon: '🎮', name: 'שחקן מסור',       desc: 'שחק 10 משחקים',            check: (e, stats) => stats.totalGames >= 10 },
-    { key: 'games_50',   icon: '🎯', name: 'שחקן ותיק',       desc: 'שחק 50 משחקים',            check: (e, stats) => stats.totalGames >= 50 },
-    { key: 'games_100',  icon: '💎', name: 'מכור למשחק',      desc: 'שחק 100 משחקים',           check: (e, stats) => stats.totalGames >= 100 },
+    { key: 'games_10',   icon: '🎮', name: 'Dedicated Player',       desc: 'Play 10 games',            check: (e, stats) => stats.totalGames >= 10 },
+    { key: 'games_50',   icon: '🎯', name: 'Veteran Player',       desc: 'Play 50 games',            check: (e, stats) => stats.totalGames >= 50 },
+    { key: 'games_100',  icon: '💎', name: 'Game Addict',      desc: 'Play 100 games',           check: (e, stats) => stats.totalGames >= 100 },
 
     // Survival
-    { key: 'survive_5min',  icon: '⏱️', name: 'סבלן',         desc: 'שרוד 5 דקות במשחק אחד',    check: e => (e.duration || 0) >= 300000 },
-    { key: 'survive_10min', icon: '🕐', name: 'מתמיד',        desc: 'שרוד 10 דקות במשחק אחד',   check: e => (e.duration || 0) >= 600000 },
+    { key: 'survive_5min',  icon: '⏱️', name: 'Patient',         desc: 'Survive 5 minutes in one game',    check: e => (e.duration || 0) >= 300000 },
+    { key: 'survive_10min', icon: '🕐', name: 'Persistent',        desc: 'Survive 10 minutes in one game',   check: e => (e.duration || 0) >= 600000 },
 
     // Coins
-    { key: 'coins_1k',   icon: '💰', name: 'עשיר',            desc: 'צבור 1,000 מטבעות',        check: (e, stats) => stats.totalCoins >= 1000 },
-    { key: 'coins_10k',  icon: '🤑', name: 'מיליונר חלל',     desc: 'צבור 10,000 מטבעות',       check: (e, stats) => stats.totalCoins >= 10000 },
+    { key: 'coins_1k',   icon: '💰', name: 'Wealthy',            desc: 'Collect 1,000 coins',        check: (e, stats) => stats.totalCoins >= 1000 },
+    { key: 'coins_10k',  icon: '🤑', name: 'Space Millionaire',     desc: 'Collect 10,000 coins',       check: (e, stats) => stats.totalCoins >= 10000 },
 
     // Speedrun-flavored
-    { key: 'fast_5k',    icon: '⚡', name: 'בזק',             desc: 'הגע ל-5,000 נקודות תוך דקה', check: e => e.score >= 5000 && (e.duration || Infinity) <= 60000 },
+    { key: 'fast_5k',    icon: '⚡', name: 'Lightning Fast',             desc: 'Reach 5,000 points in under 1 minute', check: e => e.score >= 5000 && (e.duration || Infinity) <= 60000 },
 ];
 
 export function loadUnlockedAchievements() {
@@ -98,7 +98,7 @@ export function showAchievementToast(ach) {
         max-width:320px;
     `;
     toast.innerHTML = `
-        <div style="font-size:0.65rem;color:#ffd700;letter-spacing:1px;margin-bottom:4px;">🏅 הישג חדש!</div>
+        <div style="font-size:0.65rem;color:#ffd700;letter-spacing:1px;margin-bottom:4px;">🏅 New Achievement!</div>
         <div style="font-size:1.3rem;margin-bottom:2px;">${ach.icon}</div>
         <div style="font-weight:bold;color:#ffd700;">${ach.name}</div>
         <div style="font-size:0.7rem;opacity:0.75;margin-top:2px;">${ach.desc}</div>
