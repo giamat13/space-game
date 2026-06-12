@@ -188,6 +188,12 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
             settings: settings || null
         };
         
+        // Save every game session (for cross-device filter search)
+        await addDoc(collection(db, 'game_sessions'), {
+            ...scoreData,
+            clientTimestamp: Date.now()
+        });
+
         // Save to general leaderboard - only one record per user
         const overallRef = doc(db, 'leaderboard', user.uid);
         const existingOverall = await getDoc(overallRef);
@@ -289,20 +295,22 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             }
         }
 
-        // Keep the best run per user, ranked by level then score.
-        const best = new Map();
-        const isBetter = (a, b) =>
-            (a.level || 0) > (b.level || 0) ||
-            ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
-        for (const entry of collected) {
-            const uid = entry.userId || entry.id;
-            const cur = best.get(uid);
-            if (!cur || isBetter(entry, cur)) best.set(uid, entry);
+        // Also fetch all game sessions for complete filter coverage
+        try {
+            const sessSnap = await getDocs(query(
+                collection(db, 'game_sessions'),
+                orderBy('level', 'desc'),
+                limit(500)
+            ));
+            sessSnap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('⚠️ [CLOUD] game_sessions fetch failed:', e);
         }
 
-        const scores = [...best.values()]
+        // All collected entries — deduplication happens client-side after filtering
+        const scores = collected
             .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
-            .slice(0, 50);
+            .slice(0, 500);
 
         console.log(`✅ [CLOUD] Fetched ${scores.length} scores`);
         return scores;
