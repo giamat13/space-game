@@ -295,14 +295,21 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             }
         }
 
-        // Also fetch all game sessions for complete filter coverage
+        // Also fetch game sessions for complete filter coverage.
+        // When viewing a specific skin's leaderboard, only include sessions for
+        // that skin so dragon/joker sessions don't leak into the vortex tab.
         try {
             const sessSnap = await getDocs(query(
                 collection(db, 'game_sessions'),
                 orderBy('level', 'desc'),
                 limit(500)
             ));
-            sessSnap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+            sessSnap.forEach((d) => {
+                const data = d.data();
+                if (skinKey === 'overall' || !data.skin || data.skin === skinKey) {
+                    collected.push({ id: d.id, ...data });
+                }
+            });
         } catch (e) {
             console.warn('⚠️ [CLOUD] game_sessions fetch failed:', e);
         }
@@ -720,7 +727,7 @@ export async function syncAllData() {
         const localDeviceMode = JSON.parse(getCookie('deviceMode') || '{}');
         const localCustomGoals = JSON.parse(getCookie('customSpeedrunGoals') || '[]');
 
-        const [, , mergedCoins, mergedUpgrades, mergedAchievements, mergedKeyBindings, mergedGameRules, mergedDeviceMode, mergedCustomGoals] = await Promise.all([
+        const [mergedSkins, , mergedCoins, mergedUpgrades, mergedAchievements, mergedKeyBindings, mergedGameRules, mergedDeviceMode, mergedCustomGoals] = await Promise.all([
             syncUnlockedSkins(),
             syncMaxLevel(),
             syncCoins(localCoins),
@@ -743,6 +750,9 @@ export async function syncAllData() {
         }
         if (mergedAchievements !== undefined) {
             localStorage.setItem('achievements_v1', JSON.stringify(mergedAchievements));
+        }
+        if (mergedSkins !== undefined && typeof window.__onUnlockedSkinsSynced === 'function') {
+            window.__onUnlockedSkinsSynced(mergedSkins);
         }
         if (mergedKeyBindings !== undefined) {
             setCookie('keyBindings', JSON.stringify(mergedKeyBindings));

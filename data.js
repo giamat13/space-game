@@ -436,6 +436,10 @@ export async function loadUnlockedSkins() {
     }
 }
 
+export function refreshUnlockedSkins(skins) {
+    unlockedSkins = [...skins];
+}
+
 export async function unlockSkin(skinKey) {
     if (!unlockedSkins.includes(skinKey)) {
         unlockedSkins.push(skinKey);
