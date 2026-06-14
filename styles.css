@@ -1359,3 +1359,16 @@ kbd {
     color: var(--danger);
     box-shadow: 0 0 14px rgba(255, 77, 77, 0.45);
 }
+
+/* ===== Gamepad UI focus highlight ===== */
+.gp-focus {
+    outline: 3px solid var(--primary) !important;
+    outline-offset: 3px;
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.75) !important;
+    border-radius: 8px;
+    transition: outline-color 0.1s ease, box-shadow 0.1s ease;
+}
+.skin-option.gp-focus {
+    transform: scale(1.04);
+    z-index: 5;
+}

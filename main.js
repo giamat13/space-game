@@ -1746,8 +1746,9 @@ function pollGamepad() {
             return fired;
         };
 
-        // Start toggles pause regardless of paused state
-        if (edge(GP_BTN.START)) togglePause();
+        // Start (or Select/Back) toggles pause/resume, in or out of gameplay.
+        // Both are accepted so it works even on pads with a non-standard layout.
+        if (edge(GP_BTN.START) || edge(GP_BTN.SELECT)) togglePause();
 
         if (state.active && !state.paused) {
             // Horizontal movement: analog stick (proportional) + D-pad
@@ -1784,14 +1785,131 @@ function pollGamepad() {
                 activateSpecialAbility();
                 gamepadUsed();
             }
+            // Keep A's edge state current so a held A at game-over doesn't
+            // instantly click a menu button on the next (UI-nav) frame.
+            gamepadState.prevButtons[GP_BTN.A] = held(GP_BTN.A);
         } else {
-            // Refresh edge cache while idle so a held button doesn't fire on resume
-            edge(GP_BTN.A); edge(GP_BTN.B); edge(GP_BTN.X);
-            edge(GP_BTN.LB); edge(GP_BTN.RB);
+            // Not in active gameplay → drive the menus/UI with the controller.
+            handleUiNav(gp, held, edge);
         }
     }
 
     if (gamepadLoopRunning) requestAnimationFrame(pollGamepad);
+}
+
+// ===== GAMEPAD UI NAVIGATION =====
+// Lets the controller drive every screen (main menu, skin select, settings,
+// login, leaderboard, pause overlay…) via spatial focus navigation:
+//   Left stick / D-pad  → move focus to the nearest control in that direction
+//   A                   → activate (click) the focused control
+//   B                   → back / close (sends Escape)
+let gpFocusEl = null;
+let lastNavTime = 0;
+const NAV_REPEAT_MS = 170;
+
+const GP_NAV_SELECTOR = [
+    'button', 'a[href]', 'input:not([type=hidden])', 'select', 'textarea',
+    '[onclick]', '[role="button"]', '.skin-option', '.es-filter', '.lb-tab'
+].join(', ');
+
+function gpVisible(el) {
+    if (!el || el.disabled) return false;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') return false;
+    if (el.offsetParent === null && cs.position !== 'fixed') return false;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1) return false;
+    if (r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) return false;
+    return true;
+}
+
+function gpFocusables() {
+    return [...document.querySelectorAll(GP_NAV_SELECTOR)].filter(gpVisible);
+}
+
+function gpSetFocus(el) {
+    if (!el || el === gpFocusEl) return;
+    if (gpFocusEl) gpFocusEl.classList.remove('gp-focus');
+    gpFocusEl = el;
+    el.classList.add('gp-focus');
+    try { el.focus({ preventScroll: true }); } catch (_) {}
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function gpMoveFocus(dir) {
+    const els = gpFocusables();
+    if (!els.length) return;
+    const cur = (gpFocusEl && els.includes(gpFocusEl)) ? gpFocusEl : null;
+    if (!cur) { gpSetFocus(els[0]); return; }
+
+    const cr = cur.getBoundingClientRect();
+    const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+    let best = null, bestScore = Infinity;
+    for (const el of els) {
+        if (el === cur) continue;
+        const r = el.getBoundingClientRect();
+        const dx = (r.left + r.width / 2) - cx;
+        const dy = (r.top + r.height / 2) - cy;
+        let primary, perp;
+        if (dir === 'left')  { if (dx > -2) continue; primary = -dx; perp = Math.abs(dy); }
+        else if (dir === 'right') { if (dx < 2) continue; primary = dx; perp = Math.abs(dy); }
+        else if (dir === 'up')    { if (dy > -2) continue; primary = -dy; perp = Math.abs(dx); }
+        else { if (dy < 2) continue; primary = dy; perp = Math.abs(dx); }
+        const score = primary + perp * 2; // bias toward staying aligned on the cross axis
+        if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (best) gpSetFocus(best);
+}
+
+function gpActivate() {
+    const el = gpFocusEl;
+    if (!el || !gpVisible(el)) return;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        el.focus(); // hand control to the field (typing still uses a keyboard)
+    } else {
+        el.click();
+    }
+}
+
+function gpBack() {
+    // Reuse the app's existing Escape handling (closes panels / toggles pause)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+}
+
+function handleUiNav(gp, held, edge) {
+    // Make sure something is focused so A works immediately on a fresh screen.
+    if (!gpFocusEl || !gpVisible(gpFocusEl)) {
+        const els = gpFocusables();
+        const def = els.find(e => e.classList.contains('selected') || e.classList.contains('active')) || els[0];
+        if (def) gpSetFocus(def);
+    }
+
+    // Resolve a single navigation direction from stick + D-pad
+    let x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+    const dz = gamepadState.deadzone;
+    if (Math.abs(x) < dz) x = 0;
+    if (Math.abs(y) < dz) y = 0;
+    if (held(GP_BTN.DPAD_LEFT))  x = -1;
+    if (held(GP_BTN.DPAD_RIGHT)) x = 1;
+    if (held(GP_BTN.DPAD_UP))    y = -1;
+    if (held(GP_BTN.DPAD_DOWN))  y = 1;
+
+    let dir = null;
+    if (Math.abs(x) > Math.abs(y)) dir = x < 0 ? 'left' : (x > 0 ? 'right' : null);
+    else if (Math.abs(y) > 0)      dir = y < 0 ? 'up' : 'down';
+
+    const now = performance.now();
+    if (dir) {
+        if (now - lastNavTime >= NAV_REPEAT_MS) { gpMoveFocus(dir); lastNavTime = now; }
+    } else {
+        lastNavTime = 0; // next press moves instantly
+    }
+
+    if (edge(GP_BTN.A)) gpActivate();
+    if (edge(GP_BTN.B)) gpBack();
+    // Keep remaining edges fresh so they don't fire spuriously on resume
+    edge(GP_BTN.X); edge(GP_BTN.LB); edge(GP_BTN.RB);
 }
 
 // Some browsers (Chrome) only fire 'gamepadconnected' after the first input,
