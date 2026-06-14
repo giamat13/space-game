@@ -132,7 +132,12 @@ export function damagePlayer(amount, source = 'unknown') {
                     lang: i18nModule.currentLang,
                     gameDuration,
                     startTime: state.startTime || null,
-                    upgrades: dataModule.getOwnedUpgrades()
+                    upgrades: dataModule.getOwnedUpgrades(),
+                    // Input devices actually used this game (keyboard / gamepad)
+                    inputMethods: [
+                        ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
+                        ...(state.inputUsed?.gamepad ? ['gamepad'] : [])
+                    ]
                 };
 
                 // Save to global leaderboard (cloud + local)
@@ -228,10 +233,12 @@ export function healPlayer(percent) {
 
 // ===== SHOOTING SYSTEMS =====
 
-export function shoot() {
+export function shoot(rateMultiplier = 1) {
     if(!state.active) return;
     const now = Date.now();
-    const adjustedCooldown = state.shotCooldown / state.currentSkinStats.fireRate;
+    // rateMultiplier < 1 slows the fire rate (longer cooldown), used by the
+    // gamepad's analog Right Trigger: light press = slow, hard press = fast.
+    const adjustedCooldown = state.shotCooldown / (state.currentSkinStats.fireRate * rateMultiplier);
     if (now - state.lastShot < adjustedCooldown) return;
     if (state.ammo <= 0) return;
     state.lastShot = now;

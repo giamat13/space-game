@@ -1329,3 +1329,33 @@ kbd {
     from { transform: scale(0); opacity: 1; }
     to   { transform: scale(2.5); opacity: 0; }
 }
+
+/* ===== Gamepad connection indicator ===== */
+#gamepad-status {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translate(-50%, 20px);
+    z-index: 9999;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(5, 5, 5, 0.85);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 0 14px rgba(0, 242, 255, 0.45);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#gamepad-status.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+#gamepad-status.disconnected {
+    border-color: var(--danger);
+    color: var(--danger);
+    box-shadow: 0 0 14px rgba(255, 77, 77, 0.45);
+}

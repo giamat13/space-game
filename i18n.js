@@ -22,6 +22,10 @@ const STRINGS = {
     hp:               { he: 'HP: ',      en: 'HP: ',       ar: 'الصحة: ',   ru: 'HP: ',      fr: 'PV : ',      es: 'VP: ' },
     level:            { he: 'שלב: ',    en: 'Level: ',    ar: 'المستوى: ', ru: 'Уровень: ', fr: 'Niveau : ',  es: 'Nivel: ' },
 
+    // ---- Gamepad ----
+    gamepadConnected:    { he: '🎮 שלט חובר', en: '🎮 Controller connected', ar: '🎮 تم توصيل وحدة التحكم', ru: '🎮 Геймпад подключён', fr: '🎮 Manette connectée', es: '🎮 Mando conectado' },
+    gamepadDisconnected: { he: '🎮 שלט נותק', en: '🎮 Controller disconnected', ar: '🎮 تم فصل وحدة التحكم', ru: '🎮 Геймпад отключён', fr: '🎮 Manette déconnectée', es: '🎮 Mando desconectado' },
+
     // ---- Main menu ----
     gameTitle:        { he: 'מגיני החלל', en: 'Space Defender', ar: 'حارس الفضاء', ru: 'Защитник Космоса', fr: 'Défenseur de l\'Espace', es: 'Defensor del Espacio' },
     subTitle:         { he: 'בחר ספינה וצא למשימה', en: 'Choose a ship and start your mission', ar: 'اختر سفينة وابدأ مهمتك', ru: 'Выберите корабль и начните миссию', fr: 'Choisissez un vaisseau et commencez votre mission', es: 'Elige una nave y comienza tu misión' },
@@ -82,7 +86,10 @@ const STRINGS = {
     controlLabel:     { he: 'שליטה בספינה:', en: 'Ship control:', ar: 'التحكم بالسفينة:', ru: 'Управление кораблём:', fr: 'Commande du vaisseau :', es: 'Control de nave:' },
     controlMouse:     { he: '🖱️ עכבר', en: '🖱️ Mouse', ar: '🖱️ ماوس', ru: '🖱️ Мышь', fr: '🖱️ Souris', es: '🖱️ Ratón' },
     controlArrows:    { he: '⬅️➡️ חצים', en: '⬅️➡️ Arrows', ar: '⬅️➡️ الأسهم', ru: '⬅️➡️ Стрелки', fr: '⬅️➡️ Flèches', es: '⬅️➡️ Flechas' },
-    shootKeyLabel:    { he: 'מקש ירי:', en: 'Shoot key:', ar: 'مفتاح الإطلاق:', ru: 'Клавиша стрельбы:', fr: 'Touche tir :', es: 'Tecla disparo:' },
+    inputUsedLabel:   { he: 'אמצעי שליטה בפועל:', en: 'Input used:', ar: 'وسيلة التحكم المستخدمة:', ru: 'Использованный ввод:', fr: 'Commande utilisée :', es: 'Control usado:' },
+    inputKeyboard:    { he: '⌨️ מקלדת', en: '⌨️ Keyboard', ar: '⌨️ لوحة المفاتيح', ru: '⌨️ Клавиатура', fr: '⌨️ Clavier', es: '⌨️ Teclado' },
+    inputGamepad:     { he: '🎮 שלט', en: '🎮 Controller', ar: '🎮 وحدة تحكم', ru: '🎮 Геймпад', fr: '🎮 Manette', es: '🎮 Mando' },
+    shootKeyLabel:    { he: 'מקש ירי:', en: 'Shoot key:', ar: 'مفتاح الإطلاق:', ru: 'Клавиша стрельبы:', fr: 'Touche tir :', es: 'Tecla disparo:' },
     shootKeyNote:     { he: 'לחץ על "שנה מקש" ואז לחץ על המקש הרצוי', en: 'Click "Change key" then press the desired key', ar: 'انقر على "تغيير المفتاح" ثم اضغط على المفتاح المطلوب', ru: 'Нажмите «Изменить клавишу», затем нужную клавишу', fr: 'Cliquez sur «Changer» puis appuyez sur la touche souhaitée', es: 'Haz clic en «Cambiar tecla» y luego presiona la tecla deseada' },
     abilityKeyLabel:  { he: 'מקש יכולת מיוחדת:', en: 'Special ability key:', ar: 'مفتاح القدرة الخاصة:', ru: 'Клавиша спецспособности:', fr: 'Touche compétence spéciale :', es: 'Tecla habilidad especial:' },
     rightClickLabel:  { he: 'קליק ימני ליכולת מיוחדת:', en: 'Right-click for special ability:', ar: 'النقر الأيمن للقدرة الخاصة:', ru: 'ПКМ для спецспособности:', fr: 'Clic droit pour compétence spéciale :', es: 'Clic derecho para habilidad especial:' },
