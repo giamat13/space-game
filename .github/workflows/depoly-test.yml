@@ -2,7 +2,7 @@ name: Deploy test
 on:
   push:
     branches:
-      - claude/character-starting-levels-ikootl
+      - claude/leaderboard-sync-issues-5yoagu
 
 permissions:
   contents: write
