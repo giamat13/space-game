@@ -1,0 +1,25 @@
+# .claudecodeignore — files Claude Code should skip when reading/searching.
+# Static web game: keep context on JS/HTML/CSS, skip binary media.
+
+# ── Binary media (nothing to read) ─────────────────────────────
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp3
+*.ogg
+*.wav
+*.mp4
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# ── Vendored / minified libs ───────────────────────────────────
+*.min.js
+*.min.css
+
+# ── OS ─────────────────────────────────────────────────────────
+*.DS_Store

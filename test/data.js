@@ -708,8 +708,6 @@ export const state = {
     startTime: 0,
     coinsEarned: 0,
     speedrunHits: {},
-    // Which input devices the player actually used this game (for leaderboard)
-    inputUsed: { keyboard: false, gamepad: false },
 };
 
 export function resetState() {
@@ -763,7 +761,6 @@ export function resetState() {
     state.startTime = Date.now();
     state.coinsEarned = 0;
     state.speedrunHits = {};
-    state.inputUsed = { keyboard: false, gamepad: false };
     if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = '+0';
     console.log('✅ [STATE] Reset complete');
 }

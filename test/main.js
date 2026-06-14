@@ -839,10 +839,6 @@ function renderEntrySettingsBody(s, cat) {
         controls: s.isMobile ? '' : `<div class="es-group" data-cat="controls">
             <div class="es-group-title">${t('tabControls')}</div>
             ${row(t('controlLabel'), s.controlType === 'mouse' ? t('controlMouse') : t('controlArrows'))}
-            ${Array.isArray(s.inputMethods) && s.inputMethods.length
-                ? row(t('inputUsedLabel'), s.inputMethods.map(m =>
-                    m === 'gamepad' ? t('inputGamepad') : t('inputKeyboard')).join(' + '))
-                : ''}
             ${row(t('shootKeyLabel'), `<kbd>${fmtKey(s.shoot)}</kbd>`)}
             ${row(t('abilityKeyLabel'), `<kbd>${fmtKey(s.ability)}</kbd>`)}
             ${row(t('rightClickLabel'), bool(s.rightClickAbility))}
@@ -927,7 +923,6 @@ function _renderLbContent() {
             ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduDisplay = entry.settings?.eduEnabled
             ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
-        const inputDisplay = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
             : '';
@@ -936,7 +931,7 @@ function _renderLbContent() {
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
-                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${inputDisplay}
+                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
@@ -945,17 +940,6 @@ function _renderLbContent() {
         </div>`;
     }).join('');
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
-}
-
-// Compact leaderboard tag showing which input device(s) were used.
-// 🎮 = controller, ⌨️ = keyboard; both shown if the player mixed them.
-function inputTag(methods) {
-    if (!Array.isArray(methods) || methods.length === 0) return '';
-    const icons = [];
-    if (methods.includes('keyboard')) icons.push('⌨️');
-    if (methods.includes('gamepad')) icons.push('🎮');
-    if (!icons.length) return '';
-    return ` <span style="font-size:0.72rem;opacity:0.7;">${icons.join('')}</span>`;
 }
 
 // ===== DEVELOPER BADGE =====
@@ -1594,14 +1578,12 @@ window.addEventListener('keydown', (e) => {
     if (state.active && e.code === keyBindings.shoot) {
         arrowKeysPressed.shoot = true;
         shoot(); // Shoot immediately on press
-        state.inputUsed.keyboard = true;
         e.preventDefault();
     }
 
     // Handle special ability for all control types
     if (state.active && e.code === keyBindings.ability) {
         activateSpecialAbility();
-        state.inputUsed.keyboard = true;
     }
 
     // Handle movement keys only for arrows control type
@@ -1609,12 +1591,10 @@ window.addEventListener('keydown', (e) => {
 
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         arrowKeysPressed.left = true;
-        state.inputUsed.keyboard = true;
         e.preventDefault();
     }
     if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         arrowKeysPressed.right = true;
-        state.inputUsed.keyboard = true;
         e.preventDefault();
     }
     if (e.code === 'ArrowUp') {
@@ -1673,142 +1653,6 @@ window.addEventListener('mousedown', (e) => {
 window.addEventListener('mouseup', (e) => {
     mousePressed = false;
 });
-
-// ===== GAMEPAD SUPPORT =====
-// Uses the standard Gamepad API mapping (same layout shown on
-// hardwaretester.com/gamepad). Works alongside any control type:
-//   Left stick X / D-pad ◄ ►  → move ship horizontally (analog = proportional)
-//   A (cross) or Right Trigger → shoot (hold for continuous fire)
-//   B / X / LB / RB            → special ability
-//   Start                      → pause / resume
-const GP_BTN = {
-    A: 0, B: 1, X: 2, Y: 3,
-    LB: 4, RB: 5, LT: 6, RT: 7,
-    SELECT: 8, START: 9,
-    DPAD_UP: 12, DPAD_DOWN: 13, DPAD_LEFT: 14, DPAD_RIGHT: 15
-};
-const gamepadState = {
-    index: null,
-    deadzone: 0.20,
-    prevButtons: {} // edge-detection cache
-};
-let gamepadLoopRunning = false;
-
-// Flag that the controller was actually used this game (recorded in the leaderboard)
-function gamepadUsed() {
-    if (state.active) state.inputUsed.gamepad = true;
-}
-
-function showGamepadStatus(connected, name) {
-    let el = document.getElementById('gamepad-status');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'gamepad-status';
-        document.body.appendChild(el);
-    }
-    const label = connected ? t('gamepadConnected') : t('gamepadDisconnected');
-    el.textContent = name ? `${label} — ${name}` : label;
-    el.classList.toggle('disconnected', !connected);
-    el.classList.add('visible');
-    clearTimeout(el._hideTimer);
-    el._hideTimer = setTimeout(() => el.classList.remove('visible'), 3500);
-}
-
-window.addEventListener('gamepadconnected', (e) => {
-    console.log('🎮 [GAMEPAD] Connected:', e.gamepad.id, 'index', e.gamepad.index);
-    gamepadState.index = e.gamepad.index;
-    gamepadState.prevButtons = {};
-    showGamepadStatus(true, e.gamepad.id);
-    if (!gamepadLoopRunning) {
-        gamepadLoopRunning = true;
-        requestAnimationFrame(pollGamepad);
-    }
-});
-
-window.addEventListener('gamepaddisconnected', (e) => {
-    if (e.gamepad.index !== gamepadState.index) return;
-    console.log('🎮 [GAMEPAD] Disconnected:', e.gamepad.id);
-    gamepadState.index = null;
-    gamepadLoopRunning = false;
-    showGamepadStatus(false);
-});
-
-function pollGamepad() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const gp = gamepadState.index != null ? pads[gamepadState.index] : null;
-
-    if (gp) {
-        const held = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
-        const edge = (i) => {
-            const now = held(i);
-            const fired = now && !gamepadState.prevButtons[i];
-            gamepadState.prevButtons[i] = now;
-            return fired;
-        };
-
-        // Start toggles pause regardless of paused state
-        if (edge(GP_BTN.START)) togglePause();
-
-        if (state.active && !state.paused) {
-            // Horizontal movement: analog stick (proportional) + D-pad
-            let axisX = gp.axes[0] || 0;
-            if (Math.abs(axisX) < gamepadState.deadzone) axisX = 0;
-            if (held(GP_BTN.DPAD_LEFT)) axisX = -1;
-            if (held(GP_BTN.DPAD_RIGHT)) axisX = 1;
-            if (axisX !== 0) {
-                const speed = 9 * axisX;
-                state.playerX = Math.max(0, Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed));
-                updatePlayerPos();
-                // Keep Phoenix-feather targeting aimed forward from the ship
-                state.lastMouseX = state.playerX + 25;
-                state.lastMouseY = DOM.wrapper.clientHeight - 80;
-                gamepadUsed();
-            }
-
-            // Shoot:
-            //   A = full-speed fire.
-            //   Right Trigger = analog — light press fires slowly, hard press fires fast.
-            const rt = gp.buttons[GP_BTN.RT] ? gp.buttons[GP_BTN.RT].value : 0;
-            if (held(GP_BTN.A)) {
-                shoot();
-                gamepadUsed();
-            } else if (rt > 0.05) {
-                // Map trigger travel (0.05‑1.0) to a fire-rate multiplier (~0.3 slow → 1.4 fast)
-                const rateMul = 0.3 + rt * 1.1;
-                shoot(rateMul);
-                gamepadUsed();
-            }
-
-            // Special ability: face buttons / bumpers (edge-triggered)
-            if (edge(GP_BTN.B) || edge(GP_BTN.X) || edge(GP_BTN.LB) || edge(GP_BTN.RB)) {
-                activateSpecialAbility();
-                gamepadUsed();
-            }
-        } else {
-            // Refresh edge cache while idle so a held button doesn't fire on resume
-            edge(GP_BTN.A); edge(GP_BTN.B); edge(GP_BTN.X);
-            edge(GP_BTN.LB); edge(GP_BTN.RB);
-        }
-    }
-
-    if (gamepadLoopRunning) requestAnimationFrame(pollGamepad);
-}
-
-// Some browsers (Chrome) only fire 'gamepadconnected' after the first input,
-// but a pad may already be present on load — start a probe if one exists.
-(function probeGamepad() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (const p of pads) {
-        if (p) {
-            gamepadState.index = p.index;
-            if (!gamepadLoopRunning) {
-                gamepadLoopRunning = true;
-                requestAnimationFrame(pollGamepad);
-            }
-            break;
-        }
-    }
-})();
 
 // Special ability button click
 document.getElementById('special-ability-btn').addEventListener('click', activateSpecialAbility);
@@ -3161,7 +3005,6 @@ function renderHistoryList() {
         const showDevice = _histFilters.device === 'all';
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
-        const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
         const replayBtn = entry.replayLog
@@ -3173,7 +3016,7 @@ function renderHistoryList() {
                     <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.6">שלב ${entry.level}</span>
                     <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
-                    ${upgradesTag}${coinsTag}${deviceTag}${inputTagHtml}
+                    ${upgradesTag}${coinsTag}${deviceTag}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
@@ -3215,7 +3058,6 @@ function renderBestsList(skinKey) {
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
-        const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${i===0?'background:rgba(255,215,0,0.06);':''}">
@@ -3225,7 +3067,7 @@ function renderBestsList(skinKey) {
                     <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.65">שלב ${entry.level}</span>
                     ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
-                    ${upgradesTag}${deviceTag}${eduTag}${inputTagHtml}
+                    ${upgradesTag}${deviceTag}${eduTag}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
