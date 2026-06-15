@@ -1166,15 +1166,24 @@ function _renderLbContent() {
 
     renderFilterBar('lb-filter-bar', _lbFilters, () => _renderLbContent());
 
-    // Build a score→histEntry map for replay buttons (local history only)
-    const _lbReplayMap = new Map();
+    // Build replay lookup for history entries that have a replayLog.
+    // Keyed by startTime (unique) with score as fallback.
+    const _lbHistReplays = [];
+    const _lbReplayByStart = new Map(); // startTime → index in array
+    const _lbReplayByScore = new Map(); // score → index (first match wins)
     try {
         const hist = JSON.parse(localStorage.getItem('gameHistory_v2') || '[]');
         for (const h of hist) {
-            if (h.replayLog && !_lbReplayMap.has(h.score)) _lbReplayMap.set(h.score, h);
+            if (!h.replayLog) continue;
+            const idx = _lbHistReplays.push(h) - 1;
+            const st = h.settings?.startTime ?? h.timestamp;
+            if (st) _lbReplayByStart.set(st, idx);
+            if (!_lbReplayByScore.has(h.score)) _lbReplayByScore.set(h.score, idx);
         }
     } catch(_) {}
-    window.__lbReplayMap = _lbReplayMap;
+    window.__lbHistReplays   = _lbHistReplays;
+    window.__lbReplayByStart = _lbReplayByStart;
+    window.__lbReplayByScore = _lbReplayByScore;
 
     const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
@@ -1216,8 +1225,12 @@ function _renderLbContent() {
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
             : '';
-        const replayBtn = window.__lbReplayMap?.has(entry.score)
-            ? `<button class="lb-settings-btn" onclick="openReplay(window.__lbReplayMap.get(${entry.score}))" title="צפה ב-Replay" style="color:rgba(0,242,255,0.8);border-color:rgba(0,242,255,0.4);">▶</button>`
+        const _rst = entry.settings?.startTime;
+        const _ridx = (_rst && window.__lbReplayByStart?.has(_rst))
+            ? window.__lbReplayByStart.get(_rst)
+            : window.__lbReplayByScore?.get(entry.score) ?? -1;
+        const replayBtn = _ridx >= 0
+            ? `<button class="lb-settings-btn" onclick="openReplay(window.__lbHistReplays[${_ridx}])" title="צפה ב-Replay" style="color:rgba(0,242,255,0.8);border-color:rgba(0,242,255,0.4);">▶</button>`
             : '';
         return `
         <div class="lb-entry rank-${index + 1}">
