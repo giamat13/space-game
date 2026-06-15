@@ -109,6 +109,19 @@ export function damagePlayer(amount, source = 'unknown') {
         console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
 
+        // Strong death rumble on any connected gamepad
+        try {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (const pad of pads) {
+                if (pad && pad.vibrationActuator) {
+                    pad.vibrationActuator.playEffect('dual-rumble', {
+                        startDelay: 0, duration: 800,
+                        weakMagnitude: 0.6, strongMagnitude: 1.0
+                    });
+                }
+            }
+        } catch(_) {}
+
         // Hide game-only buttons when returning to main menu
         const abilityBtn = document.getElementById('special-ability-btn');
         if (abilityBtn) abilityBtn.style.display = 'none';

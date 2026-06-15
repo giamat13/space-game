@@ -213,7 +213,9 @@ function renderCatPanel(catKey, filters, cid) {
         case 'controls': {
             const ctrlType   = (f.controls||{}).controlType       || 'any';
             const rightClick = (f.controls||{}).rightClickAbility || 'any';
-            const rcS = rightClick !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+            const gamepadF   = (f.controls||{}).gamepadUsed       || 'any';
+            const rcS  = rightClick !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
+            const gpS  = gamepadF   !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
             return `<div style="display:flex;flex-direction:column;gap:7px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">Control type:</span>
@@ -228,6 +230,12 @@ function renderCatPanel(catKey, filters, cid) {
                     <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','rightClickAbility')"
                         style="font-size:1rem;padding:2px 8px;min-width:36px${rcS}">${_boolIcon[rightClick]}</button>
                     <span style="font-size:0.63rem;opacity:0.45;">⬜=Any ✅=Yes 🚫=No &nbsp;· No settings → Yes</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">🎮 Controller:</span>
+                    <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','gamepadUsed')"
+                        style="font-size:1rem;padding:2px 8px;min-width:36px${gpS}">${_boolIcon[gamepadF]}</button>
+                    <span style="font-size:0.63rem;opacity:0.45;">⬜=Any ✅=Used 🚫=Not used &nbsp;· No settings → Not used</span>
                 </div>
             </div>`;
         }
@@ -327,6 +335,10 @@ function applyEntryFilters(entries, filters) {
             if (!value || value === 'any') continue;
             if (key === 'rightClickAbility') {
                 const val = s ? !!s.rightClickAbility : true;
+                if (value === 'true'  && !val) return false;
+                if (value === 'false' &&  val) return false;
+            } else if (key === 'gamepadUsed') {
+                const val = Array.isArray(s?.inputMethods) && s.inputMethods.includes('gamepad');
                 if (value === 'true'  && !val) return false;
                 if (value === 'false' &&  val) return false;
             } else {
@@ -1154,6 +1166,16 @@ function _renderLbContent() {
 
     renderFilterBar('lb-filter-bar', _lbFilters, () => _renderLbContent());
 
+    // Build a score→histEntry map for replay buttons (local history only)
+    const _lbReplayMap = new Map();
+    try {
+        const hist = JSON.parse(localStorage.getItem('gameHistory_v2') || '[]');
+        for (const h of hist) {
+            if (h.replayLog && !_lbReplayMap.has(h.score)) _lbReplayMap.set(h.score, h);
+        }
+    } catch(_) {}
+    window.__lbReplayMap = _lbReplayMap;
+
     const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
     // Keep only best entry per player (already sorted best-first)
@@ -1194,6 +1216,9 @@ function _renderLbContent() {
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
             : '';
+        const replayBtn = window.__lbReplayMap?.has(entry.score)
+            ? `<button class="lb-settings-btn" onclick="openReplay(window.__lbReplayMap.get(${entry.score}))" title="צפה ב-Replay" style="color:rgba(0,242,255,0.8);border-color:rgba(0,242,255,0.4);">▶</button>`
+            : '';
         return `
         <div class="lb-entry rank-${index + 1}">
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
@@ -1204,7 +1229,7 @@ function _renderLbContent() {
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
             </div>
-            ${settingsBtn}
+            ${replayBtn}${settingsBtn}
         </div>`;
     }).join('');
     console.log('✅ [DISPLAY] Leaderboard displayed successfully');
@@ -2016,7 +2041,12 @@ function pollGamepad() {
         if (state.active && !state.paused) {
             // Horizontal movement: analog stick (proportional) + D-pad
             let axisX = gp.axes[0] || 0;
-            if (Math.abs(axisX) < gamepadState.deadzone) axisX = 0;
+            if (Math.abs(axisX) < gamepadState.deadzone) {
+                axisX = 0;
+            } else {
+                // Normalize so just-past-deadzone ≈ 0 and full push = ±1
+                axisX = (axisX - Math.sign(axisX) * gamepadState.deadzone) / (1 - gamepadState.deadzone);
+            }
             if (held(GP_BTN.DPAD_LEFT)) axisX = -1;
             if (held(GP_BTN.DPAD_RIGHT)) axisX = 1;
             if (axisX !== 0) {
