@@ -1,4 +1,4 @@
-import { DOM, state, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey } from './data.js';
+import { DOM, state, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
 import { t, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -9,6 +9,17 @@ import {
 
 export function getEnemyPoints(type) {
     return { red: 50, orange: 150, green: 100, blue: 250 }[type] ?? 50;
+}
+
+// Joker perk: every 10 kills (any kill, by any method) award 100 coins.
+// Called from every enemy-death site so it counts ALL kills, not just bullets.
+export function registerJokerKill(x = 0, y = 0) {
+    if (currentSkinKey !== 'joker' || !isUpgradeActive('joker_kill_coins')) return;
+    state.jokerKills = (state.jokerKills || 0) + 1;
+    if (state.jokerKills % 10 === 0) {
+        addCoins(100);
+        showFloatingMessage(t('jokerKillCoins'), x - 40, y - 20, '#ffd700');
+    }
 }
 export function getEnemyAmmoGrant(type) {
     return { red: 1, orange: 2, green: 2, blue: 3 }[type] ?? 1;

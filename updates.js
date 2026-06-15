@@ -1,6 +1,6 @@
 import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
 import { t } from './i18n.js';
-import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
+import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal, registerJokerKill } from './systems.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
     trackChaoticKill, trackAsteroidDestroyed, trackIngredientCollected,
@@ -164,6 +164,7 @@ export function updateEnemyBullets() {
                         trackEnemyKilled(targetEn.type, points, state.level, 'ricochet');
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
+                        registerJokerKill(teRect.left, teRect.top);
                     }
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
@@ -218,6 +219,7 @@ export function updateEnemyBullets() {
                         trackChaoticKill(targetEn.type);
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
+                        registerJokerKill(teRect.left, teRect.top);
                     }
 
                     eb.el.remove();
@@ -248,6 +250,7 @@ export function updateEnemyBullets() {
                         trackFriendlyFire('unknown', targetEn.type, 1);
                         targetEn.el.remove();
                         state.enemies.splice(ei, 1);
+                        registerJokerKill(teRect.left, teRect.top);
                     }
                     
                     createExplosion(eb.x, eb.y, 'white');
@@ -536,15 +539,7 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
-
-                    // Joker kill coins: every 10 kills award 100 coins
-                    if (currentSkinKey === 'joker' && isUpgradeActive('joker_kill_coins')) {
-                        state.jokerKills = (state.jokerKills || 0) + 1;
-                        if (state.jokerKills % 10 === 0) {
-                            addCoins(100);
-                            showFloatingMessage(t('jokerKillCoins'), eRect.left - 40, eRect.top - 20, '#ffd700');
-                        }
-                    }
+                    registerJokerKill(eRect.left, eRect.top);
 
                     // Education mode: chance for a bonus question on a kill.
                     // The quiz module enforces a 10s global cooldown, so this

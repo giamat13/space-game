@@ -61,6 +61,28 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Peer-to-peer coin transfers: a sender creates a transfer addressed to a
+    // recipient's email; the recipient claims it (marks claimed) on next login.
+    match /coinTransfers/{transferId} {
+      // Sender or recipient may read their own transfers (recipient queries by toEmail).
+      allow read: if isSignedIn() &&
+        (resource.data.fromUid == request.auth.uid ||
+         resource.data.toEmail == request.auth.token.email);
+      // Only the authenticated sender can create, and the transfer must start unclaimed.
+      allow create: if isSignedIn() &&
+        request.resource.data.fromUid == request.auth.uid &&
+        request.resource.data.claimed == false &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount > 0;
+      // Only the recipient may update, and only to claim an unclaimed transfer.
+      allow update: if isSignedIn() &&
+        resource.data.toEmail == request.auth.token.email &&
+        resource.data.claimed == false &&
+        request.resource.data.claimed == true &&
+        request.resource.data.amount == resource.data.amount;
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

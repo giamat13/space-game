@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -26,6 +26,13 @@ window.__onKeyBindingsSynced = (merged) => {
 window.__onUnlockedSkinsSynced = (skins) => {
     refreshUnlockedSkins(skins);
     updateSkinOptions();
+};
+
+window.__onCoinTransfersClaimed = (result) => {
+    if (!result || result.total <= 0) return;
+    const lines = result.transfers.map(tr => `${t('sendClaimedFrom')} ${tr.fromName}: +${tr.amount.toLocaleString()} 💰`).join('\n');
+    alert(`${t('sendClaimedTitle')}\n${lines}`);
+    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
 };
 loadGameRules();
 loadDeviceMode();
@@ -650,6 +657,7 @@ const SHOP_TABS = [
     { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
     { key: 'dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+    { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
 ];
 let _currentShopTab = 'all';
 
@@ -829,10 +837,126 @@ function _makeHPCard(skinKey, coins) {
     return card;
 }
 
+function _renderSendCoinsUI(container, coins) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:14px;';
+
+    const title = document.createElement('h3');
+    title.style.cssText = 'margin:0;font-size:1.1rem;color:#ffd700;';
+    title.textContent = t('sendTitle');
+    wrap.appendChild(title);
+
+    const desc = document.createElement('p');
+    desc.style.cssText = 'margin:0;font-size:0.82rem;opacity:0.75;line-height:1.5;';
+    desc.textContent = t('sendDesc');
+    wrap.appendChild(desc);
+
+    const emailLabel = document.createElement('label');
+    emailLabel.style.cssText = 'font-size:0.85rem;color:#ccc;';
+    emailLabel.textContent = t('sendEmailLabel');
+    wrap.appendChild(emailLabel);
+
+    const emailInput = document.createElement('input');
+    emailInput.type = 'email';
+    emailInput.placeholder = t('sendEmailPlaceholder');
+    emailInput.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #444;background:#1a1a2e;color:#fff;font-size:0.9rem;width:100%;box-sizing:border-box;';
+    wrap.appendChild(emailInput);
+
+    const amountLabel = document.createElement('label');
+    amountLabel.style.cssText = 'font-size:0.85rem;color:#ccc;';
+    amountLabel.textContent = t('sendAmountLabel');
+    wrap.appendChild(amountLabel);
+
+    const presets = document.createElement('div');
+    presets.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+    let selectedAmount = 0;
+    [100, 500, 1000, 5000].forEach(amt => {
+        const btn = document.createElement('button');
+        btn.textContent = `💰 ${amt.toLocaleString()}`;
+        btn.style.cssText = 'padding:6px 14px;border-radius:20px;border:2px solid #444;background:#1a1a2e;color:#ffd700;cursor:pointer;font-size:0.85rem;transition:all 0.15s;';
+        btn.dataset.amt = amt;
+        btn.onclick = () => {
+            selectedAmount = amt;
+            customInput.value = '';
+            presets.querySelectorAll('button').forEach(b => b.style.borderColor = '#444');
+            btn.style.borderColor = '#ffd700';
+        };
+        presets.appendChild(btn);
+    });
+    wrap.appendChild(presets);
+
+    const customInput = document.createElement('input');
+    customInput.type = 'number';
+    customInput.min = '1';
+    customInput.max = coins;
+    customInput.placeholder = t('sendCustomAmount');
+    customInput.style.cssText = 'padding:7px 12px;border-radius:8px;border:1px solid #444;background:#1a1a2e;color:#fff;font-size:0.85rem;width:100%;box-sizing:border-box;';
+    customInput.oninput = () => {
+        selectedAmount = 0;
+        presets.querySelectorAll('button').forEach(b => b.style.borderColor = '#444');
+    };
+    wrap.appendChild(customInput);
+
+    const sendBtn = document.createElement('button');
+    sendBtn.textContent = t('sendBtn');
+    sendBtn.style.cssText = 'padding:10px 20px;border-radius:22px;border:none;background:linear-gradient(135deg,#f7971e,#ffd200);color:#1a1a2e;font-weight:700;font-size:0.95rem;cursor:pointer;transition:opacity 0.2s;';
+
+    const statusEl = document.createElement('div');
+    statusEl.style.cssText = 'font-size:0.85rem;min-height:1.2em;text-align:center;';
+
+    sendBtn.onclick = async () => {
+        const toEmail = emailInput.value.trim();
+        const amount = customInput.value ? parseInt(customInput.value) : selectedAmount;
+
+        statusEl.style.color = '#aaa';
+        statusEl.textContent = '⏳';
+
+        if (!toEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+            statusEl.style.color = '#ff6b6b'; statusEl.textContent = t('sendErrEmail'); return;
+        }
+        if (!amount || amount <= 0) {
+            statusEl.style.color = '#ff6b6b'; statusEl.textContent = t('sendErrAmount'); return;
+        }
+
+        sendBtn.disabled = true;
+        const result = await sendCoinsToFriend(toEmail, amount);
+        sendBtn.disabled = false;
+
+        if (result.success) {
+            statusEl.style.color = '#4cff91';
+            statusEl.textContent = t('sendSuccess');
+            emailInput.value = '';
+            customInput.value = '';
+            selectedAmount = 0;
+            presets.querySelectorAll('button').forEach(b => b.style.borderColor = '#444');
+            _refreshShopCoins();
+        } else {
+            statusEl.style.color = '#ff6b6b';
+            const errMap = {
+                self_transfer: 'sendErrSelf',
+                insufficient_coins: 'sendErrCoins',
+                not_logged_in: 'sendNotLoggedIn',
+                not_connected: 'sendErrNotConnected',
+                server_error: 'sendErrServer',
+            };
+            statusEl.textContent = t(errMap[result.error] || 'sendErrServer');
+        }
+    };
+
+    wrap.appendChild(sendBtn);
+    wrap.appendChild(statusEl);
+    container.appendChild(wrap);
+}
+
 function renderShopItems() {
     const container = document.getElementById('shop-items');
     const coins = getCoins();
     container.innerHTML = '';
+
+    if (_currentShopTab === 'send') {
+        _renderSendCoinsUI(container, coins);
+        return;
+    }
 
     if (_currentShopTab === 'all') {
         Object.values(UPGRADES).forEach(upg => container.appendChild(_makeUpgradeCard(upg, coins)));

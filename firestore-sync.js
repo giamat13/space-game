@@ -773,10 +773,99 @@ export async function syncAllData() {
 
         console.log('✅ [SYNC] Full sync complete - all data synchronized');
 
+        // Store email for peer-to-peer coin transfers
+        if (user.email) {
+            setDoc(doc(db, 'users', user.uid), { email: user.email.toLowerCase() }, { merge: true }).catch(() => {});
+        }
+
+        // Claim any pending coin transfers from friends
+        claimPendingTransfers().then(result => {
+            if (result.total > 0) {
+                const coinsEl = document.getElementById('coins');
+                if (coinsEl) coinsEl.innerText = parseInt(getCookie('playerCoins') || '0');
+                if (typeof window.__onCoinTransfersClaimed === 'function') {
+                    window.__onCoinTransfersClaimed(result);
+                }
+            }
+        }).catch(() => {});
+
         // One-time migration of local game history to cloud
         migrateLocalHistoryToCloud(user).catch(() => {});
     } catch (error) {
         console.error('❌ [SYNC] Error during full sync:', error);
+    }
+}
+
+// ===== COIN TRANSFERS BETWEEN FRIENDS =====
+
+export async function sendCoinsToFriend(toEmail, amount) {
+    if (!auth || !db) return { success: false, error: 'not_connected' };
+    const user = auth.currentUser;
+    if (!user) return { success: false, error: 'not_logged_in' };
+
+    const normalizedEmail = toEmail.trim().toLowerCase();
+    if (normalizedEmail === (user.email || '').toLowerCase()) return { success: false, error: 'self_transfer' };
+
+    const localCoins = parseInt(getCookie('playerCoins') || '0');
+    if (amount <= 0 || amount > localCoins) return { success: false, error: 'insufficient_coins' };
+
+    try {
+        await addDoc(collection(db, 'coinTransfers'), {
+            fromUid: user.uid,
+            fromEmail: (user.email || '').toLowerCase(),
+            fromName: user.displayName || (user.email || '').split('@')[0],
+            toEmail: normalizedEmail,
+            amount,
+            timestamp: serverTimestamp(),
+            claimed: false
+        });
+
+        const newTotal = localCoins - amount;
+        setCookie('playerCoins', newTotal.toString());
+        await setDoc(doc(db, 'users', user.uid), { coins: newTotal, lastUpdated: serverTimestamp() }, { merge: true });
+
+        return { success: true, newTotal };
+    } catch (e) {
+        console.error('❌ [TRANSFER] Send failed:', e);
+        return { success: false, error: 'server_error' };
+    }
+}
+
+export async function claimPendingTransfers() {
+    if (!auth || !db) return { total: 0, transfers: [] };
+    const user = auth.currentUser;
+    if (!user || !user.email) return { total: 0, transfers: [] };
+
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'coinTransfers'),
+            where('toEmail', '==', user.email.toLowerCase()),
+            where('claimed', '==', false)
+        ));
+
+        if (snap.empty) return { total: 0, transfers: [] };
+
+        let totalClaimed = 0;
+        const transfers = [];
+
+        for (const transferDoc of snap.docs) {
+            const data = transferDoc.data();
+            totalClaimed += data.amount;
+            transfers.push({ amount: data.amount, fromName: data.fromName || data.fromEmail });
+            await setDoc(doc(db, 'coinTransfers', transferDoc.id), { claimed: true, claimedAt: serverTimestamp() }, { merge: true });
+        }
+
+        if (totalClaimed > 0) {
+            const localCoins = parseInt(getCookie('playerCoins') || '0');
+            const newTotal = localCoins + totalClaimed;
+            setCookie('playerCoins', newTotal.toString());
+            await setDoc(doc(db, 'users', user.uid), { coins: newTotal, lastUpdated: serverTimestamp() }, { merge: true });
+        }
+
+        return { total: totalClaimed, transfers };
+    } catch (e) {
+        console.error('❌ [TRANSFER] Claim failed:', e);
+        return { total: 0, transfers: [] };
     }
 }
 

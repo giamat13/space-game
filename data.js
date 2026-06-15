@@ -30,8 +30,12 @@ import {
     syncKeyBindings,
     syncGameRules,
     syncDeviceMode,
-    syncCustomSpeedrunGoals
+    syncCustomSpeedrunGoals,
+    sendCoinsToFriend,
+    claimPendingTransfers
 } from './firestore-sync.js';
+
+export { sendCoinsToFriend, claimPendingTransfers };
 
 // Skin Configuration
 export const SKINS = {

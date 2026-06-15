@@ -225,6 +225,26 @@ const STRINGS = {
     // ---- Floating messages (in-game) ----
     phoenixFeathers:      { he: 'נוצות פניקס', en: 'PHOENIX FEATHERS', ar: 'ريشات العنقاء', ru: 'ПЕРЬЯ ФЕНИКСА', fr: 'PLUMES PHÉNIX', es: 'PLUMAS FÉNIX' },
     jokerKillCoins:       { he: '🃏 +100 💰 (10 הריגות!)', en: '🃏 +100 💰 (10 kills!)', ar: '🃏 +100 💰 (10 قتلات!)', ru: '🃏 +100 💰 (10 убийств!)', fr: '🃏 +100 💰 (10 kills !)', es: '🃏 +100 💰 (¡10 kills!)' },
+
+    // ---- Friend coin transfer ----
+    shopTabSend:          { he: '💌 שלח לחבר', en: '💌 Send to Friend', ar: '💌 إرسال لصديق', ru: '💌 Отправить другу', fr: '💌 Envoyer à un ami', es: '💌 Enviar a amigo' },
+    sendTitle:            { he: 'שלח מטבעות לחבר', en: 'Send Coins to a Friend', ar: 'إرسال عملات لصديق', ru: 'Отправить монеты другу', fr: 'Envoyer des pièces à un ami', es: 'Enviar monedas a un amigo' },
+    sendDesc:             { he: 'הכנס אימייל של חבר ובחר כמה מטבעות לשלוח', en: 'Enter a friend\'s email and choose how many coins to send', ar: 'أدخل بريد صديق واختر عدد العملات للإرسال', ru: 'Введите email друга и выберите сумму монет', fr: 'Entrez l\'email d\'un ami et choisissez le nombre de pièces', es: 'Ingresa el email de un amigo y elige cuántas monedas enviar' },
+    sendEmailLabel:       { he: 'אימייל של החבר', en: 'Friend\'s Email', ar: 'بريد الصديق', ru: 'Email друга', fr: 'Email de l\'ami', es: 'Email del amigo' },
+    sendEmailPlaceholder: { he: 'example@email.com', en: 'example@email.com', ar: 'example@email.com', ru: 'example@email.com', fr: 'example@email.com', es: 'example@email.com' },
+    sendAmountLabel:      { he: 'כמות מטבעות', en: 'Amount of Coins', ar: 'عدد العملات', ru: 'Количество монет', fr: 'Nombre de pièces', es: 'Cantidad de monedas' },
+    sendCustomAmount:     { he: 'כמות מותאמת אישית...', en: 'Custom amount...', ar: 'مبلغ مخصص...', ru: 'Другая сумма...', fr: 'Montant personnalisé...', es: 'Monto personalizado...' },
+    sendBtn:              { he: '💸 שלח מטבעות', en: '💸 Send Coins', ar: '💸 إرسال العملات', ru: '💸 Отправить монеты', fr: '💸 Envoyer les pièces', es: '💸 Enviar monedas' },
+    sendNotLoggedIn:      { he: 'יש להתחבר כדי לשלוח מטבעות', en: 'You must be logged in to send coins', ar: 'يجب تسجيل الدخول لإرسال العملات', ru: 'Войдите, чтобы отправлять монеты', fr: 'Connectez-vous pour envoyer des pièces', es: 'Debes iniciar sesión para enviar monedas' },
+    sendSuccess:          { he: 'המטבעות נשלחו! 🎉', en: 'Coins sent! 🎉', ar: 'تم إرسال العملات! 🎉', ru: 'Монеты отправлены! 🎉', fr: 'Pièces envoyées ! 🎉', es: '¡Monedas enviadas! 🎉' },
+    sendErrSelf:          { he: 'אי אפשר לשלוח לעצמך', en: 'You cannot send coins to yourself', ar: 'لا يمكنك إرسال عملات لنفسك', ru: 'Нельзя отправить монеты самому себе', fr: 'Vous ne pouvez pas vous envoyer des pièces', es: 'No puedes enviarte monedas a ti mismo' },
+    sendErrCoins:         { he: 'אין מספיק מטבעות', en: 'Not enough coins', ar: 'ليس هناك عملات كافية', ru: 'Недостаточно монет', fr: 'Pas assez de pièces', es: 'No tienes suficientes monedas' },
+    sendErrEmail:         { he: 'יש להזין אימייל תקין', en: 'Please enter a valid email', ar: 'يرجى إدخال بريد إلكتروني صالح', ru: 'Введите корректный email', fr: 'Veuillez entrer un email valide', es: 'Por favor ingresa un email válido' },
+    sendErrAmount:        { he: 'יש להזין כמות חיובית', en: 'Please enter a positive amount', ar: 'يرجى إدخال مبلغ موجب', ru: 'Введите положительную сумму', fr: 'Veuillez entrer un montant positif', es: 'Por favor ingresa una cantidad positiva' },
+    sendErrServer:        { he: 'שגיאת שרת, נסה שוב', en: 'Server error, please try again', ar: 'خطأ في الخادم، حاول مجدداً', ru: 'Ошибка сервера, попробуйте снова', fr: 'Erreur serveur, réessayez', es: 'Error del servidor, inténtalo de nuevo' },
+    sendErrNotConnected:  { he: 'אין חיבור לשרת', en: 'Not connected to server', ar: 'لا يوجد اتصال بالخادم', ru: 'Нет подключения к серверу', fr: 'Pas de connexion au serveur', es: 'Sin conexión al servidor' },
+    sendClaimedTitle:     { he: '🎁 קיבלת מטבעות!', en: '🎁 You received coins!', ar: '🎁 لقد تلقيت عملات!', ru: '🎁 Вы получили монеты!', fr: '🎁 Vous avez reçu des pièces !', es: '🎁 ¡Recibiste monedas!' },
+    sendClaimedFrom:      { he: 'מאת', en: 'From', ar: 'من', ru: 'От', fr: 'De', es: 'De' },
 };
 
 // ---------- Runtime ----------
