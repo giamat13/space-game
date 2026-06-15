@@ -1,4 +1,4 @@
-import { DOM, state, INGREDIENT_TYPES, deviceMode } from './data.js';
+import { DOM, state, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey } from './data.js';
 import { t, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -133,6 +133,7 @@ export function damagePlayer(amount, source = 'unknown') {
                     gameDuration,
                     startTime: state.startTime || null,
                     upgrades: dataModule.getOwnedUpgrades(),
+                    hpLevel: dataModule.getHPLevel(skinKey),
                     // Input devices actually used this game (keyboard / gamepad)
                     inputMethods: [
                         ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
@@ -397,41 +398,46 @@ export function showFloatingMessage(text, x, y, color) {
 
 export function usePhoenixFeathers() {
     console.log('🔥 [PHOENIX] Activating feathers!');
-    
+
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
-    
+
     const targetX = state.lastMouseX || playerCenterX;
     const targetY = state.lastMouseY || playerY - 100;
-    
-    for (let i = 0; i < 3; i++) {
+
+    const count  = isUpgradeActive('phoenix_super_feathers') ? 5 : 3;
+    const damage = isUpgradeActive('phoenix_power_feathers') ? 999 : 5.0;
+    const homing = isUpgradeActive('phoenix_homing_feathers');
+
+    for (let i = 0; i < count; i++) {
         setTimeout(() => {
             const feather = document.createElement('div');
             feather.className = 'phoenix-feather';
             feather.style.left = playerCenterX + 'px';
             feather.style.bottom = '90px';
             feather.innerHTML = `<svg viewBox="0 0 20 40" style="width:100%; height:100%;">
-                <path d="M10 0 L15 15 L10 40 L5 15 Z" fill="#ff6b35" />
+                <path d="M10 0 L15 15 L10 40 L5 15 Z" fill="${homing ? '#00f2ff' : '#ff6b35'}" />
                 <path d="M10 5 L12 12 L10 20 L8 12 Z" fill="#ffd700" />
             </svg>`;
             DOM.wrapper.appendChild(feather);
-            
-            const spread = (i - 1) * 15;
+
+            const spread = (i - Math.floor(count / 2)) * 15;
             const angle = Math.atan2(targetY - playerY, targetX - playerCenterX) + (spread * Math.PI / 180);
-            
+
             state.bullets.push({
                 el: feather,
                 y: 90,
                 isFeather: true,
+                isHomingFeather: homing,
                 vx: Math.cos(angle) * 8,
                 vy: Math.sin(angle) * 8,
-                damage: 5.0
+                damage
             });
         }, i * 100);
     }
-    
-    showFloatingMessage('PHOENIX FEATHERS!', playerCenterX - 60, playerY - 50, '#ff6b35');
-    console.log('✅ [PHOENIX] 3 Feathers launched');
+
+    showFloatingMessage(`${t('phoenixFeathers')} x${count}`, playerCenterX - 70, playerY - 50, '#ff6b35');
+    console.log(`✅ [PHOENIX] ${count} Feathers launched (homing:${homing}, dmg:${damage})`);
 }
 
 export function useVortexLaser() {

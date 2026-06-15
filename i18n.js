@@ -173,6 +173,58 @@ const STRINGS = {
     langTabTitle:     { he: 'בחר שפה', en: 'Choose Language', ar: 'اختر اللغة', ru: 'Выберите язык', fr: 'Choisir la langue', es: 'Elegir idioma' },
     langLabel:        { he: 'שפה / Language:', en: 'Language / שפה:', ar: 'اللغة:', ru: 'Язык:', fr: 'Langue :', es: 'Idioma:' },
     langToggle:       { he: 'English', en: 'עברית', ar: 'عربي', ru: 'Рус', fr: 'Fr', es: 'Es' },
+
+    // ---- Shop ----
+    shopTitle:            { he: '🛍️ Upgrade Shop', en: '🛍️ Upgrade Shop', ar: '🛍️ متجر الترقيات', ru: '🛍️ Магазин улучшений', fr: '🛍️ Boutique', es: '🛍️ Tienda' },
+    shopBalance:          { he: '💰 יתרה:', en: '💰 Balance:', ar: '💰 الرصيد:', ru: '💰 Баланс:', fr: '💰 Solde :', es: '💰 Saldo:' },
+    shopBack:             { he: '◀ חזרה', en: '◀ Back', ar: '◀ رجوع', ru: '◀ Назад', fr: '◀ Retour', es: '◀ Volver' },
+    shopTabAll:           { he: 'הכל', en: 'All', ar: 'الكل', ru: 'Все', fr: 'Tout', es: 'Todo' },
+    shopUpgradeActive:    { he: '✅ פעיל', en: '✅ Active', ar: '✅ نشط', ru: '✅ Активно', fr: '✅ Actif', es: '✅ Activo' },
+    shopUpgradeDisabled:  { he: '🚫 מושבת', en: '🚫 Disabled', ar: '🚫 معطّل', ru: '🚫 Отключено', fr: '🚫 Désactivé', es: '🚫 Desactivado' },
+    shopBtnEnable:        { he: '▶ הפעל', en: '▶ Enable', ar: '▶ تفعيل', ru: '▶ Включить', fr: '▶ Activer', es: '▶ Activar' },
+    shopBtnDisable:       { he: '🚫 השבת', en: '🚫 Disable', ar: '🚫 تعطيل', ru: '🚫 Отключить', fr: '🚫 Désactiver', es: '🚫 Desactivar' },
+    shopBtnOwned:         { he: '✅ נרכש', en: '✅ Purchased', ar: '✅ تم الشراء', ru: '✅ Куплено', fr: '✅ Acheté', es: '✅ Comprado' },
+    shopBtnRefund:        { he: '↩ החזר', en: '↩ Refund', ar: '↩ استرداد', ru: '↩ Возврат', fr: '↩ Remboursement', es: '↩ Reembolso' },
+    shopRequires:         { he: '⚠️ דורש:', en: '⚠️ Requires:', ar: '⚠️ يتطلب:', ru: '⚠️ Требует:', fr: '⚠️ Nécessite :', es: '⚠️ Requiere:' },
+    shopNoUpgrades:       { he: 'אין שדרוגים נוספים לסקין זה', en: 'No more upgrades for this skin', ar: 'لا مزيد من الترقيات لهذا المظهر', ru: 'Больше нет улучшений для этого скина', fr: 'Aucune autre amélioration pour ce skin', es: 'No hay más mejoras para este skin' },
+    shopHPUpgrade:        { he: '❤️ שדרוג חיים', en: '❤️ HP Upgrade', ar: '❤️ ترقية الصحة', ru: '❤️ Улучшение HP', fr: '❤️ Amélioration PV', es: '❤️ Mejora de VP' },
+    shopHPMax:            { he: '(מקסימום!)', en: '(Max!)', ar: '(الحد الأقصى!)', ru: '(Максимум!)', fr: '(Max !)', es: '(¡Máx!)' },
+    shopHPDesc:           { he: '+50 HP לכל רמה', en: '+50 HP per level', ar: '+50 HP لكل مستوى', ru: '+50 HP за уровень', fr: '+50 PV par niveau', es: '+50 VP por nivel' },
+    shopHPTotal:          { he: 'סה"כ:', en: 'Total:', ar: 'الإجمالي:', ru: 'Итого:', fr: 'Total :', es: 'Total:' },
+    shopHPNextCost:       { he: 'הרמה הבאה:', en: 'Next level:', ar: 'المستوى التالي:', ru: 'Следующий уровень:', fr: 'Niveau suivant :', es: 'Siguiente nivel:' },
+    shopBtnUpgrade:       { he: '⬆ שדרג', en: '⬆ Upgrade', ar: '⬆ ترقية', ru: '⬆ Улучшить', fr: '⬆ Améliorer', es: '⬆ Mejorar' },
+    shopBtnDowngrade:     { he: '⬇ הורד', en: '⬇ Downgrade', ar: '⬇ خفض المستوى', ru: '⬇ Понизить', fr: '⬇ Rétrograder', es: '⬇ Degradar' },
+
+    // ---- Skin names (for shop tabs / labels) ----
+    skinClassic:          { he: 'קלאסיק', en: 'Classic', ar: 'كلاسيكي', ru: 'Классик', fr: 'Classique', es: 'Clásico' },
+    skinInterceptor:      { he: 'אינטרספטור', en: 'Interceptor', ar: 'الاعتراضي', ru: 'Перехватчик', fr: 'Intercepteur', es: 'Interceptor' },
+    skinTanker:           { he: 'טנקר', en: 'Tanker', ar: 'الناقلة', ru: 'Танкер', fr: 'Tanker', es: 'Tanquero' },
+    skinPhoenix:          { he: 'פניקס', en: 'Phoenix', ar: 'العنقاء', ru: 'Феникс', fr: 'Phénix', es: 'Fénix' },
+    skinVortex:           { he: 'וורטקס', en: 'Vortex', ar: 'الدوامة', ru: 'Вортекс', fr: 'Vortex', es: 'Vórtice' },
+    skinJoker:            { he: "ג'וקר", en: 'Joker', ar: 'الجوكر', ru: 'Джокер', fr: 'Joker', es: 'Comodín' },
+    skinDragon:           { he: 'דרגון', en: 'Dragon', ar: 'التنين', ru: 'Дракон', fr: 'Dragon', es: 'Dragón' },
+
+    // ---- Upgrade names & descriptions ----
+    upgDragonHomingName:      { he: '🐉 כדורי דרגון חכמים', en: '🐉 Dragon Smart Bullets', ar: '🐉 رصاصات التنين الذكية', ru: '🐉 Умные пули Дракона', fr: '🐉 Balles intelligentes du Dragon', es: '🐉 Balas inteligentes del Dragón' },
+    upgDragonHomingDesc:      { he: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר', en: 'Bullets that Dragon deflects home in on the nearest enemy', ar: 'الرصاصات التي يعكسها التنين تتتبع أقرب عدو', ru: 'Отражённые пули Дракона наводятся на ближайшего врага', fr: 'Les balles renvoyées par le Dragon ciblent l\'ennemi le plus proche', es: 'Las balas que el Dragón desvía persiguen al enemigo más cercano' },
+    upgPhoenixSuperName:      { he: '🔥 5 נוצות', en: '🔥 5 Feathers', ar: '🔥 5 ريشات', ru: '🔥 5 Перьев', fr: '🔥 5 Plumes', es: '🔥 5 Plumas' },
+    upgPhoenixSuperDesc:      { he: 'פניקס יורה 5 נוצות במקום 3', en: 'Phoenix fires 5 feathers instead of 3', ar: 'العنقاء يطلق 5 ريشات بدلاً من 3', ru: 'Феникс выпускает 5 перьев вместо 3', fr: 'Le Phénix tire 5 plumes au lieu de 3', es: 'El Fénix dispara 5 plumas en lugar de 3' },
+    upgPhoenixHomingName:     { he: '🎯 נוצות מחפשות', en: '🎯 Homing Feathers', ar: '🎯 ريشات موجّهة', ru: '🎯 Самонаводящиеся перья', fr: '🎯 Plumes à guidage', es: '🎯 Plumas teledirigidas' },
+    upgPhoenixHomingDesc:     { he: 'הנוצות עוקבות אחרי האויבים', en: 'Feathers home in on enemies', ar: 'الريشات تتتبع الأعداء', ru: 'Перья наводятся на врагов', fr: 'Les plumes ciblent les ennemis', es: 'Las plumas persiguen a los enemigos' },
+    upgPhoenixPowerName:      { he: '💥 נוצות כוח', en: '💥 Power Feathers', ar: '💥 ريشات قوة', ru: '💥 Силовые перья', fr: '💥 Plumes de puissance', es: '💥 Plumas de poder' },
+    upgPhoenixPowerDesc:      { he: 'נוצות מורידות נזק עצום — יהרוג כמעט כל אויב עד LVL 10 במכה', en: 'Feathers deal massive damage — kills almost any enemy up to LVL 10 in one hit', ar: 'الريشات تتسبب في ضرر هائل — تقتل تقريبًا أي عدو حتى LVL 10 بضربة واحدة', ru: 'Перья наносят огромный урон — убивают почти любого врага до LVL 10 за один удар', fr: 'Les plumes infligent des dégâts énormes — tue presque tout ennemi jusqu\'au LVL 10 en un coup', es: 'Las plumas infligen daño masivo — mata casi cualquier enemigo hasta LVL 10 de un golpe' },
+    upgVortexCooldownName:    { he: '⚡ קולדאון X2', en: '⚡ Cooldown ×2', ar: '⚡ مضاعفة السرعة ×2', ru: '⚡ Откат ×2 быстрее', fr: '⚡ Temps de recharge ×2', es: '⚡ Recarga ×2' },
+    upgVortexCooldownDesc:    { he: 'מוריד פי 2 את הcooldown של אולטי הוורטקס (מ-30 שניות ל-15)', en: 'Halves the Vortex ultimate cooldown (from 30s to 15s)', ar: 'يُقلّص فترة التبريد لـ Vortex بمقدار ×2 (من 30 ثانية إلى 15)', ru: 'Сокращает откат ульты Вортекса в 2 раза (с 30 до 15 сек)', fr: 'Divise le temps de recharge de l\'ultime Vortex par 2 (de 30s à 15s)', es: 'Reduce a la mitad el tiempo de recarga del Vortex (de 30s a 15s)' },
+    upgJokerCoinsName:        { he: '🃏 מטבעות ניצחון', en: '🃏 Victory Coins', ar: '🃏 عملات النصر', ru: '🃏 Монеты победы', fr: '🃏 Pièces de victoire', es: '🃏 Monedas de victoria' },
+    upgJokerCoinsDesc:        { he: 'כל 10 הריגות עם הג׳וקר מרוויחים 100 מטבעות', en: 'Every 10 kills with the Joker earns 100 coins', ar: 'كل 10 قتلات مع الجوكر تكسب 100 عملة', ru: 'Каждые 10 убийств с Джокером дают 100 монет', fr: 'Tous les 10 kills avec le Joker rapportent 100 pièces', es: 'Cada 10 kills con el Joker gana 100 monedas' },
+
+    // ---- Leaderboard HP Level filter ----
+    lbFilterHPAny:        { he: 'כל הרמות', en: 'All levels', ar: 'جميع المستويات', ru: 'Все уровни', fr: 'Tous niveaux', es: 'Todos los niveles' },
+    lbFilterHPNote:       { he: 'הצג רק רשומות שבהן שדרוג HP ≤ הרמה הנבחרת. No settings → LVL 0', en: 'Show only entries where HP upgrade ≤ selected level. No settings → LVL 0', ar: 'عرض المدخلات فقط حيث ترقية HP ≤ المستوى المحدد. بدون إعدادات → LVL 0', ru: 'Показывать только записи где HP ≤ выбранного уровня. Без настроек → LVL 0', fr: 'Afficher uniquement les entrées où l\'amélioration HP ≤ niveau sélectionné. Sans paramètres → LVL 0', es: 'Mostrar solo entradas donde mejora HP ≤ nivel seleccionado. Sin ajustes → LVL 0' },
+
+    // ---- Floating messages (in-game) ----
+    phoenixFeathers:      { he: 'נוצות פניקס', en: 'PHOENIX FEATHERS', ar: 'ريشات العنقاء', ru: 'ПЕРЬЯ ФЕНИКСА', fr: 'PLUMES PHÉNIX', es: 'PLUMAS FÉNIX' },
+    jokerKillCoins:       { he: '🃏 +100 💰 (10 הריגות!)', en: '🃏 +100 💰 (10 kills!)', ar: '🃏 +100 💰 (10 قتلات!)', ru: '🃏 +100 💰 (10 убийств!)', fr: '🃏 +100 💰 (10 kills !)', es: '🃏 +100 💰 (¡10 kills!)' },
 };
 
 // ---------- Runtime ----------

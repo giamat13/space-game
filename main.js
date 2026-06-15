@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard } from './data.js';
+import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -41,6 +41,11 @@ window.addEventListener('langchange', () => {
     updateEduSettingsDisplay(); // re-render grade labels
     updateSettingsDisplay();    // re-render buttons
     renderLangList();           // update the active tick in the language tab
+    // Re-render shop if open (tabs and items use t())
+    if (document.getElementById('shop-container')?.style.display !== 'none') {
+        renderShopTabs();
+        renderShopItems();
+    }
 });
 
 // Expose toggleLang for the HTML onclick button.
@@ -123,10 +128,11 @@ const FILTER_CATS = [
     { key: 'edu',      icon: '📚', label: 'Education'  },
     { key: 'lang',     icon: '🌐', label: 'Language'     },
     { key: 'upgrades', icon: '🛍️', label: 'Upgrades' },
+    { key: 'hpLevel',  icon: '❤️', label: 'HP Level' },
 ];
 
 function defaultFilters() {
-    return { activeCategories: [], device: 'all', edu: 'all', lang: [], upgrades: {}, rules: {}, controls: {} };
+    return { activeCategories: [], device: 'all', edu: 'all', lang: [], upgrades: {}, rules: {}, controls: {}, hpLevel: 'any' };
 }
 let _lbFilters    = defaultFilters();
 let _histFilters  = defaultFilters();
@@ -156,6 +162,7 @@ function catHasFilter(catKey, f) {
     if (catKey === 'upgrades') return f.upgrades && Object.values(f.upgrades).some(v => v !== 'any');
     if (catKey === 'rules')    return f.rules && Object.values(f.rules).some(v => v !== 'any');
     if (catKey === 'controls') return f.controls && Object.values(f.controls).some(v => v && v !== 'any');
+    if (catKey === 'hpLevel')  return f.hpLevel !== 'any';
     return false;
 }
 
@@ -166,6 +173,7 @@ function resetCatFilters(catKey, f) {
     if (catKey === 'upgrades') { f.upgrades = {}; return; }
     if (catKey === 'rules')    { f.rules = {}; return; }
     if (catKey === 'controls') { f.controls = {}; return; }
+    if (catKey === 'hpLevel')  { f.hpLevel = 'any'; return; }
 }
 
 function renderCatPanel(catKey, filters, cid) {
@@ -248,6 +256,20 @@ function renderCatPanel(catKey, filters, cid) {
                         <span style="font-size:0.75rem;">${u.name}</span></div>`;
                 }).join('');
 
+        case 'hpLevel': {
+            const cur = f.hpLevel;
+            const levels = ['any', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">${t('lbFilterHPNote')}</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    ${levels.map(v => {
+                        const label = v === 'any' ? t('lbFilterHPAny') : `LVL ${v}`;
+                        const isActive = cur === v;
+                        const aS = isActive ? ' active' : '';
+                        return `<button class="es-filter${aS}" onclick="window.__filterSetHPLevel('${cid}',${JSON.stringify(v)})">${label}</button>`;
+                    }).join('')}
+                </div>`;
+        }
+
         default: return '';
     }
 }
@@ -307,6 +329,12 @@ function applyEntryFilters(entries, filters) {
             }
         }
 
+        // HP Level: no settings → default = 0
+        if (filters.hpLevel !== 'any') {
+            const entryHP = s ? (s.hpLevel || 0) : 0;
+            if (entryHP > filters.hpLevel) return false;
+        }
+
         return true;
     });
 }
@@ -320,6 +348,7 @@ function countActiveFilters(filters) {
     if (filters.upgrades) n += Object.values(filters.upgrades).filter(v => v !== 'any').length;
     if (filters.rules)    n += Object.values(filters.rules).filter(v => v !== 'any').length;
     if (filters.controls) n += Object.values(filters.controls).filter(v => v && v !== 'any').length;
+    if (filters.hpLevel !== 'any') n++;
     return n;
 }
 
@@ -442,6 +471,16 @@ window.__filterCycleUpgrade = function(cid, upgradeKey) {
     if (!f) return;
     if (!f.upgrades) f.upgrades = {};
     f.upgrades[upgradeKey] = _upgStateNext[f.upgrades[upgradeKey] || 'any'];
+    el._wasOpen = true;
+    el._onChange(f);
+};
+
+window.__filterSetHPLevel = function(cid, value) {
+    const el = document.getElementById(cid);
+    if (!el || !el._onChange) return;
+    const f = _filterMap()[cid];
+    if (!f) return;
+    f.hpLevel = value;
     el._wasOpen = true;
     el._onChange(f);
 };
@@ -602,12 +641,30 @@ function closeLeaderboard() {
 
 // ===== SHOP =====
 
+const SHOP_TABS = [
+    { key: 'all',         labelKey: 'shopTabAll',      icon: '🛍️' },
+    { key: 'classic',     labelKey: 'skinClassic',     icon: '🚀' },
+    { key: 'interceptor', labelKey: 'skinInterceptor', icon: '✈️' },
+    { key: 'tanker',      labelKey: 'skinTanker',      icon: '🛡️' },
+    { key: 'phoenix',     labelKey: 'skinPhoenix',     icon: '🔥' },
+    { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
+    { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
+    { key: 'dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+];
+let _currentShopTab = 'all';
+
+function _refreshShopCoins() {
+    document.getElementById('shop-coins-display').innerText = getCoins();
+    if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins();
+}
+
 function showShop() {
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('floating-settings-btn').style.display = 'none';
     const shopEl = document.getElementById('shop-container');
     shopEl.style.display = 'block';
-    document.getElementById('shop-coins-display').innerText = getCoins();
+    _refreshShopCoins();
+    renderShopTabs();
     renderShopItems();
 }
 
@@ -617,101 +674,183 @@ function closeShop() {
     document.getElementById('floating-settings-btn').style.display = 'flex';
 }
 
+function renderShopTabs() {
+    const tabsEl = document.getElementById('shop-tabs');
+    if (!tabsEl) return;
+    tabsEl.innerHTML = '';
+    SHOP_TABS.forEach(tab => {
+        const btn = document.createElement('button');
+        const isActive = _currentShopTab === tab.key;
+        btn.style.cssText = `padding:6px 10px;font-size:0.78rem;cursor:pointer;border-radius:8px;
+            background:${isActive ? 'rgba(0,242,255,0.18)' : 'rgba(255,255,255,0.05)'};
+            border:1px solid ${isActive ? 'var(--primary)' : 'rgba(255,255,255,0.15)'};
+            color:${isActive ? 'var(--primary)' : '#aaa'};white-space:nowrap;`;
+        btn.textContent = `${tab.icon} ${t(tab.labelKey)}`;
+        btn.onclick = () => { _currentShopTab = tab.key; renderShopTabs(); renderShopItems(); };
+        tabsEl.appendChild(btn);
+    });
+}
+
+function _makeUpgradeCard(upg, coins) {
+    const owned = hasUpgrade(upg.key);
+    const disabled = owned && isUpgradeDisabled(upg.key);
+    const active = owned && !disabled;
+    const canAfford = coins >= upg.cost;
+    const refund = Math.floor(upg.cost * 0.75);
+    const requiresMet = !upg.requires || hasUpgrade(upg.requires);
+
+    const borderColor = active ? 'rgba(0,255,100,0.4)' : disabled ? 'rgba(255,150,0,0.4)' : (canAfford && requiresMet) ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)';
+    const bgColor = active ? 'rgba(0,255,100,0.08)' : disabled ? 'rgba(255,150,0,0.06)' : 'rgba(255,255,255,0.05)';
+
+    const item = document.createElement('div');
+    item.style.cssText = `padding:14px 16px;background:${bgColor};border:1px solid ${borderColor};border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
+
+    const nameColor = active ? '#00ff64' : disabled ? '#ffa040' : '#fff';
+    const statusBadge = active
+        ? `<span style="font-size:0.7rem;background:rgba(0,255,100,0.15);border:1px solid #00ff64;border-radius:4px;padding:1px 6px;color:#00ff64;">${t('shopUpgradeActive')}</span>`
+        : disabled
+            ? `<span style="font-size:0.7rem;background:rgba(255,150,0,0.15);border:1px solid #ffa040;border-radius:4px;padding:1px 6px;color:#ffa040;">${t('shopUpgradeDisabled')}</span>`
+            : '';
+
+    const reqUpg = upg.requires ? UPGRADES[upg.requires] : null;
+    const requiresNote = (upg.requires && !hasUpgrade(upg.requires))
+        ? `<div style="font-size:0.72rem;color:#ff8c00;margin-top:3px;">${t('shopRequires')} ${reqUpg ? t(reqUpg.nameKey) : upg.requires}</div>`
+        : '';
+
+    const upgName = upg.nameKey ? t(upg.nameKey) : (upg.name || upg.key);
+    const upgDesc = upg.descKey ? t(upg.descKey) : (upg.desc || '');
+
+    const info = document.createElement('div');
+    info.style.cssText = 'flex:1;min-width:0;';
+    info.innerHTML = `
+        <div style="font-size:0.95rem;font-weight:bold;color:${nameColor};margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            ${upgName} ${statusBadge}
+        </div>
+        <div style="font-size:0.78rem;opacity:0.75;">${upgDesc}</div>
+        ${requiresNote}
+    `;
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.style.cssText = 'display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;';
+
+    if (owned) {
+        if (disabled) {
+            const enableBtn = document.createElement('button');
+            enableBtn.textContent = t('shopBtnEnable');
+            enableBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:pointer;';
+            enableBtn.onclick = () => { enableUpgrade(upg.key); renderShopItems(); };
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = `${t('shopBtnRefund')} (💰${refund})`;
+            removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
+            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { _refreshShopCoins(); renderShopItems(); } };
+
+            actionsDiv.appendChild(enableBtn);
+            actionsDiv.appendChild(removeBtn);
+        } else {
+            const ownedBtn = document.createElement('button');
+            ownedBtn.textContent = t('shopBtnOwned');
+            ownedBtn.disabled = true;
+            ownedBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:default;';
+
+            const disableBtn = document.createElement('button');
+            disableBtn.textContent = t('shopBtnDisable');
+            disableBtn.style.cssText = 'background:rgba(255,150,0,0.12);border-color:#ffa040;color:#ffa040;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+            disableBtn.onclick = () => { disableUpgrade(upg.key); renderShopItems(); };
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = `${t('shopBtnRefund')} (💰${refund})`;
+            removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
+            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { _refreshShopCoins(); renderShopItems(); } };
+
+            actionsDiv.appendChild(ownedBtn);
+            actionsDiv.appendChild(disableBtn);
+            actionsDiv.appendChild(removeBtn);
+        }
+    } else {
+        const canBuy = canAfford && requiresMet;
+        const buyBtn = document.createElement('button');
+        buyBtn.textContent = `💰 ${upg.cost}`;
+        buyBtn.disabled = !canBuy;
+        buyBtn.style.cssText = `background:${canBuy ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canBuy ? '#ffd700' : '#555'};color:${canBuy ? '#ffd700' : '#555'};padding:8px 14px;font-size:0.85rem;min-width:80px;cursor:${canBuy ? 'pointer' : 'default'};`;
+        buyBtn.onclick = () => { if (buyUpgrade(upg.key)) { _refreshShopCoins(); renderShopItems(); } };
+        actionsDiv.appendChild(buyBtn);
+    }
+
+    item.appendChild(info);
+    item.appendChild(actionsDiv);
+    return item;
+}
+
+function _makeHPCard(skinKey, coins) {
+    const level = getHPLevel(skinKey);
+    const nextCost = getHPUpgradeCost(level);
+    const canAfford = nextCost !== null && coins >= nextCost;
+    const maxLevel = nextCost === null;
+    const prevCost = level > 0 ? (getHPUpgradeCost(level - 1) ?? 0) : 0;
+    const hpRefund = Math.floor(prevCost * 0.75);
+    const totalBonus = level * 50;
+
+    const card = document.createElement('div');
+    card.style.cssText = `padding:14px 16px;background:rgba(255,50,50,0.07);border:1px solid rgba(255,80,80,0.35);border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
+
+    const levelBar = Array.from({length: Math.min(level, 10)}, () => '❤️').join('') || '🖤';
+    card.innerHTML = `
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:0.95rem;font-weight:bold;color:#ff6b6b;margin-bottom:4px;">
+                ${t('shopHPUpgrade')} — LVL ${level}${maxLevel ? ' ' + t('shopHPMax') : ''}
+            </div>
+            <div style="font-size:0.78rem;opacity:0.75;">${t('shopHPDesc')}. ${t('shopHPTotal')} +${totalBonus} HP</div>
+            <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
+            ${!maxLevel ? `<div style="font-size:0.72rem;opacity:0.55;margin-top:3px;">${t('shopHPNextCost')} 💰${nextCost?.toLocaleString()}</div>` : ''}
+        </div>
+        <div id="hp-actions-${skinKey}" style="display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;"></div>
+    `;
+
+    const actions = card.querySelector(`#hp-actions-${skinKey}`);
+
+    if (!maxLevel) {
+        const buyBtn = document.createElement('button');
+        buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
+        buyBtn.disabled = !canAfford;
+        buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,100,100,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ff6b6b' : '#555'};color:${canAfford ? '#ff6b6b' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
+        buyBtn.onclick = () => { if (buyHPLevel(skinKey)) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(buyBtn);
+    }
+
+    if (level > 0) {
+        const sellBtn = document.createElement('button');
+        sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${hpRefund})`;
+        sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+        sellBtn.onclick = () => { if (sellHPLevel(skinKey) !== false) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(sellBtn);
+    }
+
+    return card;
+}
+
 function renderShopItems() {
     const container = document.getElementById('shop-items');
     const coins = getCoins();
     container.innerHTML = '';
-    Object.values(UPGRADES).forEach(upg => {
-        const owned = hasUpgrade(upg.key);
-        const disabled = owned && isUpgradeDisabled(upg.key);
-        const active = owned && !disabled;
-        const canAfford = coins >= upg.cost;
-        const refund = Math.floor(upg.cost * 0.75);
 
-        const borderColor = active ? 'rgba(0,255,100,0.4)' : disabled ? 'rgba(255,150,0,0.4)' : canAfford ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)';
-        const bgColor = active ? 'rgba(0,255,100,0.08)' : disabled ? 'rgba(255,150,0,0.06)' : 'rgba(255,255,255,0.05)';
+    if (_currentShopTab === 'all') {
+        Object.values(UPGRADES).forEach(upg => container.appendChild(_makeUpgradeCard(upg, coins)));
+        return;
+    }
 
-        const item = document.createElement('div');
-        item.style.cssText = `padding:14px 16px; background:${bgColor}; border:1px solid ${borderColor}; border-radius:10px; text-align:right; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;`;
+    // Skin-specific tab: HP card + skin upgrades
+    container.appendChild(_makeHPCard(_currentShopTab, coins));
 
-        const nameColor = active ? '#00ff64' : disabled ? '#ffa040' : '#fff';
-        const statusBadge = active
-            ? '<span style="font-size:0.7rem;background:rgba(0,255,100,0.15);border:1px solid #00ff64;border-radius:4px;padding:1px 6px;color:#00ff64;">✅ פעיל</span>'
-            : disabled
-                ? '<span style="font-size:0.7rem;background:rgba(255,150,0,0.15);border:1px solid #ffa040;border-radius:4px;padding:1px 6px;color:#ffa040;">🚫 מושבת</span>'
-                : '';
-
-        const info = document.createElement('div');
-        info.style.cssText = 'flex:1; min-width:0;';
-        info.innerHTML = `
-            <div style="font-size:0.95rem;font-weight:bold;color:${nameColor};margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                ${upg.name} ${statusBadge}
-            </div>
-            <div style="font-size:0.78rem;opacity:0.75;">${upg.desc}</div>
-            ${upg.skin ? `<div style="font-size:0.72rem;opacity:0.5;margin-top:3px;">⚠️ רק לסקין ${upg.skin}</div>` : ''}
-        `;
-
-        const actionsDiv = document.createElement('div');
-        actionsDiv.style.cssText = 'display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;';
-
-        if (owned) {
-            if (disabled) {
-                // State: owned & disabled — Enable or Return
-                const enableBtn = document.createElement('button');
-                enableBtn.textContent = '▶ הפעל';
-                enableBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:pointer;';
-                enableBtn.onclick = () => { enableUpgrade(upg.key); renderShopItems(); };
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = `↩ החזר (💰${refund})`;
-                removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
-                removeBtn.onclick = () => {
-                    const r = removeUpgrade(upg.key);
-                    if (r !== false) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
-                };
-
-                actionsDiv.appendChild(enableBtn);
-                actionsDiv.appendChild(removeBtn);
-            } else {
-                // State: owned & active — Disable or Return
-                const ownedBtn = document.createElement('button');
-                ownedBtn.textContent = '✅ נרכש';
-                ownedBtn.disabled = true;
-                ownedBtn.style.cssText = 'background:rgba(0,255,100,0.15);border-color:#00ff64;color:#00ff64;padding:7px 10px;font-size:0.78rem;cursor:default;';
-
-                const disableBtn = document.createElement('button');
-                disableBtn.textContent = '🚫 השבת';
-                disableBtn.style.cssText = 'background:rgba(255,150,0,0.12);border-color:#ffa040;color:#ffa040;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
-                disableBtn.onclick = () => { disableUpgrade(upg.key); renderShopItems(); };
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = `↩ החזר (💰${refund})`;
-                removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
-                removeBtn.onclick = () => {
-                    const r = removeUpgrade(upg.key);
-                    if (r !== false) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
-                };
-
-                actionsDiv.appendChild(ownedBtn);
-                actionsDiv.appendChild(disableBtn);
-                actionsDiv.appendChild(removeBtn);
-            }
-        } else {
-            // State: not owned — Buy
-            const buyBtn = document.createElement('button');
-            buyBtn.textContent = `💰 ${upg.cost}`;
-            buyBtn.disabled = !canAfford;
-            buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ffd700' : '#555'};color:${canAfford ? '#ffd700' : '#555'};padding:8px 14px;font-size:0.85rem;min-width:80px;cursor:${canAfford ? 'pointer' : 'default'};`;
-            buyBtn.onclick = () => {
-                if (buyUpgrade(upg.key)) { document.getElementById('shop-coins-display').innerText = getCoins(); if (DOM.coinsEl) DOM.coinsEl.innerText = getCoins(); renderShopItems(); }
-            };
-            actionsDiv.appendChild(buyBtn);
-        }
-
-        item.appendChild(info);
-        item.appendChild(actionsDiv);
-        container.appendChild(item);
-    });
+    const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
+    if (skinUpgrades.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'text-align:center;opacity:0.45;font-size:0.85rem;padding:12px;';
+        empty.textContent = t('shopNoUpgrades');
+        container.appendChild(empty);
+    } else {
+        skinUpgrades.forEach(upg => container.appendChild(_makeUpgradeCard(upg, coins)));
+    }
 }
 
 // ===== ENTRY SETTINGS VIEW =====

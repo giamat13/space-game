@@ -238,11 +238,12 @@
             </div>
 
             <!-- ===== SHOP ===== -->
-            <div id="shop-container" style="display: none; width: 100%; max-width: 420px; text-align: center;">
-                <h2 style="margin-bottom: 6px;">🛍️ Upgrade Shop</h2>
-                <div style="margin-bottom: 16px; font-size: 1rem; color: #ffd700;">💰 Balance: <span id="shop-coins-display">0</span></div>
+            <div id="shop-container" style="display: none; width: 100%; max-width: 460px; text-align: center;">
+                <h2 data-i18n="shopTitle" style="margin-bottom: 6px;">🛍️ Upgrade Shop</h2>
+                <div style="margin-bottom: 10px; font-size: 1rem; color: #ffd700;"><span data-i18n="shopBalance">💰 Balance:</span> <span id="shop-coins-display">0</span></div>
+                <div id="shop-tabs" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);"></div>
                 <div id="shop-items" style="display: flex; flex-direction: column; gap: 12px;"></div>
-                <button onclick="closeShop()" style="margin-top: 20px;">◀ חזרה</button>
+                <button data-i18n="shopBack" onclick="closeShop()" style="margin-top: 20px;">◀ חזרה</button>
             </div>
 
             <!-- ===== PERSONAL HISTORY PANEL ===== -->

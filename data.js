@@ -494,7 +494,12 @@ export function addCoins(amount) {
     const newTotal = current + amount;
     setCookie('playerCoins', newTotal.toString());
     if (DOM.coinsEl) DOM.coinsEl.innerText = newTotal;
-    syncCoins(newTotal).catch(() => {});
+    if (amount < 0) {
+        // Deductions must overwrite cloud, not merge with Math.max
+        forceSetCoins(newTotal).catch(() => {});
+    } else {
+        syncCoins(newTotal).catch(() => {});
+    }
     return newTotal;
 }
 
@@ -503,15 +508,99 @@ export function initCoinsUI() {
 }
 
 // Shop Upgrades
+// name/desc are i18n keys (looked up via t() at render time)
 export const UPGRADES = {
     dragon_homing_ricochet: {
         key: 'dragon_homing_ricochet',
-        name: '🐉 כדורי דרגון חכמים',
-        desc: 'הכדורים שדרגון מחזיר עוקבים אחרי האויב הקרוב ביותר',
+        nameKey: 'upgDragonHomingName',
+        descKey: 'upgDragonHomingDesc',
         cost: 25000,
         skin: 'dragon'
+    },
+    phoenix_super_feathers: {
+        key: 'phoenix_super_feathers',
+        nameKey: 'upgPhoenixSuperName',
+        descKey: 'upgPhoenixSuperDesc',
+        cost: 12000,
+        skin: 'phoenix'
+    },
+    phoenix_homing_feathers: {
+        key: 'phoenix_homing_feathers',
+        nameKey: 'upgPhoenixHomingName',
+        descKey: 'upgPhoenixHomingDesc',
+        cost: 20000,
+        skin: 'phoenix',
+        requires: 'phoenix_super_feathers'
+    },
+    phoenix_power_feathers: {
+        key: 'phoenix_power_feathers',
+        nameKey: 'upgPhoenixPowerName',
+        descKey: 'upgPhoenixPowerDesc',
+        cost: 25000,
+        skin: 'phoenix',
+        requires: 'phoenix_homing_feathers'
+    },
+    vortex_cooldown_half: {
+        key: 'vortex_cooldown_half',
+        nameKey: 'upgVortexCooldownName',
+        descKey: 'upgVortexCooldownDesc',
+        cost: 20000,
+        skin: 'vortex'
+    },
+    joker_kill_coins: {
+        key: 'joker_kill_coins',
+        nameKey: 'upgJokerCoinsName',
+        descKey: 'upgJokerCoinsDesc',
+        cost: 50000,
+        skin: 'joker'
     }
 };
+
+// ===== HP UPGRADE SYSTEM =====
+const HP_PER_LEVEL = 50;
+const HP_LEVEL_COSTS = [3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 66000];
+
+export function getHPLevels() {
+    const saved = getCookie('hpLevels');
+    return saved ? JSON.parse(saved) : {};
+}
+
+export function getHPLevel(skinKey) {
+    return getHPLevels()[skinKey] || 0;
+}
+
+export function getHPUpgradeCost(currentLevel) {
+    if (currentLevel >= HP_LEVEL_COSTS.length) return null;
+    return HP_LEVEL_COSTS[currentLevel];
+}
+
+export function buyHPLevel(skinKey) {
+    const levels = getHPLevels();
+    const current = levels[skinKey] || 0;
+    const cost = getHPUpgradeCost(current);
+    if (cost === null) return false;
+    const coins = getCoins();
+    if (coins < cost) return false;
+    addCoins(-cost);
+    levels[skinKey] = current + 1;
+    setCookie('hpLevels', JSON.stringify(levels));
+    return true;
+}
+
+export function sellHPLevel(skinKey) {
+    const levels = getHPLevels();
+    const current = levels[skinKey] || 0;
+    if (current <= 0) return false;
+    const refund = Math.floor(HP_LEVEL_COSTS[current - 1] * 0.75);
+    addCoins(refund);
+    levels[skinKey] = current - 1;
+    setCookie('hpLevels', JSON.stringify(levels));
+    return refund;
+}
+
+export function getHPBonus(skinKey) {
+    return getHPLevel(skinKey) * HP_PER_LEVEL;
+}
 
 export function getOwnedUpgrades() {
     const saved = getCookie('ownedUpgrades');
@@ -526,6 +615,7 @@ export function buyUpgrade(key) {
     const upgrade = UPGRADES[key];
     if (!upgrade) return false;
     if (hasUpgrade(key)) return false;
+    if (upgrade.requires && !hasUpgrade(upgrade.requires)) return false;
     const coins = getCoins();
     if (coins < upgrade.cost) return false;
     addCoins(-upgrade.cost);
@@ -708,6 +798,7 @@ export const state = {
     startTime: 0,
     coinsEarned: 0,
     speedrunHits: {},
+    jokerKills: 0,
     // Which input devices the player actually used this game (for leaderboard)
     inputUsed: { keyboard: false, gamepad: false },
 };
@@ -722,7 +813,7 @@ export function resetState() {
     const ul = skin.unlockLevel || 0;
     state.startingLevel = Math.max(1, ul - Math.ceil(ul / 3));
     state.level = 1;
-    const maxHP = skin.maxHP || 200;
+    const maxHP = (skin.maxHP || 200) + getHPBonus(currentSkinKey);
     state.playerHP = maxHP;
     state.playerMaxHP = maxHP;
     
@@ -749,11 +840,13 @@ export function resetState() {
     state.isPlayerFat = false;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
+    state.specialAbility.cooldown = (currentSkinKey === 'vortex' && isUpgradeActive('vortex_cooldown_half')) ? 15000 : 30000;
     state.phoenixAbility.ready = true;
     state.phoenixAbility.lastUsed = 0;
     state.jokerAbility.ready = true;
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
+    state.jokerKills = 0;
     state.jokerAbility.endTime = 0;
     state.dragonAbility.ready = true;
     state.dragonAbility.lastUsed = 0;

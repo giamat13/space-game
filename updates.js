@@ -1,4 +1,5 @@
-import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive } from './data.js';
+import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
+import { t } from './i18n.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal } from './systems.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
@@ -14,10 +15,34 @@ export function updateBullets() {
         let b = state.bullets[i];
         
         if (b.isFeather || b.directional) {
+            // Homing feathers steer toward nearest enemy
+            if (b.isHomingFeather && state.enemies.length > 0) {
+                let nearest = null, nearestDist = Infinity;
+                const cx = parseFloat(b.el.style.left) || 0;
+                const cy = parseFloat(b.el.style.top) || 0;
+                for (const en of state.enemies) {
+                    const ex = (parseFloat(en.el.style.left) || 0) + 25;
+                    const ey = (en.y || 0) + 25;
+                    const dist = Math.hypot(cx - ex, cy - ey);
+                    if (dist < nearestDist) { nearestDist = dist; nearest = { ex, ey }; }
+                }
+                if (nearest) {
+                    const desired = Math.atan2(nearest.ey - cy, nearest.ex - cx);
+                    const current = Math.atan2(b.vy, b.vx);
+                    let diff = desired - current;
+                    while (diff > Math.PI) diff -= 2 * Math.PI;
+                    while (diff < -Math.PI) diff += 2 * Math.PI;
+                    const newAngle = current + Math.max(-0.2, Math.min(0.2, diff));
+                    const speed = Math.hypot(b.vx, b.vy) || 8;
+                    b.vx = Math.cos(newAngle) * speed;
+                    b.vy = Math.sin(newAngle) * speed;
+                }
+            }
+
             // Phoenix feathers / dragon flames move in a direction
             const currentLeft = parseFloat(b.el.style.left) || state.playerX + 23;
             const currentTop = parseFloat(b.el.style.top) || (DOM.wrapper.clientHeight - b.y);
-            
+
             const newLeft = currentLeft + b.vx;
             const newTop = currentTop + b.vy;
             
@@ -511,6 +536,15 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
+
+                    // Joker kill coins: every 10 kills award 100 coins
+                    if (currentSkinKey === 'joker' && isUpgradeActive('joker_kill_coins')) {
+                        state.jokerKills = (state.jokerKills || 0) + 1;
+                        if (state.jokerKills % 10 === 0) {
+                            addCoins(100);
+                            showFloatingMessage(t('jokerKillCoins'), eRect.left - 40, eRect.top - 20, '#ffd700');
+                        }
+                    }
 
                     // Education mode: chance for a bonus question on a kill.
                     // The quiz module enforces a 10s global cooldown, so this
