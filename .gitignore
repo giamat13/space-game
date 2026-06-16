@@ -1,0 +1,106 @@
+# ── Claude Code ────────────────────────────────────────────────
+.claude/
+!.claude/settings.json
+
+# ── Build output ────────────────────────────────────────────────
+build/
+out/
+classes/
+bin/
+dist/
+target/
+*.jar
+*.war
+*.exe
+
+# ── Node.js / JavaScript ────────────────────────────────────────
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-store/
+
+# ── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+env/
+venv/
+.venv/
+dist/
+build/
+
+# ── Environment variables ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+.aws/
+.ssh/
+
+# ── IDE ─────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+*.iml
+*.ipr
+*.iws
+*.launch
+.DS_Store
+Thumbs.db
+
+# ── Build tools ─────────────────────────────────────────────────
+.gradle/
+gradle/
+.fabric/
+
+# ── Runtime artifacts ───────────────────────────────────────────
+*.log
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+.cache/
+tmp/
+temp/
+
+# ── OS files ────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# ── Binary media ────────────────────────────────────────────────
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.bmp
+*.mp3
+*.ogg
+*.wav
+*.mp4
+*.webm
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.otf
+*.glb
+*.gltf
+
+# ── Minified / vendored libs ────────────────────────────────────
+*.min.js
+*.min.css
+
+# ── Misc ────────────────────────────────────────────────────────
+.eslintignore
+.prettierignore
