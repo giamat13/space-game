@@ -1986,6 +1986,7 @@ const GP_BTN = {
     A: 0, B: 1, X: 2, Y: 3,
     LB: 4, RB: 5, LT: 6, RT: 7,
     SELECT: 8, START: 9,
+    L3: 10, R3: 11,
     DPAD_UP: 12, DPAD_DOWN: 13, DPAD_LEFT: 14, DPAD_RIGHT: 15
 };
 const gamepadState = {
@@ -2063,7 +2064,10 @@ function pollGamepad() {
             if (held(GP_BTN.DPAD_LEFT)) axisX = -1;
             if (held(GP_BTN.DPAD_RIGHT)) axisX = 1;
             if (axisX !== 0) {
-                const speed = 9 * axisX;
+                // Slow, easier-to-control stick by default; clicking the stick
+                // (L3/R3) switches to full/normal speed.
+                const maxSpeed = (held(GP_BTN.L3) || held(GP_BTN.R3)) ? 9 : 4.5;
+                const speed = maxSpeed * axisX;
                 state.playerX = Math.max(0, Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed));
                 updatePlayerPos();
                 // Keep Phoenix-feather targeting aimed forward from the ship
