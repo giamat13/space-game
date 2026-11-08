@@ -15,7 +15,7 @@ import { showBanner, confettiBurst, shockwave } from './fx.js';
 export const BOSS_LEVEL = 30;
 const W = 170;            // boss sprite size (px)
 const Y = 125;            // resting height (below the player HUD)
-const HARDNESS = 3;       // boss HP multiplier (tune here; 1 = ~300 HP for the base ship)
+const BOSS_HP_PER_POWER = 100; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
 const MAX_HIT = 9;        // a single hit never takes more than this (keeps 999-dmg feathers from one-shotting)
 const EXPOSED_MULT = 2;   // damage multiplier while exposed
 
@@ -87,7 +87,7 @@ export function hideBoss() {
 function spawnBoss(now) {
     const stats = state.currentSkinStats || { fireRate: 1, bulletDamage: 1 };
     const power = Math.max(1, (stats.bulletDamage || 1) * (stats.fireRate || 1));
-    const maxHP = Math.round(300 * HARDNESS * Math.pow(power, 0.8));
+    const maxHP = Math.round(BOSS_HP_PER_POWER * power);
 
     const el = document.createElement('div');
     el.className = 'boss entering';
@@ -126,7 +126,7 @@ function fire(x, y, angleDeg, speed, phase = 1) {
     el.style.top = y + 'px';
     el.style.transform = `rotate(${angleDeg - 90}deg)`;
     DOM.wrapper.appendChild(el);
-    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null });
+    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: 7 + phase });
 }
 
 function aimedAngle(bx, by) {

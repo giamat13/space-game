@@ -64,7 +64,8 @@ export function updateAmmoUI() {
 
 export function rechargeAmmo(now) {
     if (!state.active) return;
-    const interval = Math.round(400 / state.currentSkinStats.fireRate);
+    // During the boss fight ammo comes back twice as fast so the player isn't starved.
+    const interval = Math.round(400 / state.currentSkinStats.fireRate / (state.boss ? 2 : 1));
     if (now - state.lastAmmoRecharge >= interval && state.ammo < state.maxAmmo) {
         state.ammo++;
         state.lastAmmoRecharge = now;

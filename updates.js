@@ -135,7 +135,7 @@ export function updateEnemyBullets() {
                     showFloatingMessage(t('msgRicochet'), eb.x - 50, eb.y, '#ffaa33');
                     continue;
                 }
-                damagePlayer(15, 'enemy_bullet');
+                damagePlayer(eb.dmg || 15, 'enemy_bullet');
                 createExplosion(eb.x, eb.y, 'var(--primary)');
                 eb.el.remove();
                 state.enemyBullets.splice(i, 1);
