@@ -326,23 +326,23 @@ export function updateBoss(now) {
 
         // ---- attacks ----
         if (d.state === 'idle' && !calm && !b.blinkUntil) {
-            const shotEvery = ph === 1 ? 900 : ph === 2 ? 750 : 600;
+            const shotEvery = ph === 1 ? 1200 : ph === 2 ? 1000 : 850;
             if (now - b.lastShot > shotEvery) {
-                const a = aimedAngle(cx, cy), sp = 4.4 + ph * 0.5;
-                const spreads = ph === 3 ? [-30, -20, -10, 0, 10, 20, 30] : [-20, -10, 0, 10, 20];
+                const a = aimedAngle(cx, cy), sp = 3.9 + ph * 0.4;
+                const spreads = ph === 1 ? [-14, 0, 14] : ph === 2 ? [-18, -9, 0, 9, 18] : [-24, -12, 0, 12, 24];
                 for (const s of spreads) fire(cx, cy, a + s, sp, ph);
                 b.lastShot = now;
             }
-            if (ph >= 2 && now - b.lastRing > (ph === 2 ? 2400 : 1800)) {
-                ring(cx, cy, ph === 2 ? 12 : 16, 4.2, Math.random() * 30, ph);
+            if (ph >= 2 && now - b.lastRing > (ph === 2 ? 3200 : 2600)) {
+                ring(cx, cy, ph === 2 ? 8 : 11, 3.8, Math.random() * 30, ph);
                 b.lastRing = now;
             }
             // spiral: a rotating stream with natural gaps to slip through
             const sp = b.spiral;
-            if (ph >= 2 && sp.left === 0 && now > sp.nextStart) { sp.left = ph === 2 ? 16 : 26; sp.angle = Math.random() * 360; sp.next = now; }
+            if (ph >= 2 && sp.left === 0 && now > sp.nextStart) { sp.left = ph === 2 ? 12 : 18; sp.angle = Math.random() * 360; sp.next = now; }
             if (sp.left > 0 && now > sp.next) {
-                fire(cx, cy, sp.angle, 4.0, ph);
-                sp.angle += 24; sp.left--; sp.next = now + 55;
+                fire(cx, cy, sp.angle, 3.7, ph);
+                sp.angle += 30; sp.left--; sp.next = now + 55;
                 if (sp.left === 0) sp.nextStart = now + (ph === 2 ? 5000 : 3500);
             }
         }
@@ -397,7 +397,7 @@ export function updateBoss(now) {
             b.el.classList.remove('boss-blink');
             b.blinkUntil = 0;
             b.blinkNext = now + (ph === 3 ? 6500 : 9000);
-            ring(b.x + W / 2, b.y + W * 0.75, 8, 4.2, Math.random() * 45, ph);
+            ring(b.x + W / 2, b.y + W * 0.75, 6, 3.8, Math.random() * 45, ph);
         }
 
         // ===== SPECIAL ATTACK: telegraphed laser column =====
@@ -450,10 +450,10 @@ export function updateBoss(now) {
                 // a curtain of bullets with a gap near (but not exactly on) the player
                 const step = 38, n = Math.floor((WW - 20) / step);
                 const gap = Math.max(1, Math.min(n - 3, Math.round((state.playerX + 25 + (Math.random() - 0.5) * 160) / step)));
-                const gapW = ph === 3 ? 2 : 3;
+                const gapW = ph === 3 ? 4 : 5;
                 for (let i = 0; i < n; i++) {
                     if (i >= gap - Math.floor(gapW / 2) && i <= gap + Math.floor(gapW / 2)) continue;
-                    fire(14 + i * step, cys, 90, 3.4, ph);
+                    fire(14 + i * step, cys, 90, 3.1, ph);
                 }
                 showFloatingMessage(t('bossWall'), cxs - 30, b.y - 14, '#ffd21a');
             } else if (pick === 'missiles' && b.missiles.length === 0) {
@@ -569,7 +569,7 @@ export function updateBoss(now) {
 
         // --- storm burst: three quick rings ---
         if (b.burst.left > 0 && now > b.burst.next) {
-            ring(cxs, cys, 18, 4.4, Math.random() * 20, ph);
+            ring(cxs, cys, 12, 3.8, Math.random() * 20, ph);
             b.burst.left--; b.burst.next = now + 380;
         }
 
@@ -638,7 +638,7 @@ export function updateBoss(now) {
             el.style.top = (b.y + W * 0.8) + 'px';
             DOM.wrapper.appendChild(el);
             b.pickups.push({ el, x: px, y: b.y + W * 0.8 });
-            b.nextPickup = now + (state.playerHP < state.playerMaxHP * 0.5 ? 3500 : 5500);
+            b.nextPickup = now + (state.playerHP < state.playerMaxHP * 0.6 ? 3000 : 4800);
         }
         const pr = state.playerRect || DOM.player.getBoundingClientRect();
         for (let i = b.pickups.length - 1; i >= 0; i--) {
@@ -648,7 +648,7 @@ export function updateBoss(now) {
             const r = pk.el.getBoundingClientRect();
             const hit = !(r.right < pr.left || r.left > pr.right || r.bottom < pr.top || r.top > pr.bottom);
             if (hit) {
-                const heal = Math.round(state.playerMaxHP * 0.4);
+                const heal = Math.round(state.playerMaxHP * 0.5);
                 state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
                 updateHPUI();
                 showFloatingMessage(`+${heal} HP`, pk.x - 10, pk.y - 20, 'var(--health)');
