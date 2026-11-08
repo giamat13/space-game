@@ -236,7 +236,8 @@ export function damagePlayer(amount, source = 'unknown') {
         }
 
         DOM.overlay.style.display = 'flex';
-        document.getElementById('title').innerText = "Game Over";
+        document.getElementById('title').innerText = t('gameOverTitle');
+        window.__resetBoss?.();
         document.getElementById('sub-title').innerHTML = `${t('shipDestroyed')}<br>${t('finalScore')} ${state.score}<br>${t('levelWord')} ${state.level}`;
         document.getElementById('leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
@@ -461,6 +462,7 @@ export function usePhoenixFeathers() {
 }
 
 export function useVortexLaser() {
+    window.__damageBoss?.(0.06);
     console.log('⚡ [VORTEX] Activating laser!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
@@ -519,6 +521,7 @@ export function useVortexLaser() {
 }
 
 export function useJokerChaos() {
+    window.__damageBoss?.(0.04);
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
@@ -579,6 +582,7 @@ export function useJokerChaos() {
 }
 
 export function useDragonFire() {
+    window.__damageBoss?.(0.05);
     console.log('🐉 [DRAGON] Activating DRAGON INFERNO!');
     const playerCenterX = state.playerX + 25;
     const playerTop = DOM.wrapper.clientHeight - 90;

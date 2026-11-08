@@ -1524,3 +1524,21 @@ kbd {
 #game-wrapper { contain: layout paint style; }
 .enemy-ship, .asteroid, .burger, .ingredient, .bullet, .enemy-bullet, .lightning-bolt, .particle, .floating-msg { contain: layout style; }
 .stat-box { transition: none; }
+
+/* ===== Boss ===== */
+.boss { position: absolute; z-index: 46; will-change: left, top; pointer-events: none; }
+.boss.boss-hit { filter: brightness(2.2) saturate(0.4); }
+.boss.boss-warn { animation: bossShake 0.08s linear infinite; filter: drop-shadow(0 0 18px #ff4d6a); }
+@keyframes bossShake { 0% { transform: translate(-4px, 0) } 50% { transform: translate(4px, 2px) } 100% { transform: translate(-3px, -2px) } }
+.boss-bullet { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd21a 55%, #ff4d6a); box-shadow: 0 0 8px #ff4d6a; }
+#boss-hud { position: absolute; top: 96px; left: 12%; right: 12%; z-index: 110; pointer-events: none; text-align: center; }
+.boss-hud-name { font-family: var(--font-display); font-weight: 900; font-size: 0.8rem; letter-spacing: 0.2em; color: #fff; text-shadow: 0 0 10px #c04dff; margin-bottom: 3px; }
+.boss-hud-bar { height: 10px; border-radius: 6px; background: rgba(0,0,0,0.55); border: 1px solid rgba(192,77,255,0.7); overflow: hidden; }
+.boss-hud-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #7b2fe0, #c04dff); transition: width 0.15s ease-out; }
+.boss-hud-fill[data-phase="2"] { background: linear-gradient(90deg, #e0832f, #ffd21a); }
+.boss-hud-fill[data-phase="3"] { background: linear-gradient(90deg, #e02f4a, #ff7a2e); }
+.fx-banner { position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%); font-family: var(--font-display); font-weight: 900; font-size: 1.5rem;
+    letter-spacing: 0.08em; color: #fff; white-space: nowrap; text-shadow: 0 0 14px var(--fx-color), 0 0 34px var(--fx-color); animation: fxBannerIn 0.5s cubic-bezier(.2,1.4,.4,1) both, fxBlink 0.5s ease-in-out 0.5s infinite alternate; }
+.fx-banner.out { animation: fxFadeOut 0.4s ease both; }
+@keyframes fxBannerIn { from { transform: translate(-50%, -50%) scale(0.3); opacity: 0 } to { transform: translate(-50%, -50%) scale(1); opacity: 1 } }
+@keyframes fxBlink { from { opacity: 1 } to { opacity: 0.55 } }

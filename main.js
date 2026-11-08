@@ -6,6 +6,8 @@ import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
+import { updateBoss, resetBoss } from './boss.js';
+window.__resetBoss = resetBoss;
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -1518,6 +1520,7 @@ window.selectSkin = selectSkin;
 // ===== GAME INITIALIZATION =====
 
 async function initGame() {
+    resetBoss();
     // Apply the latest cloud shop purchases (any device) before the run starts
     try { await Promise.race([pullShopState(), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* offline */ }
     resetState();
@@ -1679,8 +1682,8 @@ function update() {
     if(state.paused) return; // loop restarts from togglePause
     const now = Date.now();
 
-    handleLevelUp();
-    handleSpawning(now);
+    if (!state.boss) { handleLevelUp(); handleSpawning(now); }
+    updateBoss(now);
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();

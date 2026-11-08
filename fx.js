@@ -92,3 +92,14 @@ export function sparkleAt(el, opts = {}) {
     const r = el.getBoundingClientRect();
     confettiBurst(r.left + r.width / 2, r.top + r.height / 2, { count: 26, spread: 200, gravity: 260, ...opts });
 }
+
+// Big centered banner (boss warning / victory).
+export function showBanner(text, { color = '#fff', ms = 2000, shake = false } = {}) {
+    const b = document.createElement('div');
+    b.className = 'fx-banner' + (shake ? ' fx-banner-shake' : '');
+    b.textContent = text;
+    b.style.setProperty('--fx-color', color);
+    layer().appendChild(b);
+    setTimeout(() => b.classList.add('out'), ms - 400);
+    setTimeout(() => b.remove(), ms);
+}
