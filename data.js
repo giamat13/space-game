@@ -25,6 +25,7 @@ import {
     unlockSkinInCloud,
     syncCoins,
     syncUpgrades,
+    pushShopState,
     forceSetCoins,
     saveSpeedrunToCloud,
     getSpeedrunLeaderboardFromCloud,
@@ -494,6 +495,13 @@ export const UPGRADES = {
         cost: 20000,
         skin: 'vortex'
     },
+    double_score: {
+        key: 'double_score',
+        nameKey: 'upgDoubleScoreName',
+        descKey: 'upgDoubleScoreDesc',
+        cost: 300000,
+        skin: 'global'
+    },
     joker_kill_coins: {
         key: 'joker_kill_coins',
         nameKey: 'upgJokerCoinsName',
@@ -531,6 +539,7 @@ export function buyHPLevel(skinKey) {
     addCoins(-cost);
     levels[skinKey] = current + 1;
     setCookie('hpLevels', JSON.stringify(levels));
+    pushShopState(levels, getDisabledUpgrades()).catch(() => {});
     return true;
 }
 
@@ -542,6 +551,7 @@ export function sellHPLevel(skinKey) {
     addCoins(refund);
     levels[skinKey] = current - 1;
     setCookie('hpLevels', JSON.stringify(levels));
+    pushShopState(levels, getDisabledUpgrades()).catch(() => {});
     return refund;
 }
 
@@ -584,7 +594,7 @@ export function removeUpgrade(key) {
     // Remove from disabled list too
     const disabled = getDisabledUpgrades();
     const di = disabled.indexOf(key);
-    if (di !== -1) { disabled.splice(di, 1); setCookie('disabledUpgrades', JSON.stringify(disabled)); }
+    if (di !== -1) { disabled.splice(di, 1); setCookie('disabledUpgrades', JSON.stringify(disabled)); pushShopState(getHPLevels(), disabled).catch(() => {}); }
     const refund = Math.floor(upgrade.cost * 0.75);
     addCoins(refund);
     syncUpgrades(owned, true).catch(() => {});
@@ -599,7 +609,7 @@ export function getDisabledUpgrades() {
 export function disableUpgrade(key) {
     if (!getOwnedUpgrades().includes(key)) return false;
     const disabled = getDisabledUpgrades();
-    if (!disabled.includes(key)) { disabled.push(key); setCookie('disabledUpgrades', JSON.stringify(disabled)); }
+    if (!disabled.includes(key)) { disabled.push(key); setCookie('disabledUpgrades', JSON.stringify(disabled)); pushShopState(getHPLevels(), disabled).catch(() => {}); }
     return true;
 }
 
@@ -609,6 +619,7 @@ export function enableUpgrade(key) {
     if (idx === -1) return false;
     disabled.splice(idx, 1);
     setCookie('disabledUpgrades', JSON.stringify(disabled));
+    pushShopState(getHPLevels(), disabled).catch(() => {});
     return true;
 }
 
@@ -618,6 +629,12 @@ export function isUpgradeDisabled(key) {
 
 export function isUpgradeActive(key) {
     return getOwnedUpgrades().includes(key) && !getDisabledUpgrades().includes(key);
+}
+
+// Score helper: every score gain goes through here so the x2 upgrade applies everywhere.
+export function addScore(points) {
+    const mult = isUpgradeActive('double_score') ? 2 : 1;
+    state.score += points * mult;
 }
 
 export function resetCoins() {

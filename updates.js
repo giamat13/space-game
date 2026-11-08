@@ -1,4 +1,4 @@
-import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
+import { DOM, state, addScore, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
 import { t, tf } from './i18n.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal, registerJokerKill } from './systems.js';
 import {
@@ -157,7 +157,7 @@ export function updateEnemyBullets() {
                     createExplosion(eb.x, eb.y, '#ffff00');
                     if (targetEn.hp <= 0) {
                         const points = getEnemyPoints(targetEn.type);
-                        state.score += points;
+                        addScore(points);
                         DOM.scoreEl.innerText = state.score;
                         trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
@@ -211,7 +211,7 @@ export function updateEnemyBullets() {
                     // Kill enemy if HP reaches 0
                     if (targetEn.hp <= 0) {
                         const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
-                        state.score += points;
+                        addScore(points);
                         DOM.scoreEl.innerText = state.score;
                         trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
@@ -243,7 +243,7 @@ export function updateEnemyBullets() {
 
                     if (targetEn.hp <= 0) {
                         const points = Math.floor(getEnemyPoints(targetEn.type) * 0.5);
-                        state.score += points;
+                        addScore(points);
                         DOM.scoreEl.innerText = state.score;
                         trackScoreUpdate(state.score);
                         createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
@@ -322,7 +322,7 @@ export function updateBurgers() {
                 state.bullets.splice(bi, 1);
                 if(bgr.hp <= 0) {
                     healPlayer(15);
-                    state.score += 75;
+                    addScore(75);
                     DOM.scoreEl.innerText = state.score;
                     spawnIngredients(bRect.left, bRect.top);
                     createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
@@ -353,7 +353,7 @@ export function updateIngredients() {
         const iRect = ing.el.getBoundingClientRect();
         const pRect = state.playerRect || DOM.player.getBoundingClientRect();
         if(!(iRect.right < pRect.left || iRect.left > pRect.right || iRect.bottom < pRect.top || iRect.top > pRect.bottom)) {
-            state.score += 25;
+            addScore(25);
             DOM.scoreEl.innerText = state.score;
             trackScoreUpdate(state.score);
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
@@ -474,7 +474,7 @@ export function updateEnemies(now) {
                                 const ammoGrant = getEnemyAmmoGrant(targetEn.type);
                                 state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
                                 updateAmmoUI();
-                                state.score += points;
+                                addScore(points);
                                 DOM.scoreEl.innerText = state.score;
                                 createExplosion(teRect.left + 25, teRect.top + 25, getEnemyColor(targetEn.type));
                                 targetEn.el.remove();
@@ -511,7 +511,7 @@ export function updateEnemies(now) {
                     state.ammo = Math.min(state.maxAmmo, state.ammo + ammoGrant);
                     updateAmmoUI();
                     const oldScore = state.score;
-                    state.score += points;
+                    addScore(points);
                     DOM.scoreEl.innerText = state.score;
                     trackScoreUpdate(state.score);
                     trackEnemyKilled(en.type, points, state.level, 'bullet');

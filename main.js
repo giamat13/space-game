@@ -3,7 +3,7 @@ import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloat
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
-import { initFirestoreSync, getMoneyLeaderboard } from './firestore-sync.js';
+import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
@@ -670,6 +670,7 @@ const SHOP_TABS = [
     { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
     { key: 'dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+    { key: 'global',      labelKey: 'shopTabGlobal',    icon: '⭐' },
     { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
 ];
 let _currentShopTab = 'all';
@@ -976,8 +977,8 @@ function renderShopItems() {
         return;
     }
 
-    // Skin-specific tab: HP card + skin upgrades
-    container.appendChild(_makeHPCard(_currentShopTab, coins));
+    // Skin-specific tab: HP card + skin upgrades (the 'global' tab has no HP card)
+    if (_currentShopTab !== 'global') container.appendChild(_makeHPCard(_currentShopTab, coins));
 
     const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
     if (skinUpgrades.length === 0) {
@@ -1516,7 +1517,9 @@ window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
-function initGame() {
+async function initGame() {
+    // Apply the latest cloud shop purchases (any device) before the run starts
+    try { await Promise.race([pullShopState(), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* offline */ }
     resetState();
     
     // ===== ANALYTICS: start session =====

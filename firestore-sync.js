@@ -454,6 +454,43 @@ export async function syncCoins(localCoins) {
     }
 }
 
+// ===== SHOP STATE (HP levels + disabled upgrades) =====
+// Pushes the local shop state to the user doc (cloud copy is overwritten).
+export async function pushShopState(hpLevels, disabledUpgrades) {
+    if (!auth || !db) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        await setDoc(doc(db, 'users', user.uid), { hpLevels, disabledUpgrades, lastUpdated: serverTimestamp() }, { merge: true });
+    } catch (e) { console.error('❌ [SYNC] Error pushing shop state:', e); }
+}
+
+// Pulls owned upgrades / disabled upgrades / HP levels from the cloud into the local cookies,
+// so every device applies the same shop purchases. Local-only data is pushed up if the cloud has none.
+export async function pullShopState() {
+    if (!auth || !db) return null;
+    const user = auth.currentUser;
+    if (!user) return null;
+    try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        const d = snap.exists() ? snap.data() : {};
+        const localOwned = JSON.parse(getCookie('ownedUpgrades') || '[]');
+        const owned = [...new Set([...(d.ownedUpgrades || []), ...localOwned])];
+        const disabled = Array.isArray(d.disabledUpgrades) ? d.disabledUpgrades : JSON.parse(getCookie('disabledUpgrades') || '[]');
+        const hp = (d.hpLevels && typeof d.hpLevels === 'object') ? d.hpLevels : JSON.parse(getCookie('hpLevels') || '{}');
+        setCookie('ownedUpgrades', JSON.stringify(owned));
+        setCookie('disabledUpgrades', JSON.stringify(disabled));
+        setCookie('hpLevels', JSON.stringify(hp));
+        if (d.disabledUpgrades === undefined || d.hpLevels === undefined || owned.length !== (d.ownedUpgrades || []).length) {
+            await setDoc(doc(db, 'users', user.uid), { ownedUpgrades: owned, disabledUpgrades: disabled, hpLevels: hp, lastUpdated: serverTimestamp() }, { merge: true });
+        }
+        return { owned, disabled, hp };
+    } catch (e) {
+        console.error('❌ [SYNC] Error pulling shop state:', e);
+        return null;
+    }
+}
+
 // ===== SYNC UPGRADES =====
 // overwriteCloud=true: local list is authoritative (used after removal).
 // overwriteCloud=false (default): merge cloud + local (used on login).
@@ -771,6 +808,7 @@ export async function syncAllData() {
             setCookie('customSpeedrunGoals', JSON.stringify(mergedCustomGoals));
         }
 
+        await pullShopState();
         console.log('✅ [SYNC] Full sync complete - all data synchronized');
 
         // Store email for peer-to-peer coin transfers

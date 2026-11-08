@@ -3,6 +3,7 @@
 // ⚠️ NO STORAGE USED - 100% FREE! ⚠️
 // Profile images come directly from Google (photoURL) - not from Firebase Storage
 
+import { t } from './i18n.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { 
     getAuth, 
@@ -70,7 +71,7 @@ export async function signInWithGoogle() {
     try {
         const result = await signInWithPopup(auth, googleProvider);
         console.log('✅ [GOOGLE] Successfully signed in with Google:', result.user.email);
-        showMessage('התחברת בהצלחה! 🎉', 'success');
+        showMessage(t('authLoginOk'), 'success');
         
         // Return to main menu after a short delay
         setTimeout(() => {
@@ -98,7 +99,7 @@ export async function signUpWithEmail(email, password, displayName) {
 
             // If Google account exists, offer to link
             if (signInMethods.includes('google.com')) {
-                showMessage('This email already exists with Google. Connecting...', 'info');
+                showMessage(t('authExistsGoogle'), 'info');
 
                 // Try to sign in with Google then link
                 const googleResult = await signInWithPopup(auth, googleProvider);
@@ -108,7 +109,7 @@ export async function signUpWithEmail(email, password, displayName) {
                     const credential = EmailAuthProvider.credential(email, password);
                     await linkWithCredential(googleResult.user, credential);
 
-                    showMessage('Accounts linked successfully! 🎉', 'success');
+                    showMessage(t('authLinked'), 'success');
 
                     // Return to main menu
                     setTimeout(() => {
@@ -121,7 +122,7 @@ export async function signUpWithEmail(email, password, displayName) {
 
             // If password method exists, suggest signing in instead
             if (signInMethods.includes('password')) {
-                showMessage('This email is already registered. Try signing in instead', 'warning');
+                showMessage(t('authEmailRegistered'), 'warning');
                 return null;
             }
         }
@@ -136,7 +137,7 @@ export async function signUpWithEmail(email, password, displayName) {
             console.log('✅ [SIGNUP] Updated display name to:', displayName);
         }
 
-        showMessage('Signed up successfully! 🎉', 'success');
+        showMessage(t('authSignupOk'), 'success');
         
         // Return to main menu
         setTimeout(() => {
@@ -158,7 +159,7 @@ export async function signInWithEmail(email, password) {
     try {
         const result = await signInWithEmailAndPassword(auth, email, password);
         console.log('✅ [LOGIN] Successfully signed in:', email);
-        showMessage('התחברת בהצלחה! 🎉', 'success');
+        showMessage(t('authLoginOk'), 'success');
         
         // Return to main menu
         setTimeout(() => {
@@ -178,14 +179,14 @@ export async function linkGoogleAccount() {
     console.log('🔗 [LINK] Attempting to link Google account...');
     
     if (!currentUser) {
-        showMessage('עליך להתחבר קודם', 'warning');
+        showMessage(t('authNeedLogin'), 'warning');
         return;
     }
     
     try {
         const result = await signInWithPopup(auth, googleProvider);
         console.log('✅ [LINK] Successfully linked Google account');
-        showMessage('חשבון Google קושר בהצלחה! 🎉', 'success');
+        showMessage(t('authGoogleLinked'), 'success');
         return result.user;
     } catch (error) {
         console.error('❌ [LINK] Error linking Google account:', error);
@@ -201,7 +202,7 @@ export async function logout() {
     try {
         await signOut(auth);
         console.log('✅ [LOGOUT] Successfully signed out');
-        showMessage('התנתקת בהצלחה', 'info');
+        showMessage(t('authLogoutOk'), 'info');
         
         // Return to main menu
         setTimeout(() => {
@@ -209,7 +210,7 @@ export async function logout() {
         }, 800);
     } catch (error) {
         console.error('❌ [LOGOUT] Error during sign out:', error);
-        showMessage('Error signing out', 'error');
+        showMessage(t('authLogoutErr'), 'error');
     }
 }
 
@@ -218,7 +219,7 @@ export async function updateDisplayName(newName) {
     console.log('✏️ [PROFILE] Updating display name to:', newName);
 
     if (!auth.currentUser) {
-        showMessage('You need to sign in first', 'warning');
+        showMessage(t('authNeedLogin'), 'warning');
         return false;
     }
 
@@ -226,11 +227,11 @@ export async function updateDisplayName(newName) {
         await updateProfile(auth.currentUser, { displayName: newName });
         currentUser.displayName = newName;
         console.log('✅ [PROFILE] Display name updated successfully');
-        showMessage('Name updated successfully! ✅', 'success');
+        showMessage(t('authNameUpdated'), 'success');
         return true;
     } catch (error) {
         console.error('❌ [PROFILE] Error updating display name:', error);
-        showMessage('Error updating name', 'error');
+        showMessage(t('authNameErr'), 'error');
         return false;
     }
 }
@@ -248,7 +249,7 @@ function updateLoginButton() {
         loginBtn.style.color = 'var(--primary)';
     } else {
         // User is not logged in - show login button
-        loginBtn.innerHTML = '🔐 התחבר';
+        loginBtn.innerHTML = t('loginBtn');
         loginBtn.style.background = 'rgba(255, 215, 0, 0.2)';
         loginBtn.style.borderColor = '#ffd700';
         loginBtn.style.color = '#ffd700';
@@ -299,17 +300,17 @@ function handleAuthError(error) {
     console.error('❌ [ERROR]', error.code, error.message);
     
     const errorMessages = {
-        'auth/email-already-in-use': 'Email is already in use',
-        'auth/weak-password': 'Password is too weak (at least 6 characters)',
-        'auth/invalid-email': 'Invalid email address',
-        'auth/user-not-found': 'User not found',
-        'auth/wrong-password': 'Wrong password',
-        'auth/popup-closed-by-user': 'Sign-in window was closed',
-        'auth/account-exists-with-different-credential': 'Account exists with different sign-in method',
-        'auth/credential-already-in-use': 'Credentials are already in use'
+        'auth/email-already-in-use': t('authErrInUse'),
+        'auth/weak-password': t('authErrWeak'),
+        'auth/invalid-email': t('authErrEmail'),
+        'auth/user-not-found': t('authErrNoUser'),
+        'auth/wrong-password': t('authErrWrongPw'),
+        'auth/popup-closed-by-user': t('authErrPopup'),
+        'auth/account-exists-with-different-credential': t('authErrDiffCred'),
+        'auth/credential-already-in-use': t('authErrCredUsed')
     };
 
-    const message = errorMessages[error.code] || 'Unexpected error';
+    const message = errorMessages[error.code] || t('authErrUnknown');
     showMessage(message, 'error');
 }
 
@@ -356,7 +357,7 @@ window.signUpWithEmail = () => {
     const displayName = document.getElementById('signup-name').value;
     
     if (!email || !password || !displayName) {
-        showMessage('נא למלא את כל השדות', 'warning');
+        showMessage(t('authFillAll'), 'warning');
         return;
     }
     
@@ -368,7 +369,7 @@ window.signInWithEmail = () => {
     const password = document.getElementById('login-password').value;
     
     if (!email || !password) {
-        showMessage('נא למלא מייל וסיסמה', 'warning');
+        showMessage(t('authFillEmailPw'), 'warning');
         return;
     }
     
@@ -399,7 +400,7 @@ window.toggleLoginMenu = () => {
     }
 };
 window.editDisplayName = () => {
-    const newName = prompt('שם חדש:', currentUser.displayName);
+    const newName = prompt(t('authNewName'), currentUser.displayName);
     if (newName && newName.trim()) {
         updateDisplayName(newName.trim());
     }

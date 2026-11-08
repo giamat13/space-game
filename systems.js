@@ -1,4 +1,4 @@
-import { DOM, state, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
+import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
 import { t, tf, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -487,7 +487,7 @@ export function useVortexLaser() {
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
         const points = getEnemyPoints(en.type);
-        state.score += points;
+        addScore(points);
         const eRect = en.el.getBoundingClientRect();
         createExplosion(eRect.left + 25, eRect.top + 25, getEnemyColor(en.type));
         en.el.remove();
@@ -546,7 +546,7 @@ export function useJokerChaos() {
             
             const fullPoints = getEnemyPoints(en.type);
             const partialPoints = Math.floor(fullPoints * 0.75); // 75%
-            state.score += partialPoints;
+            addScore(partialPoints);
             pointsGained += partialPoints;
             
             convertedCount++;
