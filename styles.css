@@ -1591,3 +1591,10 @@ kbd {
     font-size: 1.3rem; font-weight: 900; color: #fff; background: radial-gradient(circle, #5dffb8, #1fb87a); border: 3px solid #fff;
     box-shadow: 0 0 14px #34e89e; animation: healPulse 0.5s ease-in-out infinite alternate; pointer-events: none; }
 @keyframes healPulse { from { transform: scale(0.9) } to { transform: scale(1.15) } }
+
+.boss-missile { position: absolute; width: 20px; height: 36px; z-index: 46; pointer-events: none; filter: drop-shadow(0 0 8px #ff7a2e); }
+.boss-drone { position: absolute; width: 40px; height: 40px; z-index: 46; pointer-events: none; }
+.boss-meteor-warn { position: absolute; top: 0; bottom: 0; width: 44px; z-index: 43; pointer-events: none;
+    background: repeating-linear-gradient(180deg, rgba(255,77,47,0.35) 0 14px, transparent 14px 28px); border-left: 2px dashed #ff4d2f; border-right: 2px dashed #ff4d2f; animation: fxBlink 0.15s linear infinite alternate; }
+.boss-meteor { position: absolute; width: 40px; z-index: 47; pointer-events: none; border-radius: 50% 50% 40% 40%;
+    background: radial-gradient(circle at 50% 35%, #fff, #ffd21a 35%, #ff4d2f 70%, #7a1500); box-shadow: 0 0 22px #ff4d2f, 0 -30px 30px rgba(255,100,30,0.6); }
