@@ -643,7 +643,7 @@ export function spawnIngredients(x, y) {
         ing.className = 'ingredient';
         ing.style.left = x + 'px';
         ing.style.top = y + 'px';
-        ing.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="${type.color}"/></svg>`;
+        ing.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="38" fill="${type.color}" stroke="#222" stroke-width="6"/><circle cx="38" cy="38" r="6" fill="#fff" opacity="0.6"/></svg>`;
         DOM.wrapper.appendChild(ing);
         state.ingredients.push({
             el: ing,
@@ -665,7 +665,7 @@ export function handleSpawning(now) {
             el.className = 'lightning-bolt';
             el.style.left = posX + 'px';
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 60 100" style="width:100%;height:100%"><polygon points="35,0 15,50 30,50 20,100 55,40 35,40 50,0" fill="#ffe000" stroke="#ffa500" stroke-width="2"/></svg>`;
+            el.innerHTML = `<svg viewBox="0 0 60 100" style="width:100%;height:100%"><polygon points="35,0 15,50 30,50 20,100 55,40 35,40 50,0" fill="#ffe000" stroke="#a85a00" stroke-width="5" stroke-linejoin="round"/></svg>`;
             DOM.wrapper.appendChild(el);
             state.lightnings.push({ el, y: -60, speed: 1.5 * state.speedMult });
         } else if (spawnRoll < 0.15) {
@@ -674,12 +674,7 @@ export function handleSpawning(now) {
             el.style.top = '-60px';
             el.innerHTML = `
                 <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
-                <svg viewBox="0 0 100 100">
-                    <path d="M10 50 Q50 10 90 50 Z" fill="#e67e22"/>
-                    <rect x="10" y="50" width="80" height="10" fill="#6d4c41"/>
-                    <rect x="10" y="60" width="80" height="5" fill="#f1c40f"/>
-                    <path d="M10 65 L90 65 L80 85 L20 85 Z" fill="#e67e22"/>
-                </svg>`;
+                <svg viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round"><path d="M8 52 Q10 12 50 10 Q90 12 92 52 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M12 52 L88 52 L84 62 L16 62 Z" fill="#7a4a30" stroke="#3d2010" stroke-width="3"/><path d="M14 62 L86 62 L82 70 L18 70 Z" fill="#ffd21a" stroke="#8a6a00" stroke-width="3"/><path d="M12 70 L88 70 L80 90 L20 90 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M24 26 L42 32 L28 38 Z" fill="#111"/><path d="M76 26 L58 32 L72 38 Z" fill="#111"/><circle cx="36" cy="22" r="2.4" fill="#ffe600"/><circle cx="62" cy="20" r="2.4" fill="#ffe600"/><circle cx="50" cy="42" r="2.4" fill="#ffe600"/></svg>`;
             DOM.wrapper.appendChild(el);
             state.burgers.push({
                 el: el, 
@@ -693,7 +688,7 @@ export function handleSpawning(now) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><defs><radialGradient id="ag" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#8d96ad"/><stop offset="0.6" stop-color="#4a5266"/><stop offset="1" stop-color="#1c212e"/></radialGradient></defs><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="url(#ag)" stroke="#9aa4bd" stroke-width="2" stroke-linejoin="round"/><circle cx="40" cy="40" r="6" fill="#20263a" stroke="#657090"/><circle cx="62" cy="68" r="9" fill="#20263a" stroke="#657090"/><circle cx="68" cy="34" r="3.5" fill="#2a3148"/></svg>`;
+            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><path d="M18 32 L38 8 L72 18 L92 48 L76 88 L30 92 L8 60 Z" fill="#8f98ad" stroke="#3c4252" stroke-width="3.6"/><path d="M32 30 L44 38 L34 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M64 30 L52 38 L62 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M40 62 L46 66 L52 62 L58 66" fill="none" stroke="#3c4252" stroke-width="2.6"/><circle cx="22" cy="56" r="2.6" fill="#ffe600"/><circle cx="76" cy="62" r="2.6" fill="#ffe600"/><circle cx="50" cy="80" r="2.6" fill="#ffe600"/><circle cx="70" cy="30" r="2.6" fill="#ffe600"/></svg>`;
             DOM.wrapper.appendChild(el);
             state.asteroids.push({ 
                 el: el, 
@@ -733,7 +728,7 @@ export function handleSpawning(now) {
             el.className = `enemy-ship ${type}`;
             el.style.left = posX + 'px';
             el.style.top = '-60px';
-            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><defs><linearGradient id="eg${type}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="0.35" stop-color="${colorCode}"/><stop offset="1" stop-color="#000" stop-opacity="0.55"/></linearGradient></defs><path d="M6 18 L28 14 L50 92 L72 14 L94 18 L74 52 L50 42 L26 52 Z" fill="url(#eg${type})" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M50 42 L42 24 L58 24 Z" fill="#fff" opacity="0.75"/><circle cx="50" cy="30" r="4" fill="#ffe9a8"/></svg>`;
+            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><g fill="${({red:'#ff3b3b',orange:'#ffa31a',green:'#25d96b',blue:'#3d9bff'})[type]}" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="3.6"><path d="M14 10 L40 6 L50 28 L60 6 L86 10 L78 42 L60 62 L51 94 L44 62 L24 42 Z"/></g><path d="M31.0 29.0 L47.0 33.0 L34.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M37.0 33.0 L42.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M69.0 29.0 L53.0 33.0 L66.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M63.0 33.0 L58.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="48" r="2.3" fill="#ffe600"/><circle cx="44" cy="60" r="2.3" fill="#ffe600"/><circle cx="56" cy="66" r="2.3" fill="#ffe600"/><circle cx="24" cy="20" r="2.3" fill="#ffe600"/><circle cx="76" cy="22" r="2.3" fill="#ffe600"/><circle cx="50" cy="80" r="2.3" fill="#ffe600"/><path d="M42 50 L46 54 L50 50 L54 54 L58 50" fill="none" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="2.2"/></svg>`;
             DOM.wrapper.appendChild(el);
 
             // Check if chaos mode is active
