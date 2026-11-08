@@ -139,7 +139,7 @@ function fire(x, y, angleDeg, speed, phase = 1) {
     el.style.top = y + 'px';
     el.style.transform = `rotate(${angleDeg - 90}deg)`;
     DOM.wrapper.appendChild(el);
-    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: 18 + 6 * phase });
+    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: 30 + 10 * phase });
 }
 
 function aimedAngle(bx, by) {
