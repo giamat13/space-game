@@ -2266,6 +2266,12 @@ for(let i=0; i<40; i++) {
 console.log('✅ [INIT] 40 stars generated');
 
 DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
+// Skin-card previews use the same hand-drawn sprites as in-game (dragon keeps its PNG as-is)
+document.querySelectorAll('.skin-option[data-skin]').forEach(card => {
+    const k = card.dataset.skin;
+    const prev = card.querySelector('.skin-preview');
+    if (prev && k !== 'dragon' && SKINS[k]) prev.innerHTML = SKINS[k].svg;
+});
 console.log('✅ [INIT] Player sprite set to classic skin');
 console.log('🎮 [INIT] All systems ready!');
 
