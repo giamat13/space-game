@@ -9,7 +9,8 @@ import { showBanner, confettiBurst, shockwave } from './fx.js';
 export const BOSS_LEVEL = 30;
 const W = 170;
 const Y = 125;           // resting height (below the player HUD)           // boss sprite size (px)
-const BULLET_DAMAGE_CAP = 0.03; // a single hit can never take more than 3% of boss HP
+const HARDNESS = 100;     // boss HP multiplier (tune here)
+const MAX_HIT = 9;        // a single hit never takes more than this (keeps 999-dmg feathers from one-shotting)
 
 const BOSS_SVG = `<svg viewBox="0 0 200 200" style="width:100%;height:100%;" stroke-linejoin="round" stroke-linecap="round">
   <g fill="#a23cf0" stroke="#3b0f7a" stroke-width="5">
@@ -56,7 +57,7 @@ export function hideBoss() {
 function spawnBoss(now) {
     const stats = state.currentSkinStats || { fireRate: 1, bulletDamage: 1 };
     const power = Math.max(1, (stats.bulletDamage || 1) * (stats.fireRate || 1));
-    const maxHP = Math.round(300 * Math.pow(power, 0.8));
+    const maxHP = Math.round(300 * HARDNESS * Math.pow(power, 0.8));
 
     const el = document.createElement('div');
     el.className = 'boss';
@@ -69,7 +70,7 @@ function spawnBoss(now) {
         el, hudFill: hud.querySelector('.boss-hud-fill'),
         x: wrapperW() / 2 - W / 2, y: -W - 10, hp: maxHP, maxHP, phase: 1,
         t0: now, enter: true, lastShot: now + 800, lastRing: now + 1800,
-        dash: { state: 'idle', next: now + 6000, hit: false, targetX: 0 },
+        dash: { state: 'idle', next: now + 3500, hit: false, targetX: 0 },
         hitUntil: 0, rect: null
     };
     el.style.left = state.boss.x + 'px';
@@ -105,7 +106,7 @@ function damageBoss(amount, absolute = false) {
     b.hp -= dmg;
     b.hitUntil = Date.now() + 90;
 }
-window.__damageBoss = (fraction) => damageBoss(fraction);
+window.__damageBoss = (fraction) => damageBoss(fraction / HARDNESS);
 
 function defeat() {
     const b = state.boss;
@@ -173,21 +174,21 @@ export function updateBoss(now) {
             if (b.y >= H - W - 70) d.state = 'return';
         } else if (d.state === 'return') {
             b.y -= 6;
-            if (b.y <= Y) { b.y = Y; d.state = 'idle'; d.next = now + 6000; b.t0 = now - Math.asin(Math.max(-1, Math.min(1, (b.x - (WW / 2 - W / 2)) / amp))) * period; }
+            if (b.y <= Y) { b.y = Y; d.state = 'idle'; d.next = now + 3500; b.t0 = now - Math.asin(Math.max(-1, Math.min(1, (b.x - (WW / 2 - W / 2)) / amp))) * period; }
         }
 
         // ---- attacks (not while rushing) ----
         const cx = b.x + W / 2, cy = b.y + W * 0.75;
         if (d.state === 'idle') {
-            const shotEvery = b.phase === 1 ? 1100 : b.phase === 2 ? 900 : 700;
+            const shotEvery = b.phase === 1 ? 600 : b.phase === 2 ? 480 : 380;
             if (now - b.lastShot > shotEvery) {
                 const a = aimedAngle(cx, cy), sp = 5 + b.phase * 0.6;
-                const spreads = b.phase === 3 ? [-24, -12, 0, 12, 24] : [-14, 0, 14];
+                const spreads = b.phase === 3 ? [-36, -24, -12, 0, 12, 24, 36] : [-21, -14, -7, 0, 7, 14, 21];
                 for (const s of spreads) fire(cx, cy, a + s, sp);
                 b.lastShot = now;
             }
-            if (b.phase >= 2 && now - b.lastRing > (b.phase === 2 ? 2600 : 2000)) {
-                ring(cx, cy, b.phase === 2 ? 10 : 14, 4.2, Math.random() * 30);
+            if (b.phase >= 2 && now - b.lastRing > (b.phase === 2 ? 1500 : 1100)) {
+                ring(cx, cy, b.phase === 2 ? 16 : 24, 4.6, Math.random() * 30);
                 b.lastRing = now;
             }
         }
@@ -208,7 +209,7 @@ export function updateBoss(now) {
 
     // ---- player bullets ----
     if (!b.enter) {
-        const cap = b.maxHP * BULLET_DAMAGE_CAP;
+        const cap = MAX_HIT;
         for (let i = state.bullets.length - 1; i >= 0; i--) {
             const bul = state.bullets[i];
             const r = bul.rect || bul.el.getBoundingClientRect();
