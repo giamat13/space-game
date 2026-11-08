@@ -1542,3 +1542,12 @@ kbd {
 .fx-banner.out { animation: fxFadeOut 0.4s ease both; }
 @keyframes fxBannerIn { from { transform: translate(-50%, -50%) scale(0.3); opacity: 0 } to { transform: translate(-50%, -50%) scale(1); opacity: 1 } }
 @keyframes fxBlink { from { opacity: 1 } to { opacity: 0.55 } }
+
+.boss-shield { position: absolute; inset: -14px; border-radius: 50%; border: 3px solid #7fe9ff; opacity: 0; transform: scale(0.8);
+    background: radial-gradient(circle, rgba(127,233,255,0.08), rgba(127,233,255,0.35)); box-shadow: 0 0 24px #7fe9ff, inset 0 0 24px #7fe9ff; transition: opacity 0.2s, transform 0.2s; }
+.boss.boss-shielded .boss-shield { opacity: 1; transform: scale(1); animation: bossShieldPulse 0.4s ease-in-out infinite alternate; }
+@keyframes bossShieldPulse { from { filter: brightness(1) } to { filter: brightness(1.6) } }
+.boss.boss-blink { opacity: 0; transform: scale(0.6); transition: opacity 0.25s, transform 0.25s; }
+.boss-beam { position: absolute; width: 80px; z-index: 44; pointer-events: none; }
+.boss-beam.warn { background: repeating-linear-gradient(180deg, rgba(255,77,106,0.55) 0 10px, transparent 10px 20px); border-left: 2px solid #ff4d6a; border-right: 2px solid #ff4d6a; opacity: 0.8; animation: fxBlink 0.18s linear infinite alternate; }
+.boss-beam.fire { background: linear-gradient(90deg, transparent, #ff4d6a 20%, #fff 50%, #ff4d6a 80%, transparent); box-shadow: 0 0 30px #ff4d6a, 0 0 60px rgba(255,77,106,0.6); }

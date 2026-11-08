@@ -365,6 +365,7 @@ const STRINGS = {
     upgDoubleScoreName: { he: '⭐ ניקוד כפול', en: '⭐ Score x2', ar: '⭐ ضعف النقاط', ru: '⭐ Двойные очки', fr: '⭐ Score x2', es: '⭐ Puntos x2' },
     upgDoubleScoreDesc: { he: 'כל הניקוד שאתה צובר מוכפל ב-2, בכל משחק ובכל מכשיר', en: 'All the score you earn is doubled, in every game on every device', ar: 'كل النقاط التي تكسبها تتضاعف في كل لعبة وعلى كل الأجهزة', ru: 'Все очки удваиваются в каждой игре на любом устройстве', fr: 'Tous les points gagnés sont doublés à chaque partie, sur tous les appareils', es: 'Todos los puntos que ganes se duplican en cada partida, en cualquier dispositivo' },
     shopTabGlobal: { he: 'כללי', en: 'General', ar: 'عام', ru: 'Общее', fr: 'Général', es: 'General' },
+    bossShield: { he: 'מגן!', en: 'SHIELD!', ar: 'درع!', ru: 'ЩИТ!', fr: 'BOUCLIER !', es: '¡ESCUDO!' },
     goalBoss: { he: 'הריגת בוס', en: 'Boss kill', ar: 'هزيمة الزعيم', ru: 'Победа над боссом', fr: 'Boss vaincu', es: 'Jefe derrotado' },
     bossBadgeTitle: { he: 'הביס את הבוס', en: 'Defeated the boss', ar: 'هزم الزعيم', ru: 'Победил босса', fr: 'A vaincu le boss', es: 'Derrotó al jefe' },
     bossName: { he: 'מלך הקוביות', en: 'Cube King', ar: 'ملك المكعبات', ru: 'Король кубов', fr: 'Roi des Cubes', es: 'Rey de los Cubos' },
