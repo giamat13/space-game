@@ -225,7 +225,7 @@ function finishDeath(b) {
     confettiBurst(cx, cy, { count: 110, spread: 480 });
     const playerPt = () => { const p = DOM.player.getBoundingClientRect(); return { x: p.left + p.width / 2, y: p.top + p.height / 2 }; };
     xpOrbs(cx, cy, playerPt, { count: 34, onArrive: (n) => { if (DOM.coinsEarnedEl) { DOM.coinsEarnedEl.classList.remove('coin-pop'); void DOM.coinsEarnedEl.offsetWidth; DOM.coinsEarnedEl.classList.add('coin-pop'); } } });
-    setTimeout(() => trophy(cx, cy, playerPt), 600);
+    setTimeout(() => trophy(cx, Math.max(cy, 260), playerPt), 600);
     setTimeout(() => confettiBurst(cx - 80, cy + 20, { count: 40 }), 250);
     setTimeout(() => confettiBurst(cx + 80, cy + 20, { count: 40 }), 450);
     shockwave(cx, cy, '#ffd166', 640);
@@ -233,7 +233,10 @@ function finishDeath(b) {
     shockwave(cx, cy, '#c04dff', 760);
 
     const bonusScore = 5000, bonusCoins = 3000;
+    const scoreBefore = state.score;
     addScore(bonusScore);
+    // the bonus shouldn't instantly skip levels: don't count it toward the next level-up
+    state.lastLevelScore += state.score - scoreBefore;
     DOM.scoreEl.innerText = state.score;
     addCoins(bonusCoins);
     state.coinsEarned += bonusCoins;
