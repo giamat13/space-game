@@ -5,6 +5,7 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
+import { celebrateSkinUnlock, levelUpFx } from './fx.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -1478,7 +1479,8 @@ function updateSkinOptions() {
             console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             unlockSkin(skinKey);
             option.classList.add('newly-unlocked');
-            setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
+            setTimeout(() => option.classList.remove('newly-unlocked'), 2500);
+            if (SKINS[skinKey]) celebrateSkinUnlock({ svg: SKINS[skinKey].svg, name: SKINS[skinKey].name, color: SKINS[skinKey].color });
         }
         
         if (isSkinUnlocked(skinKey)) {
@@ -1627,6 +1629,7 @@ function handleLevelUp() {
             if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
+                    celebrateSkinUnlock({ svg: skin.svg, name: skin.name, color: skin.color });
                     showFloatingMessage(
                         tf('newSkin', { name: skin.name.toUpperCase() }), 
                         DOM.wrapper.clientWidth/2 - 100, 
@@ -1641,6 +1644,7 @@ function handleLevelUp() {
             updateSkinOptions();
         }
         
+        levelUpFx(state.level);
         showFloatingMessage(t('levelUpRefill'), DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
 
         {

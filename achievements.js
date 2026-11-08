@@ -3,6 +3,7 @@
 // All strings are multilingual (he, en, ar, ru, fr, es)
 
 import { currentLang } from './i18n.js';
+import { sparkleAt } from './fx.js';
 import { syncAchievements } from './firestore-sync.js';
 
 const ACHIEVEMENTS_KEY = 'achievements_v1';
@@ -212,7 +213,8 @@ export function showAchievementToast(ach) {
         font-size:0.8rem;
         text-align:center;
         box-shadow:0 0 20px rgba(255,215,0,0.4);
-        animation:achievementSlideIn 0.4s ease;
+        animation:achievementSlideIn 0.55s cubic-bezier(.2,1.4,.4,1);
+        position:relative;overflow:hidden;
         min-width:220px;
         max-width:320px;
     `;
@@ -228,12 +230,14 @@ export function showAchievementToast(ach) {
 
     toast.innerHTML = `
         <div style="font-size:0.65rem;color:#ffd700;letter-spacing:1px;margin-bottom:4px;">${newAchievementLabel[currentLang] || newAchievementLabel.en}</div>
-        <div style="font-size:1.3rem;margin-bottom:2px;">${ach.icon}</div>
+        <div class="ach-pop-icon" style="font-size:1.6rem;margin-bottom:2px;">${ach.icon}</div>
         <div style="font-weight:bold;color:#ffd700;">${ach.name}</div>
         <div style="font-size:0.7rem;opacity:0.75;margin-top:2px;">${ach.desc}</div>
     `;
 
+    toast.classList.add('ach-shine');
     container.appendChild(toast);
+    setTimeout(() => { try { sparkleAt(toast, { colors: ['#ffd166', '#ffe600', '#fff'] }); } catch (e) {} }, 250);
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transition = 'opacity 0.5s ease';

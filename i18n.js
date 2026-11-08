@@ -362,6 +362,8 @@ const STRINGS = {
     msgRepairFlat: { he: 'תיקון +20', en: 'REPAIR +20' },
     msgVortex: { he: 'לייזר ורטקס: {n} חיסולים!', en: 'VORTEX LASER: {n} KILLS!' },
     msgChaos: { he: 'כאוס! +{n} נק׳', en: 'CHAOS! +{n} PTS' },
+    newShipTitle: { he: '✨ ספינה חדשה! ✨', en: '✨ NEW SHIP! ✨' },
+    levelUpTitle: { he: 'שלב {n}!', en: 'LEVEL {n}!' },
 };
 
 // ---------- Runtime ----------
