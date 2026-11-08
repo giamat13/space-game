@@ -1,0 +1,914 @@
+{
+  "subjects": {
+    "math": {
+      "name": "Math",
+      "grades": {
+        "2": [
+          {
+            "question": "What is 2 × 3?",
+            "options": [
+              "4",
+              "5",
+              "6",
+              "8"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 5 × 2?",
+            "options": [
+              "7",
+              "8",
+              "10",
+              "12"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 10 × 4?",
+            "options": [
+              "14",
+              "30",
+              "40",
+              "44"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 2 × 7?",
+            "options": [
+              "9",
+              "12",
+              "14",
+              "16"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 5 × 5?",
+            "options": [
+              "10",
+              "20",
+              "25",
+              "30"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 10 × 7?",
+            "options": [
+              "17",
+              "60",
+              "70",
+              "77"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 2 × 9?",
+            "options": [
+              "11",
+              "16",
+              "18",
+              "20"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 5 × 8?",
+            "options": [
+              "35",
+              "38",
+              "40",
+              "45"
+            ],
+            "correctIndex": 2
+          }
+        ],
+        "3": [
+          {
+            "question": "What is 3 × 4?",
+            "options": [
+              "7",
+              "10",
+              "12",
+              "15"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 4 × 6?",
+            "options": [
+              "20",
+              "22",
+              "24",
+              "26"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 6 × 7?",
+            "options": [
+              "36",
+              "40",
+              "42",
+              "48"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 3 × 8?",
+            "options": [
+              "21",
+              "22",
+              "24",
+              "27"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 4 × 9?",
+            "options": [
+              "32",
+              "34",
+              "36",
+              "40"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 6 × 5?",
+            "options": [
+              "24",
+              "28",
+              "30",
+              "36"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 3 × 7?",
+            "options": [
+              "18",
+              "20",
+              "21",
+              "24"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 4 × 4?",
+            "options": [
+              "8",
+              "12",
+              "16",
+              "20"
+            ],
+            "correctIndex": 2
+          }
+        ],
+        "4": [
+          {
+            "question": "What is 7 × 8?",
+            "options": [
+              "48",
+              "54",
+              "56",
+              "63"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 9 × 6?",
+            "options": [
+              "48",
+              "52",
+              "54",
+              "58"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 8 × 8?",
+            "options": [
+              "56",
+              "60",
+              "64",
+              "72"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 7 × 9?",
+            "options": [
+              "54",
+              "60",
+              "63",
+              "72"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 9 × 9?",
+            "options": [
+              "72",
+              "78",
+              "81",
+              "90"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 8 × 6?",
+            "options": [
+              "42",
+              "46",
+              "48",
+              "54"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 7 × 7?",
+            "options": [
+              "42",
+              "46",
+              "49",
+              "56"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is 9 × 8?",
+            "options": [
+              "63",
+              "70",
+              "72",
+              "81"
+            ],
+            "correctIndex": 2
+          }
+        ]
+      }
+    },
+    "science": {
+      "name": "Science",
+      "grades": {
+        "1": [
+          {
+            "question": "How many legs does an insect have?",
+            "options": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What color is the sky on a clear day?",
+            "options": [
+              "Green",
+              "Blue",
+              "Red",
+              "Yellow"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What grows from a seed?",
+            "options": [
+              "A stone",
+              "Water",
+              "A plant",
+              "A cloud"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "Which animal sleeps through the winter?",
+            "options": [
+              "Fish",
+              "Bear",
+              "Dog",
+              "Chicken"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "Which part of a plant absorbs water from the soil?",
+            "options": [
+              "Flower",
+              "Leaf",
+              "Root",
+              "Stem"
+            ],
+            "correctIndex": 2
+          }
+        ],
+        "2": [
+          {
+            "question": "What happens to a burning candle when oxygen is removed?",
+            "options": [
+              "Burns brighter",
+              "Goes out",
+              "Changes color",
+              "Explodes"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "Which material conducts electricity?",
+            "options": [
+              "Wood",
+              "Plastic",
+              "Copper",
+              "Rubber"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is the shape of the Earth?",
+            "options": [
+              "Flat",
+              "Square",
+              "Spherical",
+              "Triangular"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "Which of these are mammals?",
+            "options": [
+              "Snake and crocodile",
+              "Dog and whale",
+              "Bird and fish",
+              "Insect and spider"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What do we breathe in?",
+            "options": [
+              "Carbon dioxide",
+              "Nitrogen only",
+              "Oxygen",
+              "Hydrogen"
+            ],
+            "correctIndex": 2
+          }
+        ],
+        "3": [
+          {
+            "question": "What is the state of matter of water at 100°C?",
+            "options": [
+              "Solid",
+              "Liquid",
+              "Gas",
+              "Plasma"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What force pulls objects toward the Earth?",
+            "options": [
+              "Magnetism",
+              "Electricity",
+              "Gravity",
+              "Friction"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "How many planets are in the solar system?",
+            "options": [
+              "6",
+              "7",
+              "8",
+              "9"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What allows plants to perform photosynthesis?",
+            "options": [
+              "Roots",
+              "Flowers",
+              "Chlorophyll",
+              "Tree trunk"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "Which is the closest star to Earth?",
+            "options": [
+              "The Moon",
+              "The Sun",
+              "Mars",
+              "Venus"
+            ],
+            "correctIndex": 1
+          }
+        ],
+        "4": [
+          {
+            "question": "What is the first stage of the water cycle?",
+            "options": [
+              "Condensation",
+              "Rain",
+              "Evaporation",
+              "Absorption"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "How many hearts does an octopus have?",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is the role of red blood cells?",
+            "options": [
+              "Fight bacteria",
+              "Carry oxygen",
+              "Clot blood",
+              "Digest food"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the ozone layer?",
+            "options": [
+              "A rain cloud",
+              "A layer of gas that protects from radiation",
+              "A sea at the North Pole",
+              "A volcano"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the largest planet in the solar system?",
+            "options": [
+              "Saturn",
+              "Neptune",
+              "Earth",
+              "Jupiter"
+            ],
+            "correctIndex": 3
+          }
+        ],
+        "5": [
+          {
+            "question": "What is the chemical formula of water?",
+            "options": [
+              "CO2",
+              "H2O",
+              "O2",
+              "NaCl"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the unit of force?",
+            "options": [
+              "Kilogram",
+              "Watt",
+              "Newton",
+              "Pascal"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "How many chromosomes are in a normal human cell?",
+            "options": [
+              "23",
+              "46",
+              "48",
+              "36"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the speed of light?",
+            "options": [
+              "300,000 km/s",
+              "30,000 km/s",
+              "3,000 km/s",
+              "300 km/s"
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What is photosynthesis?",
+            "options": [
+              "Plant respiration",
+              "Producing food using sunlight",
+              "Absorbing water through roots",
+              "Plants blooming"
+            ],
+            "correctIndex": 1
+          }
+        ],
+        "6": [
+          {
+            "question": "What is an atom?",
+            "options": [
+              "The smallest molecule",
+              "The basic unit of matter",
+              "A particle with no mass",
+              "A single electron"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What does the cell nucleus contain?",
+            "options": [
+              "Proteins only",
+              "DNA",
+              "Water",
+              "Carbohydrates"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "Which body system is responsible for transporting oxygen?",
+            "options": [
+              "Digestive system",
+              "Nervous system",
+              "Circulatory system",
+              "Skeletal system"
+            ],
+            "correctIndex": 2
+          },
+          {
+            "question": "What is the difference between a bacterium and a virus?",
+            "options": [
+              "No difference",
+              "A bacterium is a living cell, a virus is not a cell",
+              "A virus is bigger",
+              "Bacteria don't cause disease"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What happens when pH = 7?",
+            "options": [
+              "Strong acid",
+              "Strong base",
+              "Neutral",
+              "Weak acid"
+            ],
+            "correctIndex": 2
+          }
+        ],
+        "7": [
+          {
+            "question": "What is one of the main roles of the cell membrane?",
+            "options": [
+              "Allows selective entry and exit of substances.",
+              "Produces energy for the cell.",
+              "Contains the hereditary information.",
+              "Rigidly protects against external damage."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "Which cell component is described as the fluid that fills the cell and holds the organelles?",
+            "options": [
+              "Cytoplasm.",
+              "Vacuole.",
+              "Nucleus.",
+              "Cell membrane."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What is the cell nucleus responsible for?",
+            "options": [
+              "Controlling all processes in the cell, such as growth and reproduction.",
+              "Producing sugars in photosynthesis.",
+              "Providing internal mechanical support.",
+              "Producing available energy for the cell."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What is the role of mitochondria in the cell?",
+            "options": [
+              "Serving as the cell's \"power plant\" and producing energy.",
+              "Absorbing sunlight and producing food.",
+              "Storing water and dissolved substances.",
+              "Separating the cell's surroundings from its interior."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What is one of the roles of the plant cell wall?",
+            "options": [
+              "Protecting against external damage and giving the cell stability.",
+              "Enabling communication between the cell and its environment.",
+              "Breaking down and rebuilding molecules.",
+              "Storing hereditary information."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "Which process occurs in chloroplasts and what is its main product?",
+            "options": [
+              "Photosynthesis, producing sugars.",
+              "Cellular respiration, producing energy.",
+              "Metabolism, producing proteins.",
+              "Reproduction, creating new cells."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What does the vacuole in a plant cell mainly contain?",
+            "options": [
+              "Mostly water with various dissolved substances.",
+              "Only hereditary information.",
+              "Only chlorophyll.",
+              "Only mitochondria."
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "Which of the following is common to both animal and plant cells?",
+            "options": [
+              "Mitochondria.",
+              "Cell wall.",
+              "Chloroplasts.",
+              "Vacuole."
+            ],
+            "correctIndex": 0
+          }
+        ],
+        "8": [
+          {
+            "question": "What does the periodic table represent?",
+            "options": [
+              "Molecules only",
+              "Chemical elements by atomic number",
+              "Chemical compounds",
+              "Chemical reactions"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is mitosis?",
+            "options": [
+              "Division of a cell into two sex cells",
+              "Division of a cell into two identical cells",
+              "Cell death",
+              "Fusion of two cells"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the formula of Ohm's law?",
+            "options": [
+              "P = IV",
+              "V = IR",
+              "F = ma",
+              "E = mc²"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is DNA?",
+            "options": [
+              "A protein found in the nucleus",
+              "A molecule that carries genetic information",
+              "A simple sugar",
+              "A fat in the cell membrane"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is an endothermic reaction?",
+            "options": [
+              "A reaction that releases heat",
+              "A reaction that absorbs heat",
+              "A physical reaction",
+              "A reaction with no energy change"
+            ],
+            "correctIndex": 1
+          }
+        ],
+        "9": [
+          {
+            "question": "What does E=mc² mean?",
+            "options": [
+              "Speed equals mass times energy",
+              "Energy equals mass times the speed of light squared",
+              "Energy equals mass only",
+              "Energy equals speed"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is evolution according to Darwin?",
+            "options": [
+              "A deliberate change in organisms",
+              "Natural selection of adapted traits",
+              "Creation of new species by humans",
+              "Only sudden, abrupt change"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is Avogadro's number?",
+            "options": [
+              "6.02×10²³",
+              "3×10⁸",
+              "1.6×10⁻¹⁹",
+              "9.8"
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What are electromagnetic waves?",
+            "options": [
+              "Waves that need matter to travel",
+              "Waves that can travel through empty space",
+              "High-frequency sound waves",
+              "Waves only in the sea"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is meiosis?",
+            "options": [
+              "Division that creates sex cells with half the chromosomes",
+              "Ordinary cell division",
+              "Programmed cell death",
+              "DNA replication only"
+            ],
+            "correctIndex": 0
+          }
+        ],
+        "10": [
+          {
+            "question": "What is the law of conservation of energy?",
+            "options": [
+              "Energy can be created from nothing",
+              "The total energy in a closed system is constant",
+              "Energy disappears through friction",
+              "Kinetic energy is always greater than potential"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is a covalent bond?",
+            "options": [
+              "Transfer of electrons between atoms",
+              "Sharing of an electron pair between atoms",
+              "Attraction between opposite ions",
+              "A bond between metals"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the role of enzymes?",
+            "options": [
+              "Storing energy",
+              "Speeding up biological chemical reactions",
+              "Carrying oxygen in the blood",
+              "Building cell membranes"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is ATP synthesis?",
+            "options": [
+              "Breaking down ATP into energy",
+              "Creating ATP to store energy",
+              "Transporting oxygen in the cell",
+              "DNA replication"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the wavelength range of visible light?",
+            "options": [
+              "1nm – 100nm",
+              "400nm – 700nm",
+              "1mm – 1cm",
+              "100μm – 1mm"
+            ],
+            "correctIndex": 1
+          }
+        ],
+        "11": [
+          {
+            "question": "What is Heisenberg's uncertainty principle?",
+            "options": [
+              "Position and momentum cannot both be measured with absolute precision at once",
+              "Every measurement is always exact",
+              "Electrons move in fixed orbits",
+              "Energy is not conserved at the quantum level"
+            ],
+            "correctIndex": 0
+          },
+          {
+            "question": "What is a redox reaction?",
+            "options": [
+              "A reaction with no electron change",
+              "Transfer of electrons between reactants",
+              "An acid-base reaction",
+              "Breaking a compound into atoms"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is a dominant gene?",
+            "options": [
+              "A gene expressed only in homozygotes",
+              "A gene expressed even in heterozygotes",
+              "A gene on the X chromosome",
+              "A gene that causes disease"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is a photon?",
+            "options": [
+              "An elementary particle of gravitational energy",
+              "A particle of light (a quantum of electromagnetic radiation)",
+              "A positively charged electron",
+              "A hydrogen nucleus"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the difference between RNA and DNA?",
+            "options": [
+              "No difference",
+              "RNA is single-stranded and contains ribose, DNA is double-stranded and contains deoxyribose",
+              "DNA is single-stranded, RNA is double-stranded",
+              "Both contain thymine"
+            ],
+            "correctIndex": 1
+          }
+        ],
+        "12": [
+          {
+            "question": "What is quantum gravity (QGD)?",
+            "options": [
+              "A proven theory that unites gravity and quantum mechanics",
+              "An open research field aiming to unify general relativity and quantum mechanics",
+              "A fully proven physical law",
+              "A theory rejected by science"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the Krebs cycle?",
+            "options": [
+              "A pathway for fat synthesis",
+              "A metabolic cycle producing ATP in cellular respiration",
+              "A photosynthesis process",
+              "A pathway for DNA synthesis"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the difference between nuclear fission and fusion?",
+            "options": [
+              "Fission joins nuclei, fusion splits them",
+              "Fission splits a heavy nucleus, fusion joins light nuclei",
+              "They are identical",
+              "Fission yields less energy than fusion"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is transcription in molecular biology?",
+            "options": [
+              "Translation of mRNA into protein",
+              "Copying DNA into mRNA",
+              "DNA replication",
+              "Movement of a protein within the cell"
+            ],
+            "correctIndex": 1
+          },
+          {
+            "question": "What is the second law of thermodynamics?",
+            "options": [
+              "Energy is conserved",
+              "The entropy (disorder) of a closed system always increases",
+              "Heat flows from cold to hot",
+              "Energy can be created from nothing"
+            ],
+            "correctIndex": 1
+          }
+        ]
+      }
+    }
+  }
+}
