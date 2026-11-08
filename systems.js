@@ -154,6 +154,7 @@ export function damagePlayer(amount, source = 'unknown') {
                     startTime: state.startTime || null,
                     upgrades: dataModule.getOwnedUpgrades(),
                     hpLevel: dataModule.getHPLevel(skinKey),
+                    bossKilled: !!state.bossDone,
                     // Input devices actually used this game (keyboard / gamepad)
                     inputMethods: [
                         ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
@@ -237,7 +238,7 @@ export function damagePlayer(amount, source = 'unknown') {
 
         DOM.overlay.style.display = 'flex';
         document.getElementById('title').innerText = t('gameOverTitle');
-        window.__resetBoss?.();
+        window.__hideBoss?.();
         document.getElementById('sub-title').innerHTML = `${t('shipDestroyed')}<br>${t('finalScore')} ${state.score}<br>${t('levelWord')} ${state.level}`;
         document.getElementById('leaderboard-container').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';

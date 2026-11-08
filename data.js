@@ -171,6 +171,7 @@ export const SPEEDRUN_GOALS = [
     { key: 'score_1m', get label() { return tf('goalPts', { n: (1_000_000).toLocaleString() }); }, icon: '🎯', type: 'score', target: 1_000_000 },
     { key: 'level_10', get label() { return tf('goalLevel', { n: 10 }); }, icon: '📈', type: 'level', target: 10 },
     { key: 'level_50', get label() { return tf('goalLevel', { n: 50 }); }, icon: '📈', type: 'level', target: 50 },
+    { key: 'boss_cube_king', get label() { return t('goalBoss'); }, icon: '👑', type: 'boss', target: 1 },
     { key: 'level_100', get label() { return tf('goalLevel', { n: 100 }); }, icon: '📈', type: 'level', target: 100 },
 ];
 

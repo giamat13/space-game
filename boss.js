@@ -46,6 +46,13 @@ export function resetBoss() {
     document.getElementById('boss-hud')?.remove();
 }
 
+// Game over: remove the boss from the screen but keep state.bossDone for the result being saved.
+export function hideBoss() {
+    if (state.boss) state.boss.el.remove();
+    state.boss = null;
+    document.getElementById('boss-hud')?.remove();
+}
+
 function spawnBoss(now) {
     const stats = state.currentSkinStats || { fireRate: 1, bulletDamage: 1 };
     const power = Math.max(1, (stats.bulletDamage || 1) * (stats.fireRate || 1));

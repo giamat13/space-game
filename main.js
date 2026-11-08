@@ -6,8 +6,9 @@ import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
-import { updateBoss, resetBoss } from './boss.js';
+import { updateBoss, resetBoss, hideBoss } from './boss.js';
 window.__resetBoss = resetBoss;
+window.__hideBoss = hideBoss;
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -1225,6 +1226,7 @@ function _renderLbContent() {
             ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduDisplay = entry.settings?.eduEnabled
             ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
+        const bossDisplay = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputDisplay = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
@@ -1241,7 +1243,7 @@ function _renderLbContent() {
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
-                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${inputDisplay}
+                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${bossDisplay}${inputDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
@@ -1293,7 +1295,7 @@ function checkSpeedrunMilestones() {
     let hitAny = false;
     for (const goal of allGoals) {
         if (state.speedrunHits[goal.key] != null) continue;
-        const val = goal.type === 'score' ? state.score : state.level;
+        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossDone ? 1 : 0) : state.level;
         if (val >= goal.target) {
             const elapsed = Date.now() - state.startTime;
             state.speedrunHits[goal.key] = elapsed;
@@ -3603,6 +3605,7 @@ function renderHistoryList() {
         const showDevice = _histFilters.device === 'all';
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
+        const bossTagH = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
@@ -3615,7 +3618,7 @@ function renderHistoryList() {
                     <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.6">${tf('levelN', { n: entry.level })}</span>
                     <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
-                    ${upgradesTag}${coinsTag}${deviceTag}${inputTagHtml}
+                    ${upgradesTag}${coinsTag}${deviceTag}${bossTagH}${inputTagHtml}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
@@ -3657,6 +3660,7 @@ function renderBestsList(skinKey) {
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
+        const bossTag = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
@@ -3667,7 +3671,7 @@ function renderBestsList(skinKey) {
                     <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.65">${tf('levelN', { n: entry.level })}</span>
                     ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
-                    ${upgradesTag}${deviceTag}${eduTag}${inputTagHtml}
+                    ${upgradesTag}${deviceTag}${eduTag}${bossTag}${inputTagHtml}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
