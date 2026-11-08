@@ -1526,6 +1526,7 @@ async function initGame() {
     // Apply the latest cloud shop purchases (any device) before the run starts
     try { await Promise.race([pullShopState(), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* offline */ }
     resetState();
+    applyPendingStartLevel();
     
     // ===== ANALYTICS: start session =====
     startAnalyticsSession(currentSkinKey, currentUser?.displayName || 'Anonymous', {
@@ -1554,7 +1555,7 @@ async function initGame() {
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
 
-    DOM.scoreEl.innerText = '0';
+    DOM.scoreEl.innerText = String(state.score);
     DOM.levelEl.innerText = state.level;
     updateHPUI();
     updateAmmoUI();
@@ -2367,6 +2368,39 @@ window.setLvl = function(lvlNum) {
 };
 
 
+// startLvl(n): the NEXT game starts at level n. Such games are marked as debug games,
+// so their results are never saved to the leaderboards. startLvl() / startLvl(0) cancels.
+let _pendingStartLevel = null;
+window.startLvl = window.startlvl = function(n) {
+    if (n === undefined || n === null || Number(n) === 0) {
+        _pendingStartLevel = null;
+        console.log('✅ [DEBUG] Start level cleared - next game starts normally');
+        return true;
+    }
+    const level = Math.floor(Number(n));
+    if (!Number.isFinite(level) || level < 1 || level > 1000) {
+        console.error('❌ [DEBUG] Invalid level! Use a number between 1 and 1000');
+        return false;
+    }
+    _pendingStartLevel = level;
+    console.log(`✅ [DEBUG] Next game will start at level ${level}`);
+    console.log('⚠️ [DEBUG] Games started this way are NOT saved to the leaderboards');
+    return true;
+};
+
+function applyPendingStartLevel() {
+    if (_pendingStartLevel == null) return;
+    const level = _pendingStartLevel;
+    _pendingStartLevel = null;
+    state.level = level;
+    state.lastLevelScore = (level - 1) * 1000;
+    state.score = state.lastLevelScore;
+    state.speedMult = 1 + ((level - 1) * 0.2);
+    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    state.isDebugGame = true;   // never saved to leaderboards / history / speedruns
+    saveMaxLevel(level);
+}
+
 window.spawn = function(type) {
     if (!state.active) {
         console.error('❌ [DEBUG] Game must be active! Start a game first.');
@@ -2489,6 +2523,7 @@ console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
+console.log('  - startLvl(number) - Next game starts at this level (not saved to leaderboards); startLvl() cancels');
 console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "red", "orange"/"elite", "green", "blue"');
 console.log('  - DebugUnlockEdu() - Remove the education lock on this device');
 console.log('  - DebugAddMoney(number) - Add coins to your balance');
