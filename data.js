@@ -15,6 +15,8 @@ export const DOM = {
     ammoText: document.getElementById('ammo-text')
 };
 
+import { t, tf } from './i18n.js';
+
 // Import Firestore sync functions
 import {
     syncUnlockedSkins,
@@ -46,11 +48,11 @@ export const SKINS = {
               </svg>`,
         color: '#00f2ff',
         unlockLevel: 0,
-        name: 'Classic',
+        get name() { return t('skinClassic'); },
         fireRate: 1.0,
         bulletSpeed: 1.0,
         bulletDamage: 1.0,
-        description: 'Balanced fighter'
+        get description() { return t('skinDescClassic'); }
     },
     interceptor: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #ff00ea);">
@@ -59,11 +61,11 @@ export const SKINS = {
               </svg>`,
         color: '#ff00ea',
         unlockLevel: 0,
-        name: 'Interceptor',
+        get name() { return t('skinInterceptor'); },
         fireRate: 1.0,
         bulletSpeed: 1.0,
         bulletDamage: 1.0,
-        description: 'Speed variant'
+        get description() { return t('skinDescInterceptor'); }
     },
     tanker: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #2ecc71);">
@@ -73,11 +75,11 @@ export const SKINS = {
               </svg>`,
         color: '#2ecc71',
         unlockLevel: 0,
-        name: 'Tanker',
+        get name() { return t('skinTanker'); },
         fireRate: 1.0,
         bulletSpeed: 1.0,
         bulletDamage: 1.0,
-        description: 'Heavy armor'
+        get description() { return t('skinDescTanker'); }
     },
     phoenix: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 15px #ff6b35);">
@@ -98,11 +100,11 @@ export const SKINS = {
               </svg>`,
         color: '#ff6b35',
         unlockLevel: 3,
-        name: 'Phoenix',
+        get name() { return t('skinPhoenix'); },
         fireRate: 1.3,
         bulletSpeed: 1.2,
         bulletDamage: 1.5,
-        description: '⚡ Faster fire rate | 🔥 More damage'
+        get description() { return t('skinDescPhoenix'); }
     },
     vortex: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 20px #9b59b6);">
@@ -122,12 +124,12 @@ export const SKINS = {
               </svg>`,
         color: '#9b59b6',
         unlockLevel: 5,
-        name: 'Vortex',
+        get name() { return t('skinVortex'); },
         fireRate: 1.6,
         bulletSpeed: 1.4,
         bulletDamage: 2.0,
         maxHP: 400,
-        description: '⚡⚡ Ultra-fast fire | 💥 2X dmg | ❤️ 2X HP'
+        get description() { return t('skinDescVortex'); }
     },
     joker: {
         svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 25px #ff4500);">
@@ -157,25 +159,25 @@ export const SKINS = {
               </svg>`,
         color: '#ff4500',
         unlockLevel: 10,
-        name: 'joker',
+        get name() { return t('skinJoker'); },
         fireRate: 2.0,
         bulletSpeed: 1.6,
         bulletDamage: 3.0,
         maxHP: 600,
         isFire: true,
-        description: '🃏 CHAOS MODE (45s CD) | 🔥🔥🔥 Fire bullets | ⚡⚡⚡ 2X fire rate | 💥 3X dmg | ❤️❤️❤️ 3 lives!'
+        get description() { return t('skinDescJoker'); }
     },
     dragon: {
         svg: `<img src="dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
         unlockLevel: 25,
-        name: 'Dragon',
+        get name() { return t('skinDragon'); },
         fireRate: 2.2,
         bulletSpeed: 1.8,
         bulletDamage: 5.0,
         maxHP: 800,
         isFire: true,
-        description: '🐉 DRAGON INFERNO (25s CD) | 🔥 Fire in ALL directions | 🛡️ 10s invincibility | ⚡ Superior in everything'
+        get description() { return t('skinDescDragon'); }
     }
 };
 
@@ -226,24 +228,28 @@ export let keyBindings = {
 
 // ===== SPEEDRUN GOALS =====
 export const SPEEDRUN_GOALS = [
-    { key: 'score_10k',  label: '10,000 נק׳',     icon: '🎯', type: 'score', target: 10_000   },
-    { key: 'score_100k', label: '100,000 נק׳',    icon: '🎯', type: 'score', target: 100_000  },
-    { key: 'score_1m',   label: '1,000,000 נק׳',  icon: '🎯', type: 'score', target: 1_000_000 },
-    { key: 'level_10',   label: 'שלב 10',          icon: '📈', type: 'level', target: 10       },
-    { key: 'level_50',   label: 'שלב 50',          icon: '📈', type: 'level', target: 50       },
-    { key: 'level_100',  label: 'שלב 100',         icon: '📈', type: 'level', target: 100      },
+    { key: 'score_10k', get label() { return tf('goalPts', { n: (10_000).toLocaleString() }); }, icon: '🎯', type: 'score', target: 10_000 },
+    { key: 'score_100k', get label() { return tf('goalPts', { n: (100_000).toLocaleString() }); }, icon: '🎯', type: 'score', target: 100_000 },
+    { key: 'score_1m', get label() { return tf('goalPts', { n: (1_000_000).toLocaleString() }); }, icon: '🎯', type: 'score', target: 1_000_000 },
+    { key: 'level_10', get label() { return tf('goalLevel', { n: 10 }); }, icon: '📈', type: 'level', target: 10 },
+    { key: 'level_50', get label() { return tf('goalLevel', { n: 50 }); }, icon: '📈', type: 'level', target: 50 },
+    { key: 'level_100', get label() { return tf('goalLevel', { n: 100 }); }, icon: '📈', type: 'level', target: 100 },
 ];
 
 export function getCustomSpeedrunGoals() {
     const saved = getCookie('customSpeedrunGoals');
-    return saved ? JSON.parse(saved) : [];
+    const goals = saved ? JSON.parse(saved) : [];
+    // Labels are derived at read time so they follow the current UI language.
+    return goals.map(g => ({ ...g, label: g.type === 'score'
+        ? tf('goalPts', { n: Number(g.target).toLocaleString() })
+        : tf('goalLevel', { n: g.target }) }));
 }
 
 export function addCustomSpeedrunGoal(type, target) {
     const goals = getCustomSpeedrunGoals();
     const key = `custom_${type}_${target}`;
     if (goals.find(g => g.key === key)) return null;
-    const label = type === 'score' ? `${Number(target).toLocaleString()} נק׳` : `שלב ${target}`;
+    const label = type === 'score' ? tf('goalPts', { n: Number(target).toLocaleString() }) : tf('goalLevel', { n: target });
     const goal = { key, label, icon: '⭐', type, target: Number(target) };
     goals.push(goal);
     setCookie('customSpeedrunGoals', JSON.stringify(goals));

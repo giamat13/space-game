@@ -1,5 +1,5 @@
 import { DOM, state, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
-import { t } from './i18n.js';
+import { t, tf } from './i18n.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal, registerJokerKill } from './systems.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
@@ -132,7 +132,7 @@ export function updateEnemyBullets() {
                     eb.el.style.height = '14px';
                     eb.el.style.borderRadius = '50%';
                     createExplosion(eb.x, eb.y, '#ffaa33');
-                    showFloatingMessage('🛡️ RICOCHET!', eb.x - 50, eb.y, '#ffaa33');
+                    showFloatingMessage(t('msgRicochet'), eb.x - 50, eb.y, '#ffaa33');
                     continue;
                 }
                 damagePlayer(15, 'enemy_bullet');
@@ -299,7 +299,7 @@ export function updateBurgers() {
                 if (state.burgersEatenAtFullHP >= 3 && !state.isPlayerFat) {
                     state.isPlayerFat = true;
                     DOM.player.style.transform = 'scale(1.5)';
-                    showFloatingMessage("FAT! 🍔🍔🍔", state.playerX - 20, DOM.wrapper.clientHeight - 120, "#ff6b35");
+                    showFloatingMessage(t('msgFat'), state.playerX - 20, DOM.wrapper.clientHeight - 120, "#ff6b35");
                 }
             }
             
@@ -523,17 +523,17 @@ export function updateEnemies(now) {
                             const healAmount = state.playerMaxHP * 0.75;
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + healAmount);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
-                            showFloatingMessage("CRITICAL REPAIR +75%", eRect.left, eRect.top, explodeColor);
+                            showFloatingMessage(t('msgCritRepair'), eRect.left, eRect.top, explodeColor);
                         } else {
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + flatHeal);
-                            showFloatingMessage(`REPAIR +${flatHeal} & ${points} PTS`, eRect.left, eRect.top, explodeColor);
+                            showFloatingMessage(tf('msgRepairPts', { h: flatHeal, p: points }), eRect.left, eRect.top, explodeColor);
                         }
                         updateHPUI();
                     } else {
                         if (crossedHealThreshold) {
                             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 20);
                             state.lastHealScore = Math.floor(state.score / 300) * 300;
-                            showFloatingMessage("REPAIR +20", eRect.left, eRect.top, "var(--health)");
+                            showFloatingMessage(t('msgRepairFlat'), eRect.left, eRect.top, "var(--health)");
                             updateHPUI();
                         }
                     }
@@ -567,7 +567,7 @@ export function updateLightnings() {
               lRect.bottom < pRect.top || lRect.top > pRect.bottom)) {
             state.ammo = state.maxAmmo;
             updateAmmoUI();
-            showFloatingMessage('⚡ AMMO FULL!', state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
+            showFloatingMessage(t('msgAmmoFull'), state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
             createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000');
             lt.el.remove();
             state.lightnings.splice(i, 1);

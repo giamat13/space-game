@@ -5,7 +5,7 @@ import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, up
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
-import { t, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
+import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
     trackPauseEnd, trackScoreUpdate, trackAbilityUsed
@@ -129,13 +129,13 @@ let _esActiveFilter = 'all';
 // EXCEPT for filters with meaningful defaults (edu=off, upgrades=none, rules=defaults, rightClick=true).
 
 const FILTER_CATS = [
-    { key: 'device',   icon: '📱', label: 'Device'   },
-    { key: 'rules',    icon: '📜', label: 'Rules'   },
-    { key: 'controls', icon: '🎮', label: 'Controls'   },
-    { key: 'edu',      icon: '📚', label: 'Education'  },
-    { key: 'lang',     icon: '🌐', label: 'Language'     },
-    { key: 'upgrades', icon: '🛍️', label: 'Upgrades' },
-    { key: 'hpLevel',  icon: '❤️', label: 'HP Level' },
+    { key: 'device',   icon: '📱', get label() { return t('fcDevice'); } },
+    { key: 'rules',    icon: '📜', get label() { return t('fcRules'); } },
+    { key: 'controls', icon: '🎮', get label() { return t('fcControls'); } },
+    { key: 'edu',      icon: '📚', get label() { return t('fcEdu'); } },
+    { key: 'lang',     icon: '🌐', get label() { return t('fcLang'); } },
+    { key: 'upgrades', icon: '🛍️', get label() { return t('fcUpgrades'); } },
+    { key: 'hpLevel',  icon: '❤️', get label() { return t('fcHp'); } },
 ];
 
 function defaultFilters() {
@@ -187,19 +187,19 @@ function renderCatPanel(catKey, filters, cid) {
     const f = filters;
     switch (catKey) {
         case 'device': {
-            const note = `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">No settings → shown only in "All"</div>`;
+            const note = `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">${t('flNoSettingsAll')}</div>`;
             return note + `<div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${[['all','All'],['mobile','📱 Mobile'],['desktop','🖥️ Desktop']].map(([v,lbl]) =>
+                ${[['all',t('esFilterAll')],['mobile',t('flMobile')],['desktop',t('flDesktop')]].map(([v,lbl]) =>
                     `<button class="es-filter${f.device===v?' active':''}" onclick="window.__filterSet('${cid}','device','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
         }
 
         case 'rules': {
             const RULES = {
-                enemiesShootThroughAsteroids: 'Enemies shoot through asteroids',
-                playerShootThroughAsteroids:  'Player shoots through asteroids',
+                enemiesShootThroughAsteroids: t('flRuleEnemies'),
+                playerShootThroughAsteroids:  t('flRulePlayer'),
             };
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=Any &nbsp;✅=Yes &nbsp;🚫=No &nbsp;· No settings → defaults</div>` +
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">${t('flTriRules')}</div>` +
                 Object.entries(RULES).map(([key, label]) => {
                     const cur = (f.rules||{})[key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -218,41 +218,41 @@ function renderCatPanel(catKey, filters, cid) {
             const gpS  = gamepadF   !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
             return `<div style="display:flex;flex-direction:column;gap:7px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">Control type:</span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">${t('flCtrlType')}</span>
                     <div style="display:flex;gap:3px;">
-                        ${[['any','All'],['mouse','🖱️ Mouse'],['arrows','⬆️ Arrows']].map(([v,lbl]) =>
+                        ${[['any',t('esFilterAll')],['mouse',t('flMouse')],['arrows',t('flArrows')]].map(([v,lbl]) =>
                             `<button class="es-filter${ctrlType===v?' active':''}" onclick="window.__filterSetCtrl('${cid}','controlType','${v}')">${lbl}</button>`
                         ).join('')}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">Right-click:</span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">${t('flRightClick')}</span>
                     <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','rightClickAbility')"
                         style="font-size:1rem;padding:2px 8px;min-width:36px${rcS}">${_boolIcon[rightClick]}</button>
-                    <span style="font-size:0.63rem;opacity:0.45;">⬜=Any ✅=Yes 🚫=No &nbsp;· No settings → Yes</span>
+                    <span style="font-size:0.63rem;opacity:0.45;">${t('flTriRightClick')}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">🎮 Controller:</span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;min-width:78px;">${t('flController')}</span>
                     <button class="es-filter" onclick="window.__filterBoolState('${cid}','controls','gamepadUsed')"
                         style="font-size:1rem;padding:2px 8px;min-width:36px${gpS}">${_boolIcon[gamepadF]}</button>
-                    <span style="font-size:0.63rem;opacity:0.45;">⬜=Any ✅=Used 🚫=Not used &nbsp;· No settings → Not used</span>
+                    <span style="font-size:0.63rem;opacity:0.45;">${t('flTriController')}</span>
                 </div>
             </div>`;
         }
 
         case 'edu':
-            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">No settings → Off</div>
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">${t('flNoSettingsOff')}</div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                ${[['all','All'],['on','✅ On'],['off','❌ Off']].map(([v,lbl]) =>
+                ${[['all',t('esFilterAll')],['on',t('flOn')],['off',t('flOff')]].map(([v,lbl]) =>
                     `<button class="es-filter${f.edu===v?' active':''}" onclick="window.__filterSet('${cid}','edu','${v}')">${lbl}</button>`
                 ).join('')}</div>`;
 
         case 'lang': {
             const sel = Array.isArray(f.lang) ? f.lang : [];
             const isAll = sel.length === 0;
-            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">Multi-select · No settings → shown only in "All"</div>
+            return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">${t('flMulti')}</div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                    <button class="es-filter${isAll?' active':''}" onclick="window.__filterToggleLang('${cid}',null)">All</button>
+                    <button class="es-filter${isAll?' active':''}" onclick="window.__filterToggleLang('${cid}',null)">${t('esFilterAll')}</button>
                     ${LANGS.map(l =>
                         `<button class="es-filter${sel.includes(l.code)?' active':''}" onclick="window.__filterToggleLang('${cid}','${l.code}')">${l.flag} ${l.label}</button>`
                     ).join('')}
@@ -260,8 +260,8 @@ function renderCatPanel(catKey, filters, cid) {
         }
 
         case 'upgrades':
-            if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">No upgrades</span>`;
-            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">⬜=Any &nbsp;✅=Required &nbsp;🚫=Forbidden &nbsp;· No settings → No upgrades</div>` +
+            if (!Object.keys(UPGRADES).length) return `<span style="opacity:0.5;font-size:0.8rem;">${t('flNoUpgrades')}</span>`;
+            return `<div style="font-size:0.64rem;opacity:0.5;margin-bottom:5px;">${t('flTriUpgrades')}</div>` +
                 Object.values(UPGRADES).map(u => {
                     const cur = (f.upgrades||{})[u.key] || 'any';
                     const aS  = cur !== 'any' ? ';border-color:var(--primary);color:var(--primary)' : '';
@@ -277,7 +277,7 @@ function renderCatPanel(catKey, filters, cid) {
             return `<div style="font-size:0.63rem;opacity:0.45;margin-bottom:5px;">${t('lbFilterHPNote')}</div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;">
                     ${levels.map(v => {
-                        const label = v === 'any' ? t('lbFilterHPAny') : `LVL ${v}`;
+                        const label = v === 'any' ? t('lbFilterHPAny') : tf('levelN', { n: v });
                         const isActive = cur === v;
                         const aS = isActive ? ' active' : '';
                         return `<button class="es-filter${aS}" onclick="window.__filterSetHPLevel('${cid}',${JSON.stringify(v)})">${label}</button>`;
@@ -400,12 +400,12 @@ function renderFilterBar(containerId, filters, onChange) {
     el.innerHTML = `
         <details class="filter-bar">
             <summary style="cursor:pointer;font-size:0.78rem;opacity:0.8;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;justify-content:center;padding:4px 0;">
-                🔍 Filters${badge}
+                ${t('flFilters')}${badge}
             </summary>
             <div style="padding:8px 2px;">
                 <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:2px;">${catBtns}</div>
                 ${panels}
-                ${active > 0 ? `<div style="text-align:center;margin-top:8px;"><button class="es-filter" onclick="window.__filterReset('${containerId}')" style="color:#ff4d4d;border-color:#ff4d4d;">✕ Clear All</button></div>` : ''}
+                ${active > 0 ? `<div style="text-align:center;margin-top:8px;"><button class="es-filter" onclick="window.__filterReset('${containerId}')" style="color:#ff4d4d;border-color:#ff4d4d;">${t('flClear')}</button></div>` : ''}
             </div>
         </details>
     `;
@@ -524,18 +524,18 @@ let _lbSrSkinSel = [];        // skin filter for speedrun
 
 // All named skins (no 'overall' entry — 'overall' is the empty-selection state)
 const LB_SKINS = [
-    { key: 'classic',     label: 'Classic'     },
-    { key: 'interceptor', label: 'Interceptor' },
-    { key: 'tanker',      label: 'Tanker'      },
-    { key: 'phoenix',     label: 'Phoenix'     },
-    { key: 'vortex',      label: 'Vortex'      },
-    { key: 'joker',       label: 'Joker'       },
-    { key: 'dragon',      label: '🐉 Dragon'   },
+    { key: 'classic',     get label() { return t('skinClassic'); } },
+    { key: 'interceptor', get label() { return t('skinInterceptor'); } },
+    { key: 'tanker',      get label() { return t('skinTanker'); } },
+    { key: 'phoenix',     get label() { return t('skinPhoenix'); } },
+    { key: 'vortex',      get label() { return t('skinVortex'); } },
+    { key: 'joker',       get label() { return t('skinJoker'); } },
+    { key: 'dragon',      get label() { return '🐉 ' + t('skinDragon'); } },
 ];
 
 function _skinSubHtml(sel, onClickFn) {
     const isAll = sel.length === 0;
-    return `<button class="lb-tab${isAll?' active':''}" onclick="${onClickFn}(null)">🏆 כללי</button>` +
+    return `<button class="lb-tab${isAll?' active':''}" onclick="${onClickFn}(null)">${t('lbOverall')}</button>` +
         LB_SKINS.map(s =>
             `<button class="lb-tab${sel.includes(s.key)?' active':''}" onclick="${onClickFn}('${s.key}')">${s.label}</button>`
         ).join('');
@@ -545,9 +545,9 @@ function renderLbTabs() {
     const modeEl = document.getElementById('lb-mode-tabs');
     if (modeEl) {
         modeEl.innerHTML = [
-            { key: 'score',    label: '🏆 ניקוד'   },
-            { key: 'speedrun', label: '⚡ ספידראן' },
-            { key: 'money',    label: '💰 כסף'     },
+            { key: 'score',    label: t('lbModeScore')    },
+            { key: 'speedrun', label: t('lbModeSpeedrun') },
+            { key: 'money',    label: t('lbModeMoney')    },
         ].map(m =>
             `<button class="lb-tab${_lbMode===m.key?' active':''}" onclick="window.__lbSetMode('${m.key}')">${m.label}</button>`
         ).join('');
@@ -562,8 +562,8 @@ function renderLbTabs() {
     } else if (_lbMode === 'speedrun') {
         const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
         const goalBtns = allGoals.map(g =>
-            `<button class="lb-tab${_lbSrGoal===g.key?' active':''}${g.key.startsWith('custom_')?' style="border-style:dashed;"':''}" onclick="window.__lbSetGoal('${g.key}')">${g.icon} ${g.label}${g.key.startsWith('custom_')?` <span onclick="event.stopPropagation();window.__lbRemoveGoal('${g.key}')" style="opacity:0.5;margin-right:4px;" title="מחק">✕</span>`:''}</button>`
-        ).join('') + `<button class="lb-tab" onclick="window.__lbAddCustomGoal()" style="border-style:dashed;opacity:0.65;">＋ מותאם</button>`;
+            `<button class="lb-tab${_lbSrGoal===g.key?' active':''}${g.key.startsWith('custom_')?' style="border-style:dashed;"':''}" onclick="window.__lbSetGoal('${g.key}')">${g.icon} ${g.label}${g.key.startsWith('custom_')?` <span onclick="event.stopPropagation();window.__lbRemoveGoal('${g.key}')" style="opacity:0.5;margin-right:4px;" title="${t('lbDelete')}">✕</span>`:''}</button>`
+        ).join('') + `<button class="lb-tab" onclick="window.__lbAddCustomGoal()" style="border-style:dashed;opacity:0.65;">${t('lbCustom')}</button>`;
 
         const skinBtns = `<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:5px;padding-top:5px;display:flex;gap:4px;flex-wrap:wrap;justify-content:center;font-size:0.75rem;">
             ${_skinSubHtml(_lbSrSkinSel, 'window.__lbSrToggleSkin')}
@@ -623,12 +623,12 @@ window.__lbAddCustomGoal = function() {
     form.style.cssText = 'margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;';
     form.innerHTML = `
         <select id="sr-goal-type" style="padding:4px 8px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;">
-            <option value="score">ניקוד</option>
-            <option value="level">שלב</option>
+            <option value="score">${t('lbGoalScore')}</option>
+            <option value="level">${t('lbGoalLevel')}</option>
         </select>
-        <input id="sr-goal-target" type="number" min="1" placeholder="ערך יעד"
+        <input id="sr-goal-target" type="number" min="1" placeholder="${t('lbGoalTargetPh')}"
             style="width:110px;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 8px;font-size:0.85rem;" />
-        <button class="es-filter" onclick="window.__lbSaveCustomGoal()" style="color:#00f2ff;border-color:#00f2ff;">✅ הוסף</button>
+        <button class="es-filter" onclick="window.__lbSaveCustomGoal()" style="color:#00f2ff;border-color:#00f2ff;">${t('lbAdd')}</button>
         <button class="es-filter" onclick="document.getElementById('sr-custom-goal-form')?.remove()">✕</button>`;
     container.parentNode.insertBefore(form, container.nextSibling);
 };
@@ -818,7 +818,7 @@ function _makeHPCard(skinKey, coins) {
     card.innerHTML = `
         <div style="flex:1;min-width:0;">
             <div style="font-size:0.95rem;font-weight:bold;color:#ff6b6b;margin-bottom:4px;">
-                ${t('shopHPUpgrade')} — LVL ${level}${maxLevel ? ' ' + t('shopHPMax') : ''}
+                ${t('shopHPUpgrade')} — ${tf('levelN', { n: level })}${maxLevel ? ' ' + t('shopHPMax') : ''}
             </div>
             <div style="font-size:0.78rem;opacity:0.75;">${t('shopHPDesc')}. ${t('shopHPTotal')} +${totalBonus} HP</div>
             <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
@@ -1025,7 +1025,7 @@ function showEntrySettings(idx) {
     // Meta info
     const skinName = SKINS[entry.skin]?.name || entry.skin || '';
     document.getElementById('es-meta').textContent =
-        `👤 ${entry.userName || 'Anonymous'} | ${(entry.score || 0).toLocaleString()} pts | ${t('levelWord')} ${entry.level}${skinName ? ' • ' + skinName : ''} | ${entry.date || ''}`;
+        `👤 ${entry.userName || t('anonymous')} | ${(entry.score || 0).toLocaleString()} ${t('ptsWord')} | ${t('levelWord')} ${entry.level}${skinName ? ' • ' + skinName : ''} | ${entry.date || ''}`;
 
     // Duration
     const durationEl = document.getElementById('es-duration');
@@ -1084,8 +1084,8 @@ function renderEntrySettingsBody(s, cat) {
     };
 
     const bool = (v) => v
-        ? `<span class="es-val-yes">✅ ${currentLang === 'en' ? 'Yes' : 'כן'}</span>`
-        : `<span class="es-val-no">❌ ${currentLang === 'en' ? 'No' : 'לא'}</span>`;
+        ? `<span class="es-val-yes">✅ ${t('yesWord')}</span>`
+        : `<span class="es-val-no">❌ ${t('noWord')}</span>`;
 
     const row = (label, value) =>
         `<div class="es-row"><span class="es-label">${label}</span><span class="es-value">${value}</span></div>`;
@@ -1144,7 +1144,7 @@ function renderEntrySettingsBody(s, cat) {
         </div>`,
 
         upgrades: `<div class="es-group" data-cat="upgrades">
-            <div class="es-group-title">🛍️ Upgrades</div>
+            <div class="es-group-title">${t('tabUpgrades')}</div>
             ${upgradesHtml}
         </div>`
     };
@@ -1230,7 +1230,7 @@ function _renderLbContent() {
             ? window.__lbReplayByStart.get(_rst)
             : window.__lbReplayByScore?.get(entry.score) ?? -1;
         const replayBtn = _ridx >= 0
-            ? `<button class="lb-settings-btn" onclick="openReplay(window.__lbHistReplays[${_ridx}])" title="צפה ב-Replay" style="color:rgba(0,242,255,0.8);border-color:rgba(0,242,255,0.4);">▶</button>`
+            ? `<button class="lb-settings-btn" onclick="openReplay(window.__lbHistReplays[${_ridx}])" title="${t('watchReplay')}" style="color:rgba(0,242,255,0.8);border-color:rgba(0,242,255,0.4);">▶</button>`
             : '';
         return `
         <div class="lb-entry rank-${index + 1}">
@@ -1267,7 +1267,7 @@ function isDevUser(userId) {
 }
 
 function devBadge() {
-    return `<span class="dev-badge" title="מפתח המשחק">👑 DEV</span>`;
+    return `<span class="dev-badge" title="${t('devBadgeTitle')}">👑 DEV</span>`;
 }
 
 // ===== SPEEDRUN HELPERS =====
@@ -1319,8 +1319,8 @@ function _renderSrContent(goalKey) {
 
     if (!filtered.length) {
         const empty = _rawSpeedrunEntries.length === 0
-            ? `No records yet — complete "${goal?.label || goalKey}" as fast as possible!`
-            : `No results for these filters`;
+            ? tf('srEmpty', { goal: goal?.label || goalKey })
+            : t('noFilterResults');
         content.innerHTML = `<div class="lb-empty">${empty}</div>`;
         return;
     }
@@ -1335,7 +1335,7 @@ function _renderSrContent(goalKey) {
         return `<div class="lb-entry rank-${i+1}">
             <div class="lb-rank">${medals[i] || (i+1)}</div>
             <div class="lb-info" style="flex:1;">
-                <div class="lb-player-name">👤 ${e.userName || 'Anonymous'} ${dev}</div>
+                <div class="lb-player-name">👤 ${e.userName || t('anonymous')} ${dev}</div>
                 <div class="lb-score" style="color:#00f2ff;font-size:1.2rem;">⏱️ ${formatTime(e.time)}</div>
                 <div class="lb-details">${skinLabel} • ${e.date || ''}</div>
             </div>
@@ -1357,7 +1357,7 @@ async function displaySpeedrunLeaderboard(goalKey) {
 
     const allGoals = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()];
     const goal = allGoals.find(g => g.key === goalKey);
-    if (!goal) { content.innerHTML = '<div class="lb-empty">קטגוריה לא נמצאה</div>'; return; }
+    if (!goal) { content.innerHTML = `<div class="lb-empty">${t('catNotFound')}</div>`; return; }
 
     renderFilterBar('lb-filter-bar', _lbFilters, () => _renderSrContent(goalKey));
 
@@ -1407,7 +1407,7 @@ async function displayLeaderboard(categoryOrSkinSel) {
             <div class="lb-entry rank-${i+1}">
                 <div class="lb-rank">${medals[i] || (i+1)}</div>
                 <div class="lb-info">
-                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || 'Anonymous'}${isDevUser(entry.userId)?devBadge():''}</div>
+                    <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:#ffd700;margin-bottom:3px;">👤 ${entry.userName || t('anonymous')}${isDevUser(entry.userId)?devBadge():''}</div>
                     <div class="lb-score" style="color:#ffd700;">💰 ${(entry.coins || 0).toLocaleString()}</div>
                 </div>
             </div>`).join('');
@@ -1628,7 +1628,7 @@ function handleLevelUp() {
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
                     showFloatingMessage(
-                        `🎉 NEW SKIN UNLOCKED: ${skin.name.toUpperCase()}!`, 
+                        tf('newSkin', { name: skin.name.toUpperCase() }), 
                         DOM.wrapper.clientWidth/2 - 100, 
                         DOM.wrapper.clientHeight/2 + 50, 
                         "#ffd700"
@@ -1641,14 +1641,14 @@ function handleLevelUp() {
             updateSkinOptions();
         }
         
-        showFloatingMessage("LEVEL UP! HP REFILL", DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
+        showFloatingMessage(t('levelUpRefill'), DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
 
         {
             const coinGain = isEarlyLevel ? state.level : state.level * 10;
             addCoins(coinGain);
             state.coinsEarned += coinGain;
             if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
-            showFloatingMessage(`💰 +${coinGain} מטבעות!`, DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
+            showFloatingMessage(tf('coinsGained', { n: coinGain }), DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2 + 30, "#ffd700");
         }
 
         // Education mode: a question on every level up. A wrong answer costs HP.
@@ -2582,9 +2582,7 @@ function updateEduSettingsDisplay() {
             const ms = lockMsRemaining();
             const mins = Math.floor(ms / 60000);
             const secs = Math.floor((ms % 60000) / 1000);
-            remainEl.textContent = currentLang === 'en'
-                ? `⏳ Auto-opens in ${mins}:${String(secs).padStart(2, '0')} min`
-                : `⏳ פתיחה אוטומטית בעוד ${mins}:${String(secs).padStart(2, '0')} דקות`;
+            remainEl.textContent = tf('eduAutoOpen', { m: mins, s: String(secs).padStart(2, '0') });
         } else {
             remainEl.textContent = '';
         }
@@ -2656,8 +2654,8 @@ function renderEduParticipants(list) {
     }
     box.innerHTML = me.map(p => {
         const status = p.locked
-            ? '<span style="color:#ffd700;">🔒 ' + (currentLang === 'en' ? 'Locked' : 'נעול') + '</span>'
-            : '<span style="color:#39ff88;">🔓 ' + (currentLang === 'en' ? 'Open' : 'פתוח') + '</span>';
+            ? '<span style="color:#ffd700;">🔒 ' + t('lockedWord') + '</span>'
+            : '<span style="color:#39ff88;">🔓 ' + t('openWord') + '</span>';
         const btn = p.locked
             ? `<button class="change-key-btn" onclick="eduUnlockOne('${p.id}')">${t('unlockOne')}</button>`
             : '';
@@ -2689,7 +2687,7 @@ function eduUnlockOne(clientId) {
 
 function eduSetEnabled(on) {
     if (eduConfig.locked && !on) {
-        showFloatingMessage(currentLang === 'en' ? '🔒 Unlock with password first' : '🔒 יש לבטל את הנעילה עם סיסמה תחילה', 20, 20, 'var(--danger)');
+        showFloatingMessage(t('eduUnlockFirst'), 20, 20, 'var(--danger)');
         return;
     }
     setEduEnabled(on);
@@ -2861,7 +2859,7 @@ async function runDevConsole() {
 
     const code = input.value.trim();
     if (!code) {
-        appendDevLine(output, currentLang === 'en' ? '⚠️ No code to run' : '⚠️ אין קוד להרצה', 'dev-err');
+        appendDevLine(output, t('devNoCode'), 'dev-err');
         return;
     }
 
@@ -3119,7 +3117,7 @@ let _replayActiveEls = [];
 function openReplay(histEntry) {
     const log = histEntry.replayLog;
     if (!log || !log.length) {
-        alert('אין נתוני Replay לריצה זו');
+        alert(t('replayNoData'));
         return;
     }
 
@@ -3159,7 +3157,7 @@ function openReplay(histEntry) {
 
     const info = document.getElementById('replay-info');
     const skinName = SKINS[_replaySkin]?.name || _replaySkin;
-    info.textContent = `${histEntry.score?.toLocaleString()} נקודות • שלב ${histEntry.level} • ${skinName} • ${histEntry.date || ''}`;
+    info.textContent = tf('replayInfo', { score: histEntry.score?.toLocaleString(), level: histEntry.level, skin: skinName, date: histEntry.date || '' });
 
     document.getElementById('replay-timeline').value = 0;
 
@@ -3167,7 +3165,7 @@ function openReplay(histEntry) {
     _replayOffsetMs  = 0;
     _replayStartWall = Date.now();
     _replayPlaying   = true;
-    document.getElementById('replay-playpause-btn').textContent = '⏸ עצור';
+    document.getElementById('replay-playpause-btn').textContent = t('replayStop');
     _replayRender(0);
     _replayLoop();
 }
@@ -3304,10 +3302,10 @@ function _replayRender(offsetMs) {
 }
 
 const ABILITY_INFO = {
-    vortex:  { icon: '⚡', color: '#9b59b6', label: 'Vortex Laser' },
-    phoenix: { icon: '🔥', color: '#ff6b35', label: 'Phoenix' },
-    joker:   { icon: '🃏', color: '#ff4500', label: 'Joker Chaos' },
-    dragon:  { icon: '🐉', color: '#ff2d2d', label: 'Dragon Fire' },
+    vortex:  { icon: '⚡', color: '#9b59b6', get label() { return t('abilityVortex'); } },
+    phoenix: { icon: '🔥', color: '#ff6b35', get label() { return t('abilityPhoenix'); } },
+    joker:   { icon: '🃏', color: '#ff4500', get label() { return t('abilityJoker'); } },
+    dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },
 };
 
 function _replayRenderAbilityFlash(offsetMs) {
@@ -3348,7 +3346,7 @@ function _replayLoop() {
         _replayOffsetMs = _replayDuration;
         _replayPlaying  = false;
         _replaySetStarsPaused(true);
-        document.getElementById('replay-playpause-btn').textContent = '▶ הפעל מחדש';
+        document.getElementById('replay-playpause-btn').textContent = t('replayRestart');
         _replayRender(_replayOffsetMs);
         return;
     }
@@ -3363,13 +3361,13 @@ window.__replayPlayPause = function() {
         _replayPlaying = false;
         cancelAnimationFrame(_replayRAF);
         _replaySetStarsPaused(true);
-        document.getElementById('replay-playpause-btn').textContent = '▶ המשך';
+        document.getElementById('replay-playpause-btn').textContent = t('replayContinue');
     } else {
         if (_replayOffsetMs >= _replayDuration) _replayOffsetMs = 0;
         _replayStartWall = Date.now() - _replayOffsetMs;
         _replayPlaying   = true;
         _replaySetStarsPaused(false);
-        document.getElementById('replay-playpause-btn').textContent = '⏸ עצור';
+        document.getElementById('replay-playpause-btn').textContent = t('replayStop');
         _replayLoop();
     }
 };
@@ -3419,7 +3417,7 @@ function renderAchievementsPanel() {
         <div class="achievement-card${a.unlocked ? '' : ' locked'}">
             <div class="ach-icon">${a.icon}</div>
             <div class="ach-info">
-                <div class="ach-name">${a.unlocked ? a.name : '🔒 Locked'}</div>
+                <div class="ach-name">${a.unlocked ? a.name : t('achLocked')}</div>
                 <div class="ach-desc">${a.desc}</div>
             </div>
             ${a.unlocked ? '<div style="font-size:0.8rem;color:#ffd700;">✓</div>' : ''}
@@ -3438,8 +3436,8 @@ function renderBestsTabs() {
     const modeEl = document.getElementById('bests-mode-tabs');
     if (modeEl) {
         modeEl.innerHTML = [
-            { key: 'score',    label: '🏆 ניקוד'   },
-            { key: 'speedrun', label: '⚡ ספידראן' },
+            { key: 'score',    label: t('lbModeScore')    },
+            { key: 'speedrun', label: t('lbModeSpeedrun') },
         ].map(m =>
             `<button class="lb-tab${_bestsMode===m.key?' active':''}" onclick="window.__bestsSetMode('${m.key}')">${m.label}</button>`
         ).join('');
@@ -3450,7 +3448,7 @@ function renderBestsTabs() {
 
     if (_bestsMode === 'score') {
         subEl.style.display = '';
-        subEl.innerHTML = [{ key: 'overall', label: '🏆 כללי' }, ...LB_SKINS].map(s =>
+        subEl.innerHTML = [{ key: 'overall', label: t('lbOverall') }, ...LB_SKINS].map(s =>
             `<button class="lb-tab${_currentBestsKey===s.key?' active':''}" onclick="window.__bestsSetSkin('${s.key}')">${s.label}</button>`
         ).join('');
     } else {
@@ -3479,7 +3477,7 @@ function renderBestsSpeedrun(goalKey) {
     if (!el) return;
     const entries = getSpeedrunLeaderboard(goalKey);
     if (!entries.length) {
-        el.innerHTML = `<div style="opacity:0.5;font-size:0.85rem;text-align:center;padding:16px 0;">עדיין אין שיאים אישיים ב"${goal?.label || goalKey}"</div>`;
+        el.innerHTML = `<div style="opacity:0.5;font-size:0.85rem;text-align:center;padding:16px 0;">${tf('srBestsEmpty', { goal: goal?.label || goalKey })}</div>`;
         return;
     }
     const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
@@ -3531,7 +3529,7 @@ function renderHistoryStats() {
     const stats = getPersonalStats();
     const el = document.getElementById('history-stats');
     if (!stats) {
-        el.innerHTML = '<div style="opacity:0.5; font-size:0.8rem;">עדיין אין משחקים שמורים</div>';
+        el.innerHTML = `<div style="opacity:0.5; font-size:0.8rem;">${t('histEmpty')}</div>`;
         return;
     }
     const card = (icon, label, value) =>
@@ -3541,12 +3539,12 @@ function renderHistoryStats() {
             <div style="font-size:0.65rem;opacity:0.6">${label}</div>
         </div>`;
     el.innerHTML =
-        card('🎮', 'משחקים', stats.totalGames) +
-        card('🏆', 'שיא', stats.bestScore.toLocaleString()) +
-        card('⭐', 'שלב מקסימלי', stats.bestLevel) +
-        card('📈', 'ממוצע', stats.avgScore.toLocaleString()) +
-        card('⏱️', 'זמן ממוצע', formatDuration(stats.totalTime / stats.totalGames)) +
-        (stats.favSkin ? card('🚀', 'ספינה מועדפת', SKINS[stats.favSkin]?.name || stats.favSkin) : '');
+        card('🎮', t('statGames'), stats.totalGames) +
+        card('🏆', t('statBest'), stats.bestScore.toLocaleString()) +
+        card('⭐', t('statMaxLevel'), stats.bestLevel) +
+        card('📈', t('statAvg'), stats.avgScore.toLocaleString()) +
+        card('⏱️', t('statAvgTime'), formatDuration(stats.totalTime / stats.totalGames)) +
+        (stats.favSkin ? card('🚀', t('statFavShip'), SKINS[stats.favSkin]?.name || stats.favSkin) : '');
 }
 
 function renderHistoryList() {
@@ -3555,7 +3553,7 @@ function renderHistoryList() {
     const allHistory = loadGameHistory();
     const el = document.getElementById('history-list');
     if (!allHistory.length) {
-        el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">עדיין אין היסטוריה — שחק משחק!</div>';
+        el.innerHTML = `<div style="opacity:0.5;padding:20px;font-size:0.85rem;">${t('histEmpty2')}</div>`;
         return;
     }
 
@@ -3565,7 +3563,7 @@ function renderHistoryList() {
     const topScores = new Set(sorted.slice(0,3).map(e => e.timestamp));
 
     const countNote = countActiveFilters(_histFilters) > 0
-        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${history.length} / ${allHistory.length} משחקים</div>` : '';
+        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${tf('gamesCount', { a: history.length, b: allHistory.length })}</div>` : '';
 
     if (!history.length) {
         el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">No results for these filters</div>`;
@@ -3599,7 +3597,7 @@ function renderHistoryList() {
             <div style="flex:1;font-size:0.8rem;">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
-                    <span style="opacity:0.6">שלב ${entry.level}</span>
+                    <span style="opacity:0.6">${tf('levelN', { n: entry.level })}</span>
                     <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
                     ${upgradesTag}${coinsTag}${deviceTag}${inputTagHtml}
                 </div>
@@ -3616,7 +3614,7 @@ function renderBestsList(skinKey) {
     const allBests = getPersonalBests(skinKey, 50);
     const el = document.getElementById('bests-list');
     if (!allBests.length) {
-        el.innerHTML = '<div style="opacity:0.5;padding:20px;font-size:0.85rem;">אין שיאים לקטגוריה זו עדיין</div>';
+        el.innerHTML = `<div style="opacity:0.5;padding:20px;font-size:0.85rem;">${t('bestsEmpty')}</div>`;
         return;
     }
 
@@ -3624,7 +3622,7 @@ function renderBestsList(skinKey) {
     const medals = ['🥇','🥈','🥉'];
 
     const countNote = countActiveFilters(_bestsFilters) > 0
-        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${bests.length} / ${allBests.length} שיאים</div>` : '';
+        ? `<div style="font-size:0.72rem;opacity:0.5;padding:4px 8px;">${tf('bestsCount', { a: bests.length, b: allBests.length })}</div>` : '';
 
     if (!bests.length) {
         el.innerHTML = `${countNote}<div style="opacity:0.5;padding:16px;font-size:0.85rem;">No results for these filters</div>`;
@@ -3651,7 +3649,7 @@ function renderBestsList(skinKey) {
             <div style="flex:1;font-size:0.82rem;">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
-                    <span style="opacity:0.65">שלב ${entry.level}</span>
+                    <span style="opacity:0.65">${tf('levelN', { n: entry.level })}</span>
                     ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
                     ${upgradesTag}${deviceTag}${eduTag}${inputTagHtml}
                 </div>
@@ -3681,7 +3679,7 @@ function _applyPersonalBest(best) {
     if (!best) { strip.style.display = 'none'; return; }
     strip.style.display = 'block';
     const skinName = SKINS[best.skin]?.name || best.skin || '';
-    text.textContent = `השיא שלך: ${best.score.toLocaleString()} נקודות • שלב ${best.level}${skinName ? ' • ' + skinName : ''}`;
+    text.textContent = tf('yourBest', { score: best.score.toLocaleString(), level: best.level }) + (skinName ? ' • ' + skinName : '');
 }
 
 function refreshPersonalBest() {

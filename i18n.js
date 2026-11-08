@@ -245,6 +245,123 @@ const STRINGS = {
     sendErrNotConnected:  { he: 'אין חיבור לשרת', en: 'Not connected to server', ar: 'لا يوجد اتصال بالخادم', ru: 'Нет подключения к серверу', fr: 'Pas de connexion au serveur', es: 'Sin conexión al servidor' },
     sendClaimedTitle:     { he: '🎁 קיבלת מטבעות!', en: '🎁 You received coins!', ar: '🎁 لقد تلقيت عملات!', ru: '🎁 Вы получили монеты!', fr: '🎁 Vous avez reçu des pièces !', es: '🎁 ¡Recibiste monedas!' },
     sendClaimedFrom:      { he: 'מאת', en: 'From', ar: 'من', ru: 'От', fr: 'De', es: 'De' },
+
+
+    // ---- UI rework: previously hard-coded strings ----
+    historyBtn: { he: '📊 ההיסטוריה שלי', en: '📊 My History' },
+    shopBtn: { he: '🛍️ חנות שדרוגים', en: '🛍️ Upgrade Shop' },
+    pausedTitle: { he: '⏸ מושהה', en: '⏸ Paused' },
+    resumeBtn: { he: '▶ המשך', en: '▶ Resume' },
+    coinsLabel: { he: '💰 מטבעות:', en: '💰 Coins:' },
+    historyTitle: { he: '📊 ההיסטוריה שלי', en: '📊 My History' },
+    histTabHistory: { he: '🕒 היסטוריה', en: '🕒 History' },
+    histTabBests: { he: '🥇 שיאים אישיים', en: '🥇 Personal Bests' },
+    histTabAch: { he: '🏅 הישגים', en: '🏅 Achievements' },
+    tabUpgrades: { he: '🛍️ שדרוגים', en: '🛍️ Upgrades' },
+    replayStop: { he: '⏸ עצור', en: '⏸ Pause' },
+    replayClose: { he: '✕ סגור', en: '✕ Close' },
+    replayContinue: { he: '▶ המשך', en: '▶ Resume' },
+    replayRestart: { he: '▶ הפעל מחדש', en: '▶ Play again' },
+    replayNoData: { he: 'אין נתוני Replay לריצה זו', en: 'No replay data for this run' },
+    replayInfo: { he: '{score} נקודות • שלב {level} • {skin} • {date}', en: '{score} points • Level {level} • {skin} • {date}' },
+    devPh: { he: '// הקלד קוד כאן', en: '// code here' },
+    pwPh: { he: 'בחר סיסמה', en: 'Choose a password' },
+    skinDescClassic: { he: 'לוחם מאוזן', en: 'Balanced fighter' },
+    skinDescInterceptor: { he: 'גרסה מהירה', en: 'Speed variant' },
+    skinDescTanker: { he: 'שריון כבד', en: 'Heavy armor' },
+    skinDescPhoenix: { he: '⚡ ירי מהיר 🔥 נזק גבוה', en: '⚡ Faster fire rate 🔥 More damage' },
+    skinDescVortex: { he: '⚡⚡ ירי סופר-מהיר 💥 נזק כפול ❤️ חיים כפולים', en: '⚡⚡ Ultra-fast fire 💥 2X dmg ❤️ 2X HP' },
+    skinDescJoker: { he: '🃏 מצב כאוס | 🔥 ירי בוער | ⚡ ירי כפול | 💥 נזק x3 | ❤️ 3 חיים', en: '🃏 Chaos mode | 🔥 Fire bullets | ⚡ 2X fire rate | 💥 3X dmg | ❤️ 3 lives' },
+    skinDescDragon: { he: '🐉 אש לכל הכיוונים | 🛡️ 10 שנ׳ בלתי פגיע | ⚡ הכי חזק', en: '🐉 Fire all around | 🛡️ 10s invincible | ⚡ Best stats' },
+    lockLvl: { he: '🔒 שלב {n}', en: '🔒 LVL {n}' },
+    fcDevice: { he: 'מכשיר', en: 'Device' },
+    fcRules: { he: 'חוקים', en: 'Rules' },
+    fcControls: { he: 'שליטה', en: 'Controls' },
+    fcEdu: { he: 'חינוכי', en: 'Education' },
+    fcLang: { he: 'שפה', en: 'Language' },
+    fcUpgrades: { he: 'שדרוגים', en: 'Upgrades' },
+    fcHp: { he: 'רמת HP', en: 'HP Level' },
+    flNoSettingsAll: { he: 'ללא הגדרות ← מוצג רק ב"הכל"', en: 'No settings → shown only in "All"' },
+    flMobile: { he: '📱 טלפון', en: '📱 Mobile' },
+    flDesktop: { he: '🖥️ מחשב', en: '🖥️ Desktop' },
+    flRuleEnemies: { he: 'אויבים יורים דרך סלעים', en: 'Enemies shoot through asteroids' },
+    flRulePlayer: { he: 'השחקן יורה דרך סלעים', en: 'Player shoots through asteroids' },
+    flTriRules: { he: '⬜=הכל &nbsp;✅=כן &nbsp;🚫=לא &nbsp;· ללא הגדרות ← ברירות מחדל', en: '⬜=Any &nbsp;✅=Yes &nbsp;🚫=No &nbsp;· No settings → defaults' },
+    flCtrlType: { he: 'סוג שליטה:', en: 'Control type:' },
+    flMouse: { he: '🖱️ עכבר', en: '🖱️ Mouse' },
+    flArrows: { he: '⬆️ חצים', en: '⬆️ Arrows' },
+    flRightClick: { he: 'קליק ימני:', en: 'Right-click:' },
+    flTriRightClick: { he: '⬜=הכל ✅=כן 🚫=לא &nbsp;· ללא הגדרות ← כן', en: '⬜=Any ✅=Yes 🚫=No &nbsp;· No settings → Yes' },
+    flController: { he: '🎮 שלט:', en: '🎮 Controller:' },
+    flTriController: { he: '⬜=הכל ✅=בשימוש 🚫=לא בשימוש &nbsp;· ללא הגדרות ← לא בשימוש', en: '⬜=Any ✅=Used 🚫=Not used &nbsp;· No settings → Not used' },
+    flNoSettingsOff: { he: 'ללא הגדרות ← כבוי', en: 'No settings → Off' },
+    flOn: { he: '✅ פעיל', en: '✅ On' },
+    flOff: { he: '❌ כבוי', en: '❌ Off' },
+    flMulti: { he: 'בחירה מרובה · ללא הגדרות ← מוצג רק ב"הכל"', en: 'Multi-select · No settings → shown only in "All"' },
+    flNoUpgrades: { he: 'אין שדרוגים', en: 'No upgrades' },
+    flTriUpgrades: { he: '⬜=הכל &nbsp;✅=חובה &nbsp;🚫=אסור &nbsp;· ללא הגדרות ← ללא שדרוגים', en: '⬜=Any &nbsp;✅=Required &nbsp;🚫=Forbidden &nbsp;· No settings → No upgrades' },
+    flFilters: { he: '🔍 סינון', en: '🔍 Filters' },
+    flClear: { he: '✕ נקה הכל', en: '✕ Clear All' },
+    lbModeScore: { he: '🏆 ניקוד', en: '🏆 Score' },
+    lbModeSpeedrun: { he: '⚡ ספידראן', en: '⚡ Speedrun' },
+    lbModeMoney: { he: '💰 כסף', en: '💰 Money' },
+    lbCustom: { he: '＋ מותאם', en: '＋ Custom' },
+    lbDelete: { he: 'מחק', en: 'Delete' },
+    lbGoalScore: { he: 'ניקוד', en: 'Score' },
+    lbGoalLevel: { he: 'שלב', en: 'Level' },
+    lbGoalTargetPh: { he: 'ערך יעד', en: 'Target value' },
+    lbAdd: { he: '✅ הוסף', en: '✅ Add' },
+    goalPts: { he: '{n} נק׳', en: '{n} pts' },
+    goalLevel: { he: 'שלב {n}', en: 'Level {n}' },
+    devBadgeTitle: { he: 'מפתח המשחק', en: 'Game developer' },
+    watchReplay: { he: 'צפה ב-Replay', en: 'Watch replay' },
+    srEmpty: { he: 'אין שיאים עדיין — השלם "{goal}" מהר ככל האפשר!', en: 'No records yet — complete "{goal}" as fast as possible!' },
+    noFilterResults: { he: 'אין תוצאות עבור הסינון הזה', en: 'No results for these filters' },
+    catNotFound: { he: 'הקטגוריה לא נמצאה', en: 'Category not found' },
+    anonymous: { he: 'אנונימי', en: 'Anonymous' },
+    ptsWord: { he: 'נק׳', en: 'pts' },
+    yesWord: { he: 'כן', en: 'Yes' },
+    noWord: { he: 'לא', en: 'No' },
+    newSkin: { he: '🎉 סקין חדש נפתח: {name}!', en: '🎉 NEW SKIN UNLOCKED: {name}!' },
+    levelUpRefill: { he: 'עלית שלב! HP מלא', en: 'LEVEL UP! HP REFILL' },
+    coinsGained: { he: '💰 +{n} מטבעות!', en: '💰 +{n} coins!' },
+    eduAutoOpen: { he: '⏳ ייפתח אוטומטית בעוד {m}:{s} דקות', en: '⏳ Auto-opens in {m}:{s} min' },
+    lockedWord: { he: 'נעול', en: 'Locked' },
+    openWord: { he: 'פתוח', en: 'Open' },
+    eduUnlockFirst: { he: '🔒 יש לבטל את הנעילה עם סיסמה תחילה', en: '🔒 Unlock with password first' },
+    devNoCode: { he: '⚠️ אין קוד להרצה', en: '⚠️ No code to run' },
+    questionTag: { he: 'שאלה', en: 'Question' },
+    guestName: { he: 'אורח', en: 'Guest' },
+    achLocked: { he: '🔒 נעול', en: '🔒 Locked' },
+    abilityVortex: { he: 'לייזר ורטקס', en: 'Vortex Laser' },
+    abilityPhoenix: { he: 'פניקס', en: 'Phoenix' },
+    abilityJoker: { he: 'כאוס ג׳וקר', en: 'Joker Chaos' },
+    abilityDragon: { he: 'אש הדרקון', en: 'Dragon Fire' },
+    srBestsEmpty: { he: 'עדיין אין שיאים אישיים ב"{goal}"', en: 'No personal bests in "{goal}" yet' },
+    histEmpty: { he: 'עדיין אין משחקים שמורים', en: 'No saved games yet' },
+    histEmpty2: { he: 'עדיין אין היסטוריה — שחק משחק!', en: 'No history yet — play a game!' },
+    bestsEmpty: { he: 'אין שיאים לקטגוריה זו עדיין', en: 'No records in this category yet' },
+    statGames: { he: 'משחקים', en: 'Games' },
+    statBest: { he: 'שיא', en: 'Best' },
+    statMaxLevel: { he: 'שלב מקסימלי', en: 'Max level' },
+    statAvg: { he: 'ממוצע', en: 'Average' },
+    statAvgTime: { he: 'זמן ממוצע', en: 'Avg. time' },
+    statFavShip: { he: 'ספינה מועדפת', en: 'Favorite ship' },
+    gamesCount: { he: '{a} / {b} משחקים', en: '{a} / {b} games' },
+    bestsCount: { he: '{a} / {b} שיאים', en: '{a} / {b} records' },
+    levelN: { he: 'שלב {n}', en: 'Level {n}' },
+    yourBest: { he: 'השיא שלך: {score} נקודות • שלב {level}', en: 'Your best: {score} points • Level {level}' },
+    msgDragon: { he: '🐉 סערת דרקון!', en: '🐉 DRAGON INFERNO!' },
+    msgRicochet: { he: '🛡️ ריקושט!', en: '🛡️ RICOCHET!' },
+    msgFat: { he: 'שמנתי! 🍔🍔🍔', en: 'FAT! 🍔🍔🍔' },
+    msgAmmoFull: { he: '⚡ תחמושת מלאה!', en: '⚡ AMMO FULL!' },
+    msgWeightLost: { he: 'ירדת במשקל!', en: 'WEIGHT LOST!' },
+    msgRepair: { he: 'תיקון +{p}%', en: 'REPAIR +{p}%' },
+    msgCritRepair: { he: 'תיקון קריטי +75%', en: 'CRITICAL REPAIR +75%' },
+    msgRepairPts: { he: 'תיקון +{h} ו-{p} נק׳', en: 'REPAIR +{h} & {p} PTS' },
+    msgRepairFlat: { he: 'תיקון +20', en: 'REPAIR +20' },
+    msgVortex: { he: 'לייזר ורטקס: {n} חיסולים!', en: 'VORTEX LASER: {n} KILLS!' },
+    msgChaos: { he: 'כאוס! +{n} נק׳', en: 'CHAOS! +{n} PTS' },
 };
 
 // ---------- Runtime ----------
@@ -271,7 +388,12 @@ export let currentLang = readCookie(LANG_COOKIE) || detectLang();
 export function t(key) {
     const entry = STRINGS[key];
     if (!entry) { console.warn(`[i18n] Unknown key: "${key}"`); return key; }
-    return entry[currentLang] ?? entry.he;
+    return entry[currentLang] ?? (currentLang === 'he' ? entry.he : (entry.en ?? entry.he));
+}
+
+// Translate with {placeholders}: tf('key', { n: 5 })
+export function tf(key, vars = {}) {
+    return t(key).replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 }
 
 // Apply language to all [data-i18n] elements in the DOM.
@@ -295,6 +417,10 @@ export function applyLang(lang) {
         } else {
             el.innerHTML = val;
         }
+    });
+
+    document.querySelectorAll('[data-lock-n]').forEach(el => {
+        el.textContent = tf('lockLvl', { n: el.dataset.lockN });
     });
 
     // Update the toggle button label (shows the OTHER language name)

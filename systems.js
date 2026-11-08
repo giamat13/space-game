@@ -1,5 +1,5 @@
 import { DOM, state, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
-import { t, currentLang } from './i18n.js';
+import { t, tf, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
     trackDeath, saveAnalyticsToCloud
@@ -96,7 +96,7 @@ export function damagePlayer(amount, source = 'unknown') {
         state.burgersEatenAtFullHP = 0;
         DOM.player.style.transform = 'scale(1)';
         console.log('🏃 [FAT] Weight lost! Back to normal');
-        showFloatingMessage("WEIGHT LOST!", state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
+        showFloatingMessage(t('msgWeightLost'), state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
     }
     
     updateHPUI();
@@ -253,7 +253,7 @@ export function healPlayer(percent) {
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
     trackHeal(amount, 'level_up', hpBefore, state.playerHP);
     updateHPUI();
-    showFloatingMessage(`REPAIR +${percent}%`, state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
+    showFloatingMessage(tf('msgRepair', { p: percent }), state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
 
 // ===== SHOOTING SYSTEMS =====
@@ -516,7 +516,7 @@ export function useVortexLaser() {
     DOM.scoreEl.innerText = state.score; // Update score display
     
     if (killCount > 0) {
-        showFloatingMessage(`VORTEX LASER: ${killCount} KILLS!`, playerCenterX - 80, playerY - 50, 'var(--primary)');
+        showFloatingMessage(tf('msgVortex', { n: killCount }), playerCenterX - 80, playerY - 50, 'var(--primary)');
     }
     
     console.log(`✅ [VORTEX] Killed: ${killCount}, Score: ${state.score}`);
@@ -578,7 +578,7 @@ export function useJokerChaos() {
         easing: 'ease-out'
     }).onfinish = () => chaosWave.remove();
     
-    showFloatingMessage(`CHAOS! +${pointsGained} PTS`, playerCenterX - 90, playerY - 50, '#00f2ff');
+    showFloatingMessage(tf('msgChaos', { n: pointsGained }), playerCenterX - 90, playerY - 50, '#00f2ff');
     console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic, +${pointsGained} points, Total: ${state.score}`);
 }
 
@@ -631,7 +631,7 @@ export function useDragonFire() {
     }
     createExplosion(playerCenterX, playerY, '#ffffff');
 
-    showFloatingMessage('🐉 DRAGON INFERNO!', playerCenterX - 80, playerY - 50, '#ff6600');
+    showFloatingMessage(t('msgDragon'), playerCenterX - 80, playerY - 50, '#ff6600');
     console.log(`✅ [DRAGON] ${numFlames} flames launched + 10s invincibility`);
 }
 
@@ -693,7 +693,7 @@ export function handleSpawning(now) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#333" stroke="#555" stroke-width="3"/><circle cx="40" cy="40" r="5" fill="#222"/><circle cx="60" cy="70" r="8" fill="#222"/></svg>`;
+            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;"><defs><radialGradient id="ag" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#8d96ad"/><stop offset="0.6" stop-color="#4a5266"/><stop offset="1" stop-color="#1c212e"/></radialGradient></defs><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="url(#ag)" stroke="#9aa4bd" stroke-width="2" stroke-linejoin="round"/><circle cx="40" cy="40" r="6" fill="#20263a" stroke="#657090"/><circle cx="62" cy="68" r="9" fill="#20263a" stroke="#657090"/><circle cx="68" cy="34" r="3.5" fill="#2a3148"/></svg>`;
             DOM.wrapper.appendChild(el);
             state.asteroids.push({ 
                 el: el, 
@@ -733,7 +733,7 @@ export function handleSpawning(now) {
             el.className = `enemy-ship ${type}`;
             el.style.left = posX + 'px';
             el.style.top = '-60px';
-            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${colorCode}" stroke="#fff" stroke-width="2"/></svg>`;
+            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;"><defs><linearGradient id="eg${type}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="0.35" stop-color="${colorCode}"/><stop offset="1" stop-color="#000" stop-opacity="0.55"/></linearGradient></defs><path d="M6 18 L28 14 L50 92 L72 14 L94 18 L74 52 L50 42 L26 52 Z" fill="url(#eg${type})" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M50 42 L42 24 L58 24 Z" fill="#fff" opacity="0.75"/><circle cx="50" cy="30" r="4" fill="#ffe9a8"/></svg>`;
             DOM.wrapper.appendChild(el);
 
             // Check if chaos mode is active
