@@ -1478,10 +1478,10 @@ function updateSkinOptions() {
         
         if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
             console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
+            // Silent catch-up only: this runs on every page load (possibly before the saved
+            // skins finished loading), so it must never show the "new ship" celebration.
+            // The celebration is triggered only by an actual level-up during a run.
             unlockSkin(skinKey);
-            option.classList.add('newly-unlocked');
-            setTimeout(() => option.classList.remove('newly-unlocked'), 2500);
-            if (SKINS[skinKey]) celebrateSkinUnlock({ svg: SKINS[skinKey].svg, name: SKINS[skinKey].name, color: SKINS[skinKey].color });
         }
         
         if (isSkinUnlocked(skinKey)) {
