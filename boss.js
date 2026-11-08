@@ -13,6 +13,7 @@ import { t, tf } from './i18n.js';
 import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy } from './fx.js';
 
 export const BOSS_LEVEL = 30;
+const ARENA_HP = 600;     // while the boss fight lasts, max HP is raised to at least this (shots hit hard)
 const W = 170;            // boss sprite size (px)
 const Y = 125;            // resting height (below the player HUD)
 const BOSS_HP_PER_POWER = 230; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
@@ -125,6 +126,14 @@ function spawnBoss(now) {
     };
     el.style.left = state.boss.x + 'px';
     el.style.top = state.boss.y + 'px';
+    // Arena bonus: the boss' hits are huge, so the player's max HP is raised for the duration of the fight
+    state.boss.origMaxHP = state.playerMaxHP;
+    if (state.playerMaxHP < ARENA_HP) {
+        state.playerMaxHP = ARENA_HP;
+        state.playerHP = ARENA_HP;
+        updateHPUI();
+        setTimeout(() => showFloatingMessage(tf('bossArenaHP', { n: ARENA_HP }), wrapperW() / 2 - 80, wrapperH() - 170, 'var(--health)'), 600);
+    }
     showBanner(t('bossWarning'), { color: '#ff4d6a', ms: 2600, shake: true });
     flash('#ff4d6a', 700);
     shake(900);
@@ -244,6 +253,7 @@ function finishDeath(b) {
     addCoins(bonusCoins);
     state.coinsEarned += bonusCoins;
     if (DOM.coinsEarnedEl) DOM.coinsEarnedEl.innerText = `+${state.coinsEarned}`;
+    if (b.origMaxHP) state.playerMaxHP = b.origMaxHP;   // arena bonus ends with the boss
     state.playerHP = state.playerMaxHP;
     updateHPUI();
     state.ammo = state.maxAmmo;

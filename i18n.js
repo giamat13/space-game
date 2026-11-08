@@ -365,6 +365,7 @@ const STRINGS = {
     upgDoubleScoreName: { he: '⭐ ניקוד כפול', en: '⭐ Score x2', ar: '⭐ ضعف النقاط', ru: '⭐ Двойные очки', fr: '⭐ Score x2', es: '⭐ Puntos x2' },
     upgDoubleScoreDesc: { he: 'כל הניקוד שאתה צובר מוכפל ב-2, בכל משחק ובכל מכשיר', en: 'All the score you earn is doubled, in every game on every device', ar: 'كل النقاط التي تكسبها تتضاعف في كل لعبة وعلى كل الأجهزة', ru: 'Все очки удваиваются в каждой игре на любом устройстве', fr: 'Tous les points gagnés sont doublés à chaque partie, sur tous les appareils', es: 'Todos los puntos que ganes se duplican en cada partida, en cualquier dispositivo' },
     shopTabGlobal: { he: 'כללי', en: 'General', ar: 'عام', ru: 'Общее', fr: 'Général', es: 'General' },
+    bossArenaHP: { he: 'בונוס זירה: חיים עד {n}!', en: 'ARENA BONUS: HP up to {n}!', ar: 'مكافأة الحلبة: الصحة حتى {n}!', ru: 'БОНУС АРЕНЫ: HP до {n}!', fr: 'BONUS D\'ARÈNE : PV jusqu\'à {n} !', es: '¡BONO DE ARENA: VIDA hasta {n}!' },
     bossMines: { he: 'מוקשים!', en: 'MINES!', ar: 'ألغام!', ru: 'МИНЫ!', fr: 'MINES !', es: '¡MINAS!' },
     bossLightning: { he: 'ברקים!', en: 'LIGHTNING!', ar: 'صواعق!', ru: 'МОЛНИИ!', fr: 'FOUDRE !', es: '¡RAYOS!' },
     bossBurst: { he: 'סערה!', en: 'STORM!', ar: 'عاصفة!', ru: 'БУРЯ!', fr: 'TEMPÊTE !', es: '¡TORMENTA!' },
