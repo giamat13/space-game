@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מגיני החלל: מערכת סקינים</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <title>מגיני החלל | Space Defender</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -40,12 +40,12 @@
         <button id="pause-btn" onclick="togglePause(); event.stopPropagation();" onmousedown="event.stopPropagation();" style="display: none;">⏸</button>
 
         <div id="pause-overlay" style="display: none;">
-            <div class="pause-title">⏸ Paused</div>
-            <button onclick="togglePause()">▶ Resume</button>
+            <div class="pause-title" data-i18n="pausedTitle">⏸ Paused</div>
+            <button onclick="togglePause()" data-i18n="resumeBtn">▶ Resume</button>
         </div>
 
         <div id="overlay">
-            <h1 id="title">SPACE DEFENDER</h1>
+            <h1 id="title" data-i18n="gameTitle">SPACE DEFENDER</h1>
             <p id="sub-title" data-i18n="subTitle">בחר ספינה וצא למשימה</p>
             
             <!-- Auth Container -->
@@ -53,7 +53,7 @@
                 <h2 style="margin-bottom: 20px;" data-i18n="authTitle">🔐 התחברות</h2>
 
                 <!-- Google Login -->
-                <button onclick="signInWithGoogle()" style="background: rgba(66, 133, 244, 0.2); border-color: #4285f4; color: #4285f4; margin-bottom: 20px;" data-i18n="googleBtn">
+                <button class="btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;" data-i18n="googleBtn">
                     🔵 התחבר עם Google
                 </button>
                 
@@ -66,8 +66,8 @@
                 <!-- Login Form -->
                 <div id="login-form" style="display: block;">
                     <h3 style="margin-bottom: 15px; font-size: 1rem;" data-i18n="loginFormTitle">התחבר עם מייל</h3>
-                    <input type="email" id="login-email" data-i18n="loginEmailPh" data-i18n-attr="placeholder" placeholder="מייל" style="width: 100%; max-width: 300px; padding: 12px; margin: 8px 0; border: 2px solid var(--primary); background: rgba(0,0,0,0.5); color: white; border-radius: 5px; font-family: 'Orbitron', sans-serif;">
-                    <input type="password" id="login-password" data-i18n="loginPassPh" data-i18n-attr="placeholder" placeholder="סיסמה" style="width: 100%; max-width: 300px; padding: 12px; margin: 8px 0; border: 2px solid var(--primary); background: rgba(0,0,0,0.5); color: white; border-radius: 5px; font-family: 'Orbitron', sans-serif;">
+                    <input type="email" id="login-email" data-i18n="loginEmailPh" data-i18n-attr="placeholder" placeholder="מייל" class="input-field">
+                    <input type="password" id="login-password" data-i18n="loginPassPh" data-i18n-attr="placeholder" placeholder="סיסמה" class="input-field">
                     <button onclick="signInWithEmail()" style="margin-top: 10px;" data-i18n="loginSubmit">התחבר</button>
                     <p style="margin-top: 15px; font-size: 0.85rem; opacity: 0.7;">
                         <span data-i18n="noAccount">אין לך חשבון?</span> <a href="#" onclick="toggleAuthMode('signup'); return false;" style="color: var(--primary); text-decoration: underline;" data-i18n="registerHere">הירשם כאן</a>
@@ -77,16 +77,16 @@
                 <!-- Signup Form -->
                 <div id="signup-form" style="display: none;">
                     <h3 style="margin-bottom: 15px; font-size: 1rem;" data-i18n="signupFormTitle">הרשמה</h3>
-                    <input type="text" id="signup-name" data-i18n="signupNamePh" data-i18n-attr="placeholder" placeholder="שם מלא" style="width: 100%; max-width: 300px; padding: 12px; margin: 8px 0; border: 2px solid var(--primary); background: rgba(0,0,0,0.5); color: white; border-radius: 5px; font-family: 'Orbitron', sans-serif;">
-                    <input type="email" id="signup-email" data-i18n="signupEmailPh" data-i18n-attr="placeholder" placeholder="מייל" style="width: 100%; max-width: 300px; padding: 12px; margin: 8px 0; border: 2px solid var(--primary); background: rgba(0,0,0,0.5); color: white; border-radius: 5px; font-family: 'Orbitron', sans-serif;">
-                    <input type="password" id="signup-password" data-i18n="signupPassPh" data-i18n-attr="placeholder" placeholder="סיסמה (לפחות 6 תווים)" style="width: 100%; max-width: 300px; padding: 12px; margin: 8px 0; border: 2px solid var(--primary); background: rgba(0,0,0,0.5); color: white; border-radius: 5px; font-family: 'Orbitron', sans-serif;">
+                    <input type="text" id="signup-name" data-i18n="signupNamePh" data-i18n-attr="placeholder" placeholder="שם מלא" class="input-field">
+                    <input type="email" id="signup-email" data-i18n="signupEmailPh" data-i18n-attr="placeholder" placeholder="מייל" class="input-field">
+                    <input type="password" id="signup-password" data-i18n="signupPassPh" data-i18n-attr="placeholder" placeholder="סיסמה (לפחות 6 תווים)" class="input-field">
                     <button onclick="signUpWithEmail()" style="margin-top: 10px;" data-i18n="signupSubmit">הירשם</button>
                     <p style="margin-top: 15px; font-size: 0.85rem; opacity: 0.7;">
                         <span data-i18n="haveAccount">כבר יש לך חשבון?</span> <a href="#" onclick="toggleAuthMode('login'); return false;" style="color: var(--primary); text-decoration: underline;" data-i18n="loginHere">התחבר כאן</a>
                     </p>
                 </div>
                 
-                <button onclick="showMainMenu()" style="margin-top: 20px; background: rgba(100,100,100,0.2); border-color: #666; color: #aaa;" data-i18n="backToMenu">
+                <button onclick="showMainMenu()" class="btn-ghost" style="margin-top: 20px;" data-i18n="backToMenu">
                     ◀ חזרה לתפריט
                 </button>
             </div>
@@ -102,20 +102,20 @@
                     <p id="user-providers" style="margin: 10px 0; font-size: 0.75rem; opacity: 0.6;">📧 Email/Password</p>
                     
                     <div style="display: flex; gap: 10px; margin-top: 15px;">
-                        <button onclick="editDisplayName()" style="padding: 8px 20px; font-size: 0.85rem; background: rgba(255,0,234,0.2); border-color: var(--secondary); color: var(--secondary);" data-i18n="editName">
+                        <button class="btn-pink" onclick="editDisplayName()" style="padding: 8px 20px; font-size: 0.85rem;" data-i18n="editName">
                             ✏️ ערוך שם
                         </button>
-                        <button onclick="logout()" style="padding: 8px 20px; font-size: 0.85rem; background: rgba(255,77,77,0.2); border-color: var(--danger); color: var(--danger);" data-i18n="logout">
+                        <button class="btn-danger" onclick="logout()" style="padding: 8px 20px; font-size: 0.85rem;" data-i18n="logout">
                             🚪 התנתק
                         </button>
                     </div>
                 </div>
                 
-                <button onclick="showMainMenu()" style="width: 100%; max-width: 300px; font-size: 1.3rem; margin-top: 20px;" data-i18n="startGame">
+                <button class="btn-start" onclick="showMainMenu()" data-i18n="startGame">
                     🎮 התחל משחק
                 </button>
 
-                <button onclick="showMainMenu()" style="margin-top: 10px; background: rgba(100,100,100,0.2); border-color: #666; color: #aaa;" data-i18n="backToMenu">
+                <button onclick="showMainMenu()" class="btn-ghost" data-i18n="backToMenu">
                     ◀ חזרה לתפריט
                 </button>
             </div>
@@ -141,7 +141,7 @@
                     <button class="es-filter" data-cat="rules" onclick="setEntrySettingsFilter('rules')" data-i18n="tabRules">📜 כללים</button>
                     <button class="es-filter" data-cat="edu" onclick="setEntrySettingsFilter('edu')" data-i18n="tabEdu">📚 חינוכי</button>
                     <button class="es-filter" data-cat="lang" onclick="setEntrySettingsFilter('lang')" data-i18n="tabLang">🌐 שפה</button>
-                    <button class="es-filter" data-cat="upgrades" onclick="setEntrySettingsFilter('upgrades')">🛍️ שדרוגים</button>
+                    <button class="es-filter" data-cat="upgrades" onclick="setEntrySettingsFilter('upgrades')" data-i18n="tabUpgrades">🛍️ שדרוגים</button>
                 </div>
 
                 <div id="es-body"></div>
@@ -159,20 +159,20 @@
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M50 5 L10 80 L50 65 L90 80 Z" fill="#00f2ff" /></svg>
                     </div>
-                    <div class="skin-name">Classic</div>
+                    <div class="skin-name" data-i18n="skinClassic">Classic</div>
                 </div>
                 <div class="skin-option" data-skin="interceptor">
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M50 5 L30 30 L10 90 L50 70 L90 90 L70 30 Z" fill="#ff00ea" /></svg>
                     </div>
-                    <div class="skin-name">Interceptor</div>
-                    <div class="skin-desc">Balanced fighter</div>
+                    <div class="skin-name" data-i18n="skinInterceptor">Interceptor</div>
+                    <div class="skin-desc" data-i18n="skinDescInterceptor">Balanced fighter</div>
                 </div>
                 <div class="skin-option" data-skin="tanker">
                     <div class="skin-preview">
                         <svg viewBox="0 0 100 100"><path d="M20 20 H80 V80 H20 Z M40 20 V5 M60 20 V5" fill="#2ecc71" stroke="#fff" stroke-width="2"/></svg>
                     </div>
-                    <div class="skin-name">Tanker</div>
+                    <div class="skin-name" data-i18n="skinTanker">Tanker</div>
                 </div>
                 <div class="skin-option locked" data-skin="phoenix" data-unlock-level="3">
                     <div class="skin-preview">
@@ -181,9 +181,9 @@
                             <path d="M35 30 L50 15 L65 30" fill="#ffd700" />
                         </svg>
                     </div>
-                    <div class="skin-name">Phoenix</div>
-                    <div class="skin-desc">⚡ Fast fire 🔥 +50% dmg</div>
-                    <div class="skin-lock">🔒 LVL 3</div>
+                    <div class="skin-name" data-i18n="skinPhoenix">Phoenix</div>
+                    <div class="skin-desc" data-i18n="skinDescPhoenix">⚡ Fast fire 🔥 +50% dmg</div>
+                    <div class="skin-lock" data-lock-n="3">🔒 LVL 3</div>
                 </div>
                 <div class="skin-option locked" data-skin="vortex" data-unlock-level="5">
                     <div class="skin-preview">
@@ -192,9 +192,9 @@
                             <circle cx="50" cy="50" r="15" fill="#3498db" />
                         </svg>
                     </div>
-                    <div class="skin-name">Vortex</div>
-                    <div class="skin-desc">⚡⚡ Ultra-fast 💥 2X dmg! ❤️ 2X HP</div>
-                    <div class="skin-lock">🔒 LVL 5</div>
+                    <div class="skin-name" data-i18n="skinVortex">Vortex</div>
+                    <div class="skin-desc" data-i18n="skinDescVortex">⚡⚡ Ultra-fast 💥 2X dmg! ❤️ 2X HP</div>
+                    <div class="skin-lock" data-lock-n="5">🔒 LVL 5</div>
                 </div>
                 <div class="skin-option locked" data-skin="joker" data-unlock-level="10">
                     <div class="skin-preview">
@@ -205,34 +205,36 @@
                             <circle cx="65" cy="35" r="5" fill="#ffff00" />
                         </svg>
                     </div>
-                    <div class="skin-name">joker</div>
-                    <div class="skin-desc">🔥🔥🔥 Fire | ⚡⚡⚡ 2X fire | 💥 3X! | ❤️❤️❤️</div>
-                    <div class="skin-lock">🔒 LVL 10</div>
+                    <div class="skin-name" data-i18n="skinJoker">joker</div>
+                    <div class="skin-desc" data-i18n="skinDescJoker">🔥🔥🔥 Fire | ⚡⚡⚡ 2X fire | 💥 3X! | ❤️❤️❤️</div>
+                    <div class="skin-lock" data-lock-n="10">🔒 LVL 10</div>
                 </div>
                 <div class="skin-option locked" data-skin="dragon" data-unlock-level="25">
                     <div class="skin-preview">
                         <img src="dragon.png" style="width:100%; height:100%; object-fit:contain;" />
                     </div>
-                    <div class="skin-name">Dragon</div>
-                    <div class="skin-desc">🐉 Fire all around | 🛡️ 10s invincible | ⚡ Best stats</div>
-                    <div class="skin-lock">🔒 LVL 25</div>
+                    <div class="skin-name" data-i18n="skinDragon">Dragon</div>
+                    <div class="skin-desc" data-i18n="skinDescDragon">🐉 Fire all around | 🛡️ 10s invincible | ⚡ Best stats</div>
+                    <div class="skin-lock" data-lock-n="25">🔒 LVL 25</div>
                 </div>
             </div>
 
-            <button onclick="initGame()" data-i18n="startBtn">צא למשימה</button>
-            <button id="login-button" onclick="toggleLoginMenu()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="loginBtn">🔐 התחבר</button>
-            <button onclick="showLeaderboard()" style="margin-top: 10px; background: rgba(255,215,0,0.2); border-color: #ffd700; color: #ffd700;" data-i18n="leaderboardBtn">🏆 לוח שיאים</button>
-            <button onclick="showPersonalHistory()" style="margin-top: 10px; background: rgba(0,242,255,0.1); border-color: var(--primary); color: var(--primary);">📊 My History</button>
-            <button onclick="showShop()" style="margin-top: 10px; background: rgba(255,215,0,0.15); border-color: #ffd700; color: #ffd700;">🛍️ Upgrade Shop</button>
-            <button onclick="showSettings()" style="margin-top: 10px; background: rgba(100,200,255,0.2); border-color: #64c8ff; color: #64c8ff;" data-i18n="settingsBtn">⚙️ הגדרות</button>
+            <button class="btn-start" onclick="initGame()" data-i18n="startBtn">צא למשימה</button>
+            <div class="menu-grid">
+                <button id="login-button" class="btn-gold" onclick="toggleLoginMenu()" data-i18n="loginBtn">🔐 התחבר</button>
+                <button class="btn-gold" onclick="showLeaderboard()" data-i18n="leaderboardBtn">🏆 לוח שיאים</button>
+                <button onclick="showPersonalHistory()" data-i18n="historyBtn">📊 My History</button>
+                <button class="btn-gold" onclick="showShop()" data-i18n="shopBtn">🛍️ Upgrade Shop</button>
+                <button class="btn-blue span-2" onclick="showSettings()" data-i18n="settingsBtn">⚙️ הגדרות</button>
+            </div>
 
             <!-- Coins display -->
-            <div id="home-coins-display" style="margin-top:10px; padding:8px 16px; background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.4); border-radius:8px; font-size:0.9rem; color:#ffd700; text-align:center; max-width:340px; width:100%;">
-                💰 Coins: <span id="coins">0</span>
+            <div id="home-coins-display" class="info-chip gold">
+                <span data-i18n="coinsLabel">💰 Coins:</span> <span id="coins">0</span>
             </div>
 
             <!-- Personal best mini-strip shown in main menu -->
-            <div id="personal-best-strip" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(0,242,255,0.07); border:1px solid rgba(0,242,255,0.3); border-radius:8px; font-size:0.78rem; color:var(--primary); text-align:center; max-width:340px; width:100%;">
+            <div id="personal-best-strip" class="info-chip cyan" style="display:none;">
                 🏅 <span id="personal-best-text">–</span>
             </div>
             </div>
@@ -248,16 +250,16 @@
 
             <!-- ===== PERSONAL HISTORY PANEL ===== -->
             <div id="history-container" style="display:none; width:100%; max-width:420px; text-align:center;">
-                <h2 style="margin-bottom:6px;">📊 My History</h2>
+                <h2 style="margin-bottom:6px;" data-i18n="historyTitle">📊 My History</h2>
 
                 <!-- Stats summary -->
                 <div id="history-stats" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px;"></div>
 
                 <!-- Tabs: History / Personal Bests / Achievements -->
                 <div style="display:flex; gap:8px; justify-content:center; margin-bottom:12px; flex-wrap:wrap;">
-                    <button class="history-tab active" id="htab-history" onclick="switchHistoryTab('history')">🕒 History</button>
-                    <button class="history-tab" id="htab-bests" onclick="switchHistoryTab('bests')">🥇 Personal Bests</button>
-                    <button class="history-tab" id="htab-achievements" onclick="switchHistoryTab('achievements')">🏅 Achievements</button>
+                    <button class="history-tab active" id="htab-history" onclick="switchHistoryTab('history')" data-i18n="histTabHistory">🕒 History</button>
+                    <button class="history-tab" id="htab-bests" onclick="switchHistoryTab('bests')" data-i18n="histTabBests">🥇 Personal Bests</button>
+                    <button class="history-tab" id="htab-achievements" onclick="switchHistoryTab('achievements')" data-i18n="histTabAch">🏅 Achievements</button>
                 </div>
 
                 <!-- History list -->
@@ -280,7 +282,7 @@
                     <div id="bests-list"></div>
                 </div>
 
-                <button onclick="closePersonalHistory()" style="margin-top:15px;">◀ חזרה</button>
+                <button onclick="closePersonalHistory()" style="margin-top:15px;" data-i18n="settingsBack">◀ חזרה</button>
             </div>
             
             <div id="settings-container" style="display: none;">
@@ -438,7 +440,7 @@
                 <div class="settings-tab-pane" data-tab="dev" style="display:none;">
                     <div class="settings-group" id="dev-console-settings">
                         <label data-i18n="devLabel">הרצת קוד (בדיוק כמו ב-F12 → Console):</label>
-                        <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" placeholder="// code here"></textarea>
+                        <textarea id="dev-console-input" class="dev-console-input" rows="3" dir="ltr" data-i18n="devPh" data-i18n-attr="placeholder" placeholder="// code here"></textarea>
                         <div class="button-group" style="margin-top: 8px;">
                             <button class="setting-btn" onclick="runDevConsole()" data-i18n="devRun">▶️ הרץ</button>
                             <button class="setting-btn" onclick="clearDevConsole()" data-i18n="devClear">🗑️ נקה</button>
@@ -483,8 +485,8 @@
             </div>
         </div>
         <div class="replay-controls">
-            <button id="replay-playpause-btn" onclick="window.__replayPlayPause()">⏸ Stop</button>
-            <button onclick="window.__replayClose()">✕ Close</button>
+            <button id="replay-playpause-btn" onclick="window.__replayPlayPause()" data-i18n="replayStop">⏸ Stop</button>
+            <button onclick="window.__replayClose()" data-i18n="replayClose">✕ Close</button>
         </div>
         <input type="range" id="replay-timeline" min="0" max="100" value="0" oninput="window.__replaySeek(this.value)">
         <div id="replay-info"></div>

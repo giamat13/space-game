@@ -64,8 +64,14 @@ function hashPassword(pw) {
 // ---------- Question bank ----------
 // Loaded from questions.json at startup. Shape:
 //   { subjects: { <key>: { name, grades: { "<g>": [ {question, options[], correctIndex} ] } } } }
-let questionBank = { subjects: {} };
+let questionBank = { subjects: {} };      // Hebrew
+let questionBankEn = null;                // English (questions.en.json)
 let bankLoaded = false;
+
+// Hebrew UI -> Hebrew questions; every other language -> English questions.
+function activeBank() {
+    return (currentLang !== 'he' && questionBankEn) ? questionBankEn : questionBank;
+}
 
 export async function loadQuestionBank() {
     try {
@@ -73,6 +79,10 @@ export async function loadQuestionBank() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         questionBank = await res.json();
         bankLoaded = true;
+        try {
+            const resEn = await fetch('./questions.en.json', { cache: 'no-cache' });
+            if (resEn.ok) questionBankEn = await resEn.json();
+        } catch (e2) { /* English bank optional */ }
         console.log('📚 [EDU] Question bank loaded:', Object.keys(questionBank.subjects || {}));
     } catch (e) {
         console.warn('⚠️ [EDU] Could not load questions.json, using built-in fallback.', e);
@@ -83,20 +93,20 @@ export async function loadQuestionBank() {
 }
 
 export function getSubjects() {
-    return Object.entries(questionBank.subjects || {}).map(([key, s]) => ({
+    return Object.entries(activeBank().subjects || {}).map(([key, s]) => ({
         key,
         name: s.name || key
     }));
 }
 
 export function getGradesForSubject(subjectKey) {
-    const subj = (questionBank.subjects || {})[subjectKey];
+    const subj = (activeBank().subjects || {})[subjectKey];
     if (!subj || !subj.grades) return [];
     return Object.keys(subj.grades).sort((a, b) => parseInt(a) - parseInt(b));
 }
 
 function getQuestionPool(subjectKey, grade) {
-    const subj = (questionBank.subjects || {})[subjectKey];
+    const subj = (activeBank().subjects || {})[subjectKey];
     if (!subj || !subj.grades) return [];
     return subj.grades[String(grade)] || [];
 }
@@ -347,7 +357,7 @@ function showQuizModal(q, eventType, onCorrect, onWrong) {
     const modal = ensureModal();
     modal.style.display = 'flex';
 
-    modal.querySelector('#edu-quiz-tag').innerText = EVENT_LABELS()[eventType] || (currentLang === 'en' ? 'Question' : 'שאלה');
+    modal.querySelector('#edu-quiz-tag').innerText = EVENT_LABELS()[eventType] || t('questionTag');
     modal.querySelector('#edu-quiz-question').innerText = q.question;
     const feedback = modal.querySelector('#edu-quiz-feedback');
     feedback.innerText = '';
@@ -442,7 +452,7 @@ function getClientName() {
     } catch (e) { /* ignore */ }
     const saved = readCookie('eduClientName');
     if (saved) return saved;
-    return 'אורח ' + getClientId().slice(2, 6);
+    return t('guestName') + ' ' + getClientId().slice(2, 6);
 }
 
 // Lazily resolve the Firestore handle + SDK helpers. Returns null until the
