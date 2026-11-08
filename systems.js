@@ -100,10 +100,6 @@ export function damagePlayer(amount, source = 'unknown') {
     }
     
     updateHPUI();
-    const flash = document.createElement('div');
-    flash.className = 'damage-flash';
-    DOM.wrapper.appendChild(flash);
-    setTimeout(() => flash.remove(), 300);
     
     if(state.playerHP <= 0) {
         console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);

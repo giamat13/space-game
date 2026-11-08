@@ -53,25 +53,15 @@ body {
     overflow: hidden;
 }
 
-/* subtle scanline/vignette over the playfield */
-#game-wrapper::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 20;
-    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%);
-}
 
 .star {
     position: absolute;
     background: #dff6ff;
     border-radius: 50%;
     opacity: 0.55;
-    box-shadow: 0 0 6px rgba(160,230,255,0.8);
     animation: fall linear infinite;
 }
-.star:nth-child(3n)   { background: #ffe9c4; box-shadow: 0 0 6px rgba(255,220,160,0.8); }
+.star:nth-child(3n)   { background: #ffe9c4; }
 .star:nth-child(5n)   { opacity: 0.9; transform: scale(1.5); }
 
 @keyframes fall {
@@ -96,8 +86,6 @@ body {
     padding: 7px 12px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 4px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
     font-size: 0.82rem;
     text-align: center;
@@ -166,7 +154,7 @@ body {
     height: 55px;
     z-index: 45;
     pointer-events: none;
-    animation: boltFlicker 0.4s infinite alternate;
+    filter: drop-shadow(0 0 8px #ffe000);
 }
 
 @keyframes boltFlicker {
@@ -274,7 +262,7 @@ body {
     height: 15px;
     background: linear-gradient(to top, transparent, var(--primary) 40%, #fff);
     border-radius: 3px;
-    box-shadow: 0 0 10px var(--primary), 0 0 22px rgba(34,230,255,0.5);
+    box-shadow: 0 0 8px var(--primary);
     z-index: 40;
 }
 
@@ -298,7 +286,7 @@ body {
     height: 20px;
     background: linear-gradient(to bottom, #fff, #ff5577 40%, transparent);
     border-radius: 4px;
-    box-shadow: 0 0 12px #ff2244, 0 0 24px rgba(255,34,68,0.5);
+    box-shadow: 0 0 8px #ff2244;
     z-index: 40;
 }
 
@@ -315,12 +303,6 @@ body {
     z-index: 46;
 }
 
-.enemy-ship.red { filter: drop-shadow(0 0 10px var(--danger)); }
-.enemy-ship.orange { filter: drop-shadow(0 0 12px var(--elite)); }
-.enemy-ship.green { filter: drop-shadow(0 0 12px #00cc44); }
-.enemy-ship.blue  { filter: drop-shadow(0 0 14px #0088ff); }
-.asteroid { filter: drop-shadow(0 0 12px var(--stone)); }
-.burger { filter: drop-shadow(0 0 15px var(--burger)); }
 
 #overlay {
     position: absolute;
@@ -522,19 +504,6 @@ h2 { font-family: var(--font-display); letter-spacing: 0.05em; color: #fff; text
     100% { transform: translateY(-50px); opacity: 0; }
 }
 
-.damage-flash {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255, 0, 0, 0.2);
-    pointer-events: none;
-    z-index: 999;
-    animation: flash 0.3s forwards;
-}
-
-@keyframes flash {
-    from { opacity: 1; }
-    to { opacity: 0; }
-}
 
 /* Leaderboard Styles */
 #leaderboard-container {
@@ -829,8 +798,7 @@ kbd {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: var(--glass);
-    backdrop-filter: blur(8px);
+    background: rgba(14, 20, 44, 0.8);
     border: 2px solid rgba(255, 255, 255, 0.3);
     cursor: pointer;
     z-index: 150;
@@ -850,8 +818,7 @@ kbd {
 #pause-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(3, 4, 12, 0.72);
-    backdrop-filter: blur(8px);
+    background: rgba(3, 4, 12, 0.8);
     display: none;
     flex-direction: column;
     align-items: center;
@@ -1488,8 +1455,6 @@ kbd {
 #shop-items > div:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0,0,0,0.4); }
 .lb-entry { border-radius: 10px; transition: transform 0.15s; }
 .lb-entry:hover { transform: translateX(-3px); }
-.enemy-ship, .asteroid, .burger { will-change: transform; }
-.enemy-ship.red, .enemy-ship.orange, .enemy-ship.green, .enemy-ship.blue { filter: drop-shadow(0 0 8px currentColor); }
 .enemy-ship.red { color: var(--danger); } .enemy-ship.orange { color: var(--elite); }
 .enemy-ship.green { color: #25d96b; } .enemy-ship.blue { color: #3d9bff; }
 @media (prefers-reduced-motion: reduce) { .star, .btn-start, #title { animation: none; } }
@@ -1554,3 +1519,8 @@ kbd {
     60% { transform: scale(0.96) } 100% { transform: scale(1); filter: none } }
 @keyframes fxTwinkle { from { transform: scale(0.7) rotate(0); opacity: 0.6 } to { transform: scale(1.3) rotate(25deg); opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .fx-rays, .fx-reveal-ship, .fx-reveal-title { animation: none; } }
+
+/* ===== Performance ===== */
+#game-wrapper { contain: layout paint style; }
+.enemy-ship, .asteroid, .burger, .ingredient, .bullet, .enemy-bullet, .lightning-bolt, .particle, .floating-msg { contain: layout style; }
+.stat-box { transition: none; }
