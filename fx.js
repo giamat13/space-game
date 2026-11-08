@@ -103,3 +103,65 @@ export function showBanner(text, { color = '#fff', ms = 2000, shake = false } = 
     setTimeout(() => b.classList.add('out'), ms - 400);
     setTimeout(() => b.remove(), ms);
 }
+
+// Ender-dragon-style death: pillars of light bursting out of a point, growing and spinning.
+export function lightBeams(x, y, { color = '#d9b8ff', rays = 14 } = {}) {
+    const el = document.createElement('div');
+    el.className = 'fx-beams';
+    el.style.setProperty('--fx-color', color);
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    let html = '';
+    for (let i = 0; i < rays; i++) html += `<i style="--a:${(360 / rays) * i}deg;--d:${(i % 4) * 0.18}s"></i>`;
+    el.innerHTML = html + '<b></b>';
+    layer().appendChild(el);
+    return {
+        move(nx, ny) { el.style.left = nx + 'px'; el.style.top = ny + 'px'; },
+        end(ms = 400) { el.style.transition = `opacity ${ms}ms`; el.style.opacity = '0'; setTimeout(() => el.remove(), ms); },
+    };
+}
+
+// Glowing orbs that burst out and then stream into a target point (like XP orbs).
+export function xpOrbs(x, y, getTarget, { count = 30, colors = ['#7dff6a', '#d6ff5a', '#ffffff'], onArrive } = {}) {
+    if (reduced()) { onArrive && onArrive(count); return; }
+    const host = layer();
+    let arrived = 0;
+    for (let i = 0; i < count; i++) {
+        const o = document.createElement('i');
+        o.className = 'fx-orb';
+        o.style.cssText = `left:${x}px;top:${y}px;background:radial-gradient(circle,#fff,${colors[i % colors.length]} 60%,transparent);`;
+        host.appendChild(o);
+        const ang = Math.random() * Math.PI * 2, burst = 60 + Math.random() * 160;
+        const bx = Math.cos(ang) * burst, by = Math.sin(ang) * burst - 40;
+        const delay = Math.random() * 500;
+        // phase 1: burst outward, phase 2: home in on the target (read at arrival time)
+        o.animate([{ transform: 'translate(0,0) scale(0.4)', opacity: 0 }, { transform: `translate(${bx}px,${by}px) scale(1)`, opacity: 1 }],
+            { duration: 450, delay, easing: 'ease-out', fill: 'forwards' }).onfinish = () => {
+            const t = getTarget();
+            const a2 = o.animate([{ transform: `translate(${bx}px,${by}px) scale(1)` }, { transform: `translate(${t.x - x}px,${t.y - y}px) scale(0.5)` }],
+                { duration: 700 + Math.random() * 500, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' });
+            a2.onfinish = () => { o.remove(); arrived++; onArrive && onArrive(arrived); };
+        };
+    }
+}
+
+// A trophy that rises from a point, floats, then flies into the target.
+export function trophy(x, y, getTarget, emoji = '👑') {
+    if (reduced()) return;
+    const el = document.createElement('div');
+    el.className = 'fx-trophy';
+    el.textContent = emoji;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    layer().appendChild(el);
+    el.animate([
+        { transform: 'translate(-50%,-50%) scale(0) rotate(-30deg)', opacity: 0 },
+        { transform: 'translate(-50%,-160%) scale(1.5) rotate(0deg)', opacity: 1, offset: 0.35 },
+        { transform: 'translate(-50%,-190%) scale(1.35) rotate(8deg)', opacity: 1, offset: 0.8 },
+        { transform: 'translate(-50%,-160%) scale(1.5) rotate(-6deg)', opacity: 1, offset: 1 },
+    ], { duration: 2400, fill: 'forwards' }).onfinish = () => {
+        const t = getTarget();
+        el.animate([{ transform: 'translate(-50%,-160%) scale(1.5)', opacity: 1 }, { transform: `translate(${t.x - x - 0}px, ${t.y - y - 0}px) scale(0.3)`, opacity: 0.2 }],
+            { duration: 700, easing: 'ease-in', fill: 'forwards' }).onfinish = () => { el.remove(); shockwave(t.x, t.y, '#ffd166', 220); confettiBurst(t.x, t.y, { count: 28, spread: 220 }); };
+    };
+}

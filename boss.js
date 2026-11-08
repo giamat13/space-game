@@ -10,7 +10,7 @@
 import { DOM, state, addScore, addCoins } from './data.js';
 import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateAmmoUI } from './systems.js';
 import { t, tf } from './i18n.js';
-import { showBanner, confettiBurst, shockwave } from './fx.js';
+import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy } from './fx.js';
 
 export const BOSS_LEVEL = 30;
 const W = 170;            // boss sprite size (px)
@@ -201,7 +201,11 @@ function phaseChange(b, now, phase) {
 // ---- death sequence ----
 function startDeath(b, now) {
     b.dying = true;
-    b.dyingUntil = now + 1700;
+    b.dyingStart = now;
+    b.dyingUntil = now + 3300;
+    const r0 = b.el.getBoundingClientRect();
+    b.beams = lightBeams(r0.left + r0.width / 2, r0.top + r0.height / 2);
+    shake(3300);
     b.hp = 0;
     b.el.classList.remove('boss-warn', 'boss-shielded', 'boss-blink');
     b.el.classList.add('boss-dying');
@@ -215,9 +219,13 @@ function startDeath(b, now) {
 function finishDeath(b) {
     const r = b.el.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    flash('#fff', 900);
+    b.beams?.end(500);
+    flash('#fff', 1100);
     shake(900);
     confettiBurst(cx, cy, { count: 110, spread: 480 });
+    const playerPt = () => { const p = DOM.player.getBoundingClientRect(); return { x: p.left + p.width / 2, y: p.top + p.height / 2 }; };
+    xpOrbs(cx, cy, playerPt, { count: 34, onArrive: (n) => { if (DOM.coinsEarnedEl) { DOM.coinsEarnedEl.classList.remove('coin-pop'); void DOM.coinsEarnedEl.offsetWidth; DOM.coinsEarnedEl.classList.add('coin-pop'); } } });
+    setTimeout(() => trophy(cx, cy, playerPt), 600);
     setTimeout(() => confettiBurst(cx - 80, cy + 20, { count: 40 }), 250);
     setTimeout(() => confettiBurst(cx + 80, cy + 20, { count: 40 }), 450);
     shockwave(cx, cy, '#ffd166', 640);
@@ -253,10 +261,17 @@ export function updateBoss(now) {
 
     // ===== death sequence =====
     if (b.dying) {
-        b.el.style.left = (b.x + (Math.random() - 0.5) * 10) + 'px';
-        if (Math.random() < 0.55) {
-            createExplosion(b.x + Math.random() * W, b.y + Math.random() * W, Math.random() < 0.5 ? '#ffd21a' : '#ff4d6a');
+        // the boss hovers upward, shaking harder and harder while pillars of light pour out of it
+        const k = Math.min(1, (now - b.dyingStart) / (b.dyingUntil - b.dyingStart));
+        b.y -= 0.45;
+        b.el.style.left = (b.x + (Math.random() - 0.5) * (6 + 22 * k)) + 'px';
+        b.el.style.top = b.y + 'px';
+        b.el.style.opacity = String(1 - 0.35 * k);
+        if (Math.random() < 0.35 + 0.5 * k) {
+            createExplosion(b.x + Math.random() * W, b.y + Math.random() * W, Math.random() < 0.5 ? '#ffd21a' : '#c9a4ff');
         }
+        const rr = b.el.getBoundingClientRect();
+        b.beams?.move(rr.left + rr.width / 2, rr.top + rr.height / 2);
         if (now > b.dyingUntil) finishDeath(b);
         return;
     }

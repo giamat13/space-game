@@ -1598,3 +1598,17 @@ kbd {
     background: repeating-linear-gradient(180deg, rgba(255,77,47,0.35) 0 14px, transparent 14px 28px); border-left: 2px dashed #ff4d2f; border-right: 2px dashed #ff4d2f; animation: fxBlink 0.15s linear infinite alternate; }
 .boss-meteor { position: absolute; width: 40px; z-index: 47; pointer-events: none; border-radius: 50% 50% 40% 40%;
     background: radial-gradient(circle at 50% 35%, #fff, #ffd21a 35%, #ff4d2f 70%, #7a1500); box-shadow: 0 0 22px #ff4d2f, 0 -30px 30px rgba(255,100,30,0.6); }
+
+/* ===== Boss death: light pillars, orbs, trophy ===== */
+.fx-beams { position: absolute; width: 0; height: 0; z-index: 2; pointer-events: none; animation: beamsSpin 6s linear infinite; }
+.fx-beams i { position: absolute; left: -7px; bottom: 0; width: 14px; height: 150vmax; transform-origin: 50% 100%; transform: rotate(var(--a)) scaleY(0);
+    background: linear-gradient(0deg, #fff, var(--fx-color) 18%, transparent 90%); opacity: 0.85; filter: blur(1px);
+    animation: beamGrow 2.4s var(--d) ease-in forwards; }
+.fx-beams b { position: absolute; left: -90px; top: -90px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, #fff, var(--fx-color) 40%, transparent 70%); animation: beamCore 0.3s ease-in-out infinite alternate; }
+@keyframes beamGrow { to { transform: rotate(var(--a)) scaleY(1); } }
+@keyframes beamsSpin { to { transform: rotate(360deg); } }
+@keyframes beamCore { from { transform: scale(0.7); opacity: 0.7 } to { transform: scale(1.25); opacity: 1 } }
+.fx-orb { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; box-shadow: 0 0 12px #7dff6a; will-change: transform; }
+.fx-trophy { position: absolute; font-size: 3.2rem; filter: drop-shadow(0 0 18px #ffd166) drop-shadow(0 0 40px #ffb703); will-change: transform; }
+.coin-pop { animation: coinPop 0.25s ease-out; }
+@keyframes coinPop { 0% { transform: scale(1) } 50% { transform: scale(1.5); color: #ffd166 } 100% { transform: scale(1) } }
