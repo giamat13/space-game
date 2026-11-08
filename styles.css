@@ -1612,3 +1612,9 @@ kbd {
 .fx-trophy { position: absolute; font-size: 3.2rem; filter: drop-shadow(0 0 18px #ffd166) drop-shadow(0 0 40px #ffb703); will-change: transform; }
 .coin-pop { animation: coinPop 0.25s ease-out; }
 @keyframes coinPop { 0% { transform: scale(1) } 50% { transform: scale(1.5); color: #ffd166 } 100% { transform: scale(1) } }
+
+.boss-mine { position: absolute; width: 40px; height: 40px; z-index: 46; pointer-events: none; filter: drop-shadow(0 0 8px #ff4d2f); }
+.boss-zap { position: absolute; width: 110px; height: 110px; z-index: 43; pointer-events: none; border-radius: 50%; }
+.boss-zap.warn { border: 3px dashed #9fd8ff; background: radial-gradient(circle, rgba(159,216,255,0.35), transparent 70%); animation: fxBlink 0.14s linear infinite alternate; }
+.boss-zap.strike { background: radial-gradient(circle, #fff, rgba(159,216,255,0.8) 40%, transparent 70%); box-shadow: 0 0 60px #9fd8ff; }
+.boss-zap.strike::before { content: ''; position: absolute; left: 50%; bottom: 50%; width: 16px; margin-left: -8px; height: 120vh; background: linear-gradient(0deg, #fff, #9fd8ff 40%, transparent); box-shadow: 0 0 20px #9fd8ff; }

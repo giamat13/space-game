@@ -15,7 +15,7 @@ import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy } from
 export const BOSS_LEVEL = 30;
 const W = 170;            // boss sprite size (px)
 const Y = 125;            // resting height (below the player HUD)
-const BOSS_HP_PER_POWER = 150; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
+const BOSS_HP_PER_POWER = 230; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
 const MAX_HIT = 9;        // a single hit never takes more than this (keeps 999-dmg feathers from one-shotting)
 const EXPOSED_MULT = 2;   // damage multiplier while exposed
 
@@ -69,6 +69,9 @@ function clearMinions(b) {
     (b.missiles || []).forEach(m => m.el.remove()); b.missiles = [];
     (b.drones || []).forEach(d => d.el.remove()); b.drones = [];
     (b.meteors || []).forEach(m => m.el.remove()); b.meteors = [];
+    (b.mines || []).forEach(m => m.el.remove()); b.mines = [];
+    (b.zaps || []).forEach(z => z.el.remove()); b.zaps = [];
+    if (b.burst) b.burst.left = 0;
 }
 
 function removeBossDom(b) {
@@ -118,7 +121,7 @@ function spawnBoss(now) {
         beam: { state: 'idle', until: 0, next: now + 8000, x: 0, hit: false, el: null },
         spiral: { left: 0, angle: 0, next: 0, nextStart: now + 6000 },
         pickups: [], nextPickup: now + 5000,
-        specialNext: now + 4500, missiles: [], drones: [], meteors: []
+        specialNext: now + 4500, missiles: [], drones: [], meteors: [], mines: [], zaps: [], burst: { left: 0, next: 0 }
     };
     el.style.left = state.boss.x + 'px';
     el.style.top = state.boss.y + 'px';
@@ -136,7 +139,7 @@ function fire(x, y, angleDeg, speed, phase = 1) {
     el.style.top = y + 'px';
     el.style.transform = `rotate(${angleDeg - 90}deg)`;
     DOM.wrapper.appendChild(el);
-    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: 7 + phase });
+    state.enemyBullets.push({ el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: 10 + 2 * phase });
 }
 
 function aimedAngle(bx, by) {
@@ -412,7 +415,7 @@ export function updateBoss(now) {
             if (now > bm.until) { bm.state = 'fire'; bm.until = now + 550; bm.el.className = 'boss-beam fire'; shake(450); }
         } else if (bm.state === 'fire') {
             const px = state.playerX + 25;
-            if (!bm.hit && Math.abs(px - bm.x) < 42) { bm.hit = true; damagePlayer(45, 'boss_beam'); }
+            if (!bm.hit && Math.abs(px - bm.x) < 42) { bm.hit = true; damagePlayer(500, 'boss_beam'); }
             if (now > bm.until) {
                 bm.el.remove(); bm.el = null; bm.state = 'idle';
                 bm.next = now + (ph === 3 ? 5500 : 8000);
@@ -437,9 +440,9 @@ export function updateBoss(now) {
 
         if (now > b.specialNext && !calmNow && !busy) {
             const pool = ['wall'];
-            if (ph >= 2) pool.push('missiles', 'meteors');
+            if (ph >= 2) pool.push('missiles', 'meteors', 'mines', 'lightning');
             if (ph >= 2 && b.drones.length === 0) pool.push('drones');
-            if (ph === 3) pool.push('meteors', 'wall');
+            if (ph === 3) pool.push('meteors', 'wall', 'burst', 'lightning');
             const pick = pool[Math.floor(Math.random() * pool.length)];
             b.specialNext = now + (ph === 1 ? 6500 : ph === 2 ? 5200 : 4200);
 
@@ -485,6 +488,32 @@ export function updateBoss(now) {
                     b.drones.push({ el, x: cxs - 20, y: cys, hp: 4, phaseOff: i * 2.1, lastShot: now + 600 + i * 400, rect: null });
                 }
                 showFloatingMessage(t('bossDrones'), cxs - 50, b.y - 14, '#d9d24a');
+            } else if (pick === 'mines' && b.mines.length === 0) {
+                const count = ph === 3 ? 4 : 3;
+                for (let i = 0; i < count; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'boss-mine';
+                    el.innerHTML = '<svg viewBox="0 0 40 40" style="width:100%;height:100%" stroke-linejoin="round"><g fill="#555a66" stroke="#1d2027" stroke-width="3"><circle cx="20" cy="20" r="11"/><path d="M20 2 L20 9 M20 31 L20 38 M2 20 L9 20 M31 20 L38 20 M7 7 L12 12 M28 28 L33 33 M33 7 L28 12 M7 33 L12 28"/></g><circle cx="20" cy="20" r="4" fill="#ff4d2f"/></svg>';
+                    DOM.wrapper.appendChild(el);
+                    const mx = cxs + (i - (count - 1) / 2) * 90;
+                    b.mines.push({ el, x: Math.max(30, Math.min(WW - 30, mx)), y: cys, vy: 1.5 + Math.random() * 0.4, rot: 0 });
+                }
+                showFloatingMessage(t('bossMines'), cxs - 40, b.y - 14, '#ff4d2f');
+            } else if (pick === 'lightning') {
+                const n = ph === 3 ? 4 : 3;
+                for (let i = 0; i < n; i++) {
+                    const zx = i === 0 ? state.playerX + 25 : Math.max(40, Math.min(WW - 40, state.playerX + 25 + (i % 2 ? 1 : -1) * (80 + Math.random() * 120)));
+                    const el = document.createElement('div');
+                    el.className = 'boss-zap warn';
+                    el.style.left = (zx - 55) + 'px';
+                    el.style.top = (H - 135) + 'px';
+                    DOM.wrapper.appendChild(el);
+                    b.zaps.push({ el, x: zx, state: 'warn', until: now + 900 + i * 220, hit: false });
+                }
+                showFloatingMessage(t('bossLightning'), cxs - 50, b.y - 14, '#9fd8ff');
+            } else if (pick === 'burst') {
+                b.burst.left = 3; b.burst.next = now;
+                showFloatingMessage(t('bossBurst'), cxs - 40, b.y - 14, '#ff4d6a');
             }
         }
 
@@ -508,7 +537,7 @@ export function updateBoss(now) {
             m.el.style.transform = `rotate(${na * 180 / Math.PI - 90 + 180}deg)`;
             const r = m.el.getBoundingClientRect();
             let dead = now - m.born > 7000 || m.y > H + 30;
-            if (hitPlayer(r)) { damagePlayer(10, 'boss_missile'); dead = true; createExplosion(r.left, r.top, '#ff7a2e'); }
+            if (hitPlayer(r)) { damagePlayer(25, 'boss_missile'); dead = true; createExplosion(r.left, r.top, '#ff7a2e'); }
             if (!dead) {
                 for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
                     const bu = state.bullets[bi], br = bu.rect || bu.el.getBoundingClientRect();
@@ -532,9 +561,48 @@ export function updateBoss(now) {
                 m.y += 13;
                 m.el.style.top = m.y + 'px';
                 const r = m.el.getBoundingClientRect();
-                if (!m.hit && hitPlayer(r)) { m.hit = true; damagePlayer(16, 'boss_meteor'); createExplosion(r.left + 20, r.top + 20, '#ff4d2f'); }
+                if (!m.hit && hitPlayer(r)) { m.hit = true; damagePlayer(35, 'boss_meteor'); createExplosion(r.left + 20, r.top + 20, '#ff4d2f'); }
                 if (m.y > H + 20) { createExplosion(m.x, H - 20, '#ff7a2e'); m.el.remove(); b.meteors.splice(i, 1); }
             }
+        }
+
+
+        // --- storm burst: three quick rings ---
+        if (b.burst.left > 0 && now > b.burst.next) {
+            ring(cxs, cys, 18, 4.4, Math.random() * 20, ph);
+            b.burst.left--; b.burst.next = now + 380;
+        }
+
+        // --- mines: drift down, explode near the player (or when shot) ---
+        for (let i = b.mines.length - 1; i >= 0; i--) {
+            const m = b.mines[i];
+            m.y += m.vy; m.rot += 3;
+            m.el.style.left = (m.x - 20) + 'px'; m.el.style.top = (m.y - 20) + 'px';
+            m.el.style.transform = `rotate(${m.rot}deg)`;
+            const r = m.el.getBoundingClientRect();
+            let blow = m.y > H - 120 || hitPlayer(r);
+            let shot = false;
+            if (!blow) {
+                for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
+                    const bu = state.bullets[bi], br = bu.rect || bu.el.getBoundingClientRect();
+                    if (!(br.right < r.left || br.left > r.right || br.bottom < r.top || br.top > r.bottom)) { bu.el.remove(); state.bullets.splice(bi, 1); blow = true; shot = true; break; }
+                }
+            }
+            if (blow) {
+                const cx0 = r.left + r.width / 2, cy0 = r.top + r.height / 2;
+                createExplosion(cx0, cy0, '#ff7a2e'); createExplosion(cx0, cy0, '#ffd21a'); createExplosion(cx0, cy0, '#fff');
+                shockwave(cx0, cy0, '#ff7a2e', 200);
+                if (Math.hypot(px2 - m.x, py2 - m.y) < 100) damagePlayer(45, 'boss_mine');
+                m.el.remove(); b.mines.splice(i, 1);
+            }
+        }
+
+        // --- lightning: marked ground circles, then a bolt strikes ---
+        for (let i = b.zaps.length - 1; i >= 0; i--) {
+            const z = b.zaps[i];
+            if (z.state === 'warn') {
+                if (now > z.until) { z.state = 'strike'; z.until = now + 260; z.el.className = 'boss-zap strike'; shake(180); if (!z.hit && Math.abs(px2 - z.x) < 55) { z.hit = true; damagePlayer(40, 'boss_lightning'); } }
+            } else if (now > z.until) { z.el.remove(); b.zaps.splice(i, 1); }
         }
 
         // --- drones: hover near the boss, take shots, shoot back ---
@@ -580,7 +648,7 @@ export function updateBoss(now) {
             const r = pk.el.getBoundingClientRect();
             const hit = !(r.right < pr.left || r.left > pr.right || r.bottom < pr.top || r.top > pr.bottom);
             if (hit) {
-                const heal = Math.round(state.playerMaxHP * 0.3);
+                const heal = Math.round(state.playerMaxHP * 0.4);
                 state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
                 updateHPUI();
                 showFloatingMessage(`+${heal} HP`, pk.x - 10, pk.y - 20, 'var(--health)');
@@ -607,7 +675,7 @@ export function updateBoss(now) {
     if (b.dash.state === 'rush' && !b.dash.hit &&
         !(rect.right < pRect.left || rect.left > pRect.right || rect.bottom < pRect.top || rect.top > pRect.bottom)) {
         b.dash.hit = true;
-        damagePlayer(45, 'boss_dash');
+        damagePlayer(90, 'boss_dash');
         createExplosion(pRect.left + 25, pRect.top + 25, '#ff4d6a');
     }
 
