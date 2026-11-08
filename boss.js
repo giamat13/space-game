@@ -1,16 +1,23 @@
 // ===== BOSS: "Cube King" — appears once, at level 30 =====
 // Self-contained: lives outside state.enemies, uses state.enemyBullets so the existing
 // bullet movement / player-damage / dragon-ricochet code works unchanged.
+//
+// Fight design (beatable, but you have to play it):
+//   • Dodges lined-up shots, shields itself, blinks across the arena, fires a telegraphed laser.
+//   • Every power has a cost: after the shield drops / the beam fires / a phase change roar,
+//     the boss is EXPOSED for a moment and takes double damage.
+//   • Each phase change clears the bullets and gives the player a second wind (+25% HP).
 import { DOM, state, addScore, addCoins } from './data.js';
 import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateAmmoUI } from './systems.js';
 import { t, tf } from './i18n.js';
 import { showBanner, confettiBurst, shockwave } from './fx.js';
 
 export const BOSS_LEVEL = 30;
-const W = 170;
-const Y = 125;           // resting height (below the player HUD)           // boss sprite size (px)
-const HARDNESS = 100;     // boss HP multiplier (tune here)
+const W = 170;            // boss sprite size (px)
+const Y = 125;            // resting height (below the player HUD)
+const HARDNESS = 3;       // boss HP multiplier (tune here; 1 = ~300 HP for the base ship)
 const MAX_HIT = 9;        // a single hit never takes more than this (keeps 999-dmg feathers from one-shotting)
+const EXPOSED_MULT = 2;   // damage multiplier while exposed
 
 const BOSS_SVG = `<svg viewBox="0 0 200 200" style="width:100%;height:100%;" stroke-linejoin="round" stroke-linecap="round">
   <g fill="#a23cf0" stroke="#3b0f7a" stroke-width="5">
@@ -28,6 +35,24 @@ const BOSS_SVG = `<svg viewBox="0 0 200 200" style="width:100%;height:100%;" str
 function wrapperW() { return DOM.wrapper.clientWidth; }
 function wrapperH() { return DOM.wrapper.clientHeight; }
 
+// Screen shake on the playfield.
+function shake(ms = 350) {
+    const w = DOM.wrapper;
+    w.classList.remove('shake');
+    void w.offsetWidth;
+    w.classList.add('shake');
+    setTimeout(() => w.classList.remove('shake'), ms);
+}
+
+function flash(color = '#fff', ms = 500) {
+    const f = document.createElement('div');
+    f.className = 'boss-flash';
+    f.style.background = color;
+    f.style.animationDuration = ms + 'ms';
+    DOM.wrapper.appendChild(f);
+    setTimeout(() => f.remove(), ms);
+}
+
 function ensureHud() {
     let hud = document.getElementById('boss-hud');
     if (!hud) {
@@ -40,18 +65,23 @@ function ensureHud() {
     return hud;
 }
 
+function removeBossDom(b) {
+    if (!b) return;
+    b.beam.el?.remove();
+    b.el.remove();
+    document.getElementById('boss-hud')?.remove();
+}
+
 export function resetBoss() {
-    if (state.boss) { state.boss.beam.el?.remove(); state.boss.el.remove(); }
+    removeBossDom(state.boss);
     state.boss = null;
     state.bossDone = false;
-    document.getElementById('boss-hud')?.remove();
 }
 
 // Game over: remove the boss from the screen but keep state.bossDone for the result being saved.
 export function hideBoss() {
-    if (state.boss) { state.boss.beam.el?.remove(); state.boss.el.remove(); }
+    removeBossDom(state.boss);
     state.boss = null;
-    document.getElementById('boss-hud')?.remove();
 }
 
 function spawnBoss(now) {
@@ -60,39 +90,38 @@ function spawnBoss(now) {
     const maxHP = Math.round(300 * HARDNESS * Math.pow(power, 0.8));
 
     const el = document.createElement('div');
-    el.className = 'boss';
+    el.className = 'boss entering';
+    el.dataset.phase = '1';
     el.style.width = el.style.height = W + 'px';
-    el.innerHTML = BOSS_SVG;
+    el.innerHTML = '<div class="boss-aura"></div><div class="boss-orbit"><i></i><i></i><i></i></div><div class="boss-body">' + BOSS_SVG + '</div><div class="boss-shield"></div>';
     DOM.wrapper.appendChild(el);
 
     const hud = ensureHud();
     state.boss = {
-        el, hudFill: hud.querySelector('.boss-hud-fill'),
-        x: wrapperW() / 2 - W / 2, y: -W - 10, hp: maxHP, maxHP, phase: 1,
-        t0: now, enter: true, lastShot: now + 800, lastRing: now + 1800,
-        dash: { state: 'idle', next: now + 3500, hit: false, targetX: 0 },
-        hitUntil: 0, rect: null,
-        // dodge: lateral sidestep when a player shot is lined up with the boss
+        el, body: el.querySelector('.boss-body'), hudFill: hud.querySelector('.boss-hud-fill'),
+        x: wrapperW() / 2 - W / 2, y: -W - 10, prevX: 0, tilt: 0,
+        hp: maxHP, maxHP, phase: 1,
+        t0: now, enter: true, lastShot: now + 800, lastRing: now + 2000,
+        dash: { state: 'idle', next: now + 7000, hit: false, targetX: 0, until: 0 },
+        hitUntil: 0, rect: null, roarUntil: 0, weakUntil: 0, dying: false, dyingUntil: 0,
         dodgeOff: 0, dodgeTarget: 0, dodgeReset: 0, dodgeCd: 0,
-        // special power: energy shield that absorbs all damage
-        shield: { on: false, until: 0, next: now + 9000 },
-        // special power: blink (teleport) with a burst on arrival
-        blinkNext: now + 8000, blinkUntil: 0,
-        // special attack: telegraphed laser column
-        beam: { state: 'idle', until: 0, next: now + 7000, x: 0, hit: false, el: null }
+        shield: { on: false, until: 0, next: now + 10000 },
+        blinkNext: now + 9000, blinkUntil: 0,
+        beam: { state: 'idle', until: 0, next: now + 8000, x: 0, hit: false, el: null },
+        spiral: { left: 0, angle: 0, next: 0, nextStart: now + 6000 }
     };
-    const sh = document.createElement('div');
-    sh.className = 'boss-shield';
-    el.appendChild(sh);
     el.style.left = state.boss.x + 'px';
     el.style.top = state.boss.y + 'px';
-    showBanner(t('bossWarning'), { color: '#ff4d6a', ms: 2400, shake: true });
+    showBanner(t('bossWarning'), { color: '#ff4d6a', ms: 2600, shake: true });
+    flash('#ff4d6a', 700);
+    shake(900);
 }
 
-function fire(x, y, angleDeg, speed) {
+function fire(x, y, angleDeg, speed, phase = 1) {
     const a = angleDeg * Math.PI / 180;
     const el = document.createElement('div');
     el.className = 'enemy-bullet boss-bullet';
+    el.dataset.p = phase;
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.transform = `rotate(${angleDeg - 90}deg)`;
@@ -105,29 +134,82 @@ function aimedAngle(bx, by) {
     return Math.atan2(ty - by, tx - bx) * 180 / Math.PI;
 }
 
-function ring(bx, by, n, speed, offset = 0) {
-    for (let i = 0; i < n; i++) fire(bx, by, offset + (360 / n) * i, speed);
+function ring(bx, by, n, speed, offset = 0, phase = 1) {
+    for (let i = 0; i < n; i++) fire(bx, by, offset + (360 / n) * i, speed, phase);
+}
+
+function clearBossBullets() {
+    for (const eb of state.enemyBullets) {
+        if (eb.ricochet) continue;
+        createExplosion(eb.x, eb.y, '#ffd21a');
+        eb.el.remove();
+    }
+    state.enemyBullets = state.enemyBullets.filter(eb => eb.ricochet);
+}
+
+function expose(b, now, ms) {
+    b.weakUntil = Math.max(b.weakUntil, now + ms);
+    showFloatingMessage(t('bossWeak'), b.x + W / 2 - 50, b.y - 14, '#ffe600');
 }
 
 // Damage from abilities (vortex laser, dragon fire, joker chaos): fraction of max HP.
-function damageBoss(amount, absolute = false) {
+function damageBoss(fraction) {
     const b = state.boss;
-    if (!b || b.enter || b.shield.on) return;
-    const dmg = absolute ? amount : b.maxHP * amount;
-    b.hp -= dmg;
+    if (!b || b.enter || b.dying || b.shield.on) return;
+    const mult = Date.now() < b.weakUntil ? EXPOSED_MULT : 1;
+    b.hp -= b.maxHP * fraction * mult;
     b.hitUntil = Date.now() + 90;
 }
-window.__damageBoss = (fraction) => damageBoss(fraction / HARDNESS);
+window.__damageBoss = (fraction) => damageBoss(fraction);
 
-function defeat() {
-    const b = state.boss;
-    const cx = b.x + W / 2, cy = b.y + W / 2;
-    for (let i = 0; i < 14; i++) {
-        setTimeout(() => createExplosion(cx + (Math.random() - 0.5) * W, cy + (Math.random() - 0.5) * W, i % 2 ? '#ffd21a' : '#a23cf0'), i * 90);
-    }
+// ---- phase change: roar, clear bullets, second wind ----
+function phaseChange(b, now, phase) {
+    b.phase = phase;
+    b.el.dataset.phase = String(phase);
+    b.roarUntil = now + 1500;
+    b.weakUntil = Math.max(b.weakUntil, now + 1500);
+    b.dash.state = 'idle'; b.dash.next = now + 7000; b.el.classList.remove('boss-warn');
+    if (b.beam.el) { b.beam.el.remove(); b.beam.el = null; }
+    b.beam.state = 'idle'; b.beam.next = now + 5000;
+    b.shield.on = false; b.el.classList.remove('boss-shielded'); b.shield.next = now + 8000;
+    b.spiral.left = 0; b.spiral.nextStart = now + 3000;
+    clearBossBullets();
     const r = b.el.getBoundingClientRect();
-    confettiBurst(r.left + r.width / 2, r.top + r.height / 2, { count: 80, spread: 420 });
-    shockwave(r.left + r.width / 2, r.top + r.height / 2, '#ffd166', 560);
+    shockwave(r.left + r.width / 2, r.top + r.height / 2, phase === 3 ? '#ff4d2f' : '#ffd21a', 600);
+    shake(700);
+    flash(phase === 3 ? '#ff4d2f' : '#ffd21a', 450);
+    showBanner(t(phase === 3 ? 'bossPhase3' : 'bossPhase2'), { color: phase === 3 ? '#ff4d2f' : '#ffd21a', ms: 1800, shake: true });
+    // second wind for the player
+    const heal = Math.round(state.playerMaxHP * 0.25);
+    state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
+    updateHPUI();
+    showFloatingMessage(`+${heal} HP`, wrapperW() / 2 - 30, wrapperH() - 160, 'var(--health)');
+}
+
+// ---- death sequence ----
+function startDeath(b, now) {
+    b.dying = true;
+    b.dyingUntil = now + 1700;
+    b.hp = 0;
+    b.el.classList.remove('boss-warn', 'boss-shielded', 'boss-blink');
+    b.el.classList.add('boss-dying');
+    if (b.beam.el) { b.beam.el.remove(); b.beam.el = null; }
+    clearBossBullets();
+    state.enemyBullets.forEach(eb => eb.el.remove()); state.enemyBullets = [];
+    showFloatingMessage('…', b.x + W / 2, b.y, '#fff');
+}
+
+function finishDeath(b) {
+    const r = b.el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    flash('#fff', 900);
+    shake(900);
+    confettiBurst(cx, cy, { count: 110, spread: 480 });
+    setTimeout(() => confettiBurst(cx - 80, cy + 20, { count: 40 }), 250);
+    setTimeout(() => confettiBurst(cx + 80, cy + 20, { count: 40 }), 450);
+    shockwave(cx, cy, '#ffd166', 640);
+    shockwave(cx, cy, '#ffffff', 420);
+    shockwave(cx, cy, '#c04dff', 760);
 
     const bonusScore = 5000, bonusCoins = 3000;
     addScore(bonusScore);
@@ -140,16 +222,10 @@ function defeat() {
     state.ammo = state.maxAmmo;
     updateAmmoUI();
 
-    // Clear the boss' remaining bullets
-    for (const eb of state.enemyBullets) eb.el.remove();
-    state.enemyBullets = [];
-
-    showBanner(t('bossDefeated'), { color: '#ffd166', ms: 2600 });
+    showBanner(t('bossDefeated'), { color: '#ffd166', ms: 3000 });
     showFloatingMessage(tf('bossReward', { score: bonusScore, coins: bonusCoins }), wrapperW() / 2 - 90, wrapperH() / 2, '#ffd700');
 
-    b.beam.el?.remove();
-    b.el.remove();
-    document.getElementById('boss-hud')?.remove();
+    removeBossDom(b);
     state.boss = null;
     state.bossDone = true;
 }
@@ -162,56 +238,88 @@ export function updateBoss(now) {
     const b = state.boss;
     const H = wrapperH(), WW = wrapperW();
 
-    // ---- entrance ----
+    // ===== death sequence =====
+    if (b.dying) {
+        b.el.style.left = (b.x + (Math.random() - 0.5) * 10) + 'px';
+        if (Math.random() < 0.55) {
+            createExplosion(b.x + Math.random() * W, b.y + Math.random() * W, Math.random() < 0.5 ? '#ffd21a' : '#ff4d6a');
+        }
+        if (now > b.dyingUntil) finishDeath(b);
+        return;
+    }
+
+    // ===== entrance =====
     if (b.enter) {
-        b.y += 2;
-        if (b.y >= Y) { b.y = Y; b.enter = false; b.t0 = now; }
+        b.y += 3;
+        if (b.y >= Y) { b.y = Y; b.enter = false; b.t0 = now; b.el.classList.remove('entering'); shake(500); shockwave(b.x + W / 2 + (DOM.wrapper.getBoundingClientRect().left), b.y + W / 2, '#c04dff', 420); }
     } else {
         const ratio = b.hp / b.maxHP;
-        b.phase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : 3;
-        const period = b.phase === 1 ? 1500 : b.phase === 2 ? 1100 : 800;
+        const newPhase = ratio > 0.66 ? 1 : ratio > 0.33 ? 2 : 3;
+        if (newPhase > b.phase) phaseChange(b, now, newPhase);
+
+        const roaring = now < b.roarUntil;
+        const exposed = now < b.weakUntil;
+        const period = b.phase === 1 ? 1700 : b.phase === 2 ? 1300 : 1000;
         const amp = WW / 2 - W / 2 - 10;
         const d = b.dash;
 
+        // ---- base movement ----
         if (d.state === 'idle') {
-            b.x = WW / 2 - W / 2 + Math.sin((now - b.t0) / period) * amp;
-            if (b.phase === 3 && now > d.next && b.beam.state === 'idle') { d.state = 'warn'; d.until = now + 900; d.hit = false; b.el.classList.add('boss-warn'); }
+            if (!roaring) b.x = WW / 2 - W / 2 + Math.sin((now - b.t0) / period) * amp;
+            else b.t0 += 16; // freeze the sway during the roar
+            if (b.phase === 3 && now > d.next && !roaring && !exposed && b.beam.state === 'idle' && !b.blinkUntil) {
+                d.state = 'warn'; d.until = now + 900; d.hit = false; b.el.classList.add('boss-warn');
+            }
         } else if (d.state === 'warn') {
-            // telegraph: lock onto the player's column, shake in place
             d.targetX = Math.max(0, Math.min(WW - W, state.playerX + 25 - W / 2));
             b.x += (d.targetX - b.x) * 0.12;
             if (now > d.until) { d.state = 'rush'; b.el.classList.remove('boss-warn'); }
         } else if (d.state === 'rush') {
             b.y += 15;
-            if (b.y >= H - W - 70) d.state = 'return';
+            if (b.y >= H - W - 70) { d.state = 'return'; shake(300); }
         } else if (d.state === 'return') {
             b.y -= 6;
-            if (b.y <= Y) { b.y = Y; d.state = 'idle'; d.next = now + 3500; b.t0 = now - Math.asin(Math.max(-1, Math.min(1, (b.x - (WW / 2 - W / 2)) / amp))) * period; }
+            if (b.y <= Y) {
+                b.y = Y; d.state = 'idle'; d.next = now + 6000;
+                b.t0 = now - Math.asin(Math.max(-1, Math.min(1, (b.x - (WW / 2 - W / 2)) / amp))) * period;
+                expose(b, now, 1000);   // overheated after the slam
+            }
         }
 
-        // ---- attacks (not while rushing) ----
         const cx = b.x + W / 2, cy = b.y + W * 0.75;
-        if (d.state === 'idle') {
-            const shotEvery = b.phase === 1 ? 600 : b.phase === 2 ? 480 : 380;
+        const calm = roaring || exposed;          // no attacks while roaring / exposed
+        const ph = b.phase;
+
+        // ---- attacks ----
+        if (d.state === 'idle' && !calm && !b.blinkUntil) {
+            const shotEvery = ph === 1 ? 900 : ph === 2 ? 750 : 600;
             if (now - b.lastShot > shotEvery) {
-                const a = aimedAngle(cx, cy), sp = 5 + b.phase * 0.6;
-                const spreads = b.phase === 3 ? [-36, -24, -12, 0, 12, 24, 36] : [-21, -14, -7, 0, 7, 14, 21];
-                for (const s of spreads) fire(cx, cy, a + s, sp);
+                const a = aimedAngle(cx, cy), sp = 4.4 + ph * 0.5;
+                const spreads = ph === 3 ? [-30, -20, -10, 0, 10, 20, 30] : [-20, -10, 0, 10, 20];
+                for (const s of spreads) fire(cx, cy, a + s, sp, ph);
                 b.lastShot = now;
             }
-            if (b.phase >= 2 && now - b.lastRing > (b.phase === 2 ? 1500 : 1100)) {
-                ring(cx, cy, b.phase === 2 ? 16 : 24, 4.6, Math.random() * 30);
+            if (ph >= 2 && now - b.lastRing > (ph === 2 ? 2400 : 1800)) {
+                ring(cx, cy, ph === 2 ? 12 : 16, 4.2, Math.random() * 30, ph);
                 b.lastRing = now;
+            }
+            // spiral: a rotating stream with natural gaps to slip through
+            const sp = b.spiral;
+            if (ph >= 2 && sp.left === 0 && now > sp.nextStart) { sp.left = ph === 2 ? 16 : 26; sp.angle = Math.random() * 360; sp.next = now; }
+            if (sp.left > 0 && now > sp.next) {
+                fire(cx, cy, sp.angle, 4.0, ph);
+                sp.angle += 24; sp.left--; sp.next = now + 55;
+                if (sp.left === 0) sp.nextStart = now + (ph === 2 ? 5000 : 3500);
             }
         }
 
-        // ===== DODGE: sidestep shots that are lined up with the boss =====
-        if (d.state === 'idle' && b.rect && now > b.dodgeCd && !b.shield.on) {
+        // ===== DODGE: sidestep shots lined up with the boss =====
+        if (d.state === 'idle' && b.rect && now > b.dodgeCd && !b.shield.on && !calm) {
             const bcx = b.rect.left + b.rect.width / 2;
             for (const bul of state.bullets) {
                 const r = bul.rect;
-                if (!r || r.top < b.rect.bottom) continue;                 // already passed / above
-                if (r.top - b.rect.bottom > 280) continue;                  // too far to matter
+                if (!r || r.top < b.rect.bottom) continue;
+                if (r.top - b.rect.bottom > 280) continue;
                 const bx = r.left + r.width / 2;
                 if (bx < b.rect.left - 12 || bx > b.rect.right + 12) continue;
                 let dir = bx < bcx ? 1 : -1;
@@ -219,48 +327,48 @@ export function updateBoss(now) {
                 if (room < 90) dir = -dir;
                 b.dodgeTarget = dir * 150;
                 b.dodgeReset = now + 550;
-                b.dodgeCd = now + (b.phase === 1 ? 700 : b.phase === 2 ? 480 : 320);
+                b.dodgeCd = now + (ph === 1 ? 1100 : ph === 2 ? 800 : 600);
                 break;
             }
         }
-        if (now > b.dodgeReset) b.dodgeTarget = 0;
+        if (now > b.dodgeReset || calm) b.dodgeTarget = 0;
         b.dodgeOff += (b.dodgeTarget - b.dodgeOff) * 0.3;
         if (d.state === 'idle') b.x = Math.max(8, Math.min(WW - W - 8, b.x + b.dodgeOff));
 
         // ===== SPECIAL POWER 1: energy shield (absorbs everything) =====
         const sh = b.shield;
-        if (!sh.on && now > sh.next && b.phase >= 1) {
-            sh.on = true; sh.until = now + (b.phase === 3 ? 3200 : 2500);
+        if (!sh.on && now > sh.next && !roaring && d.state === 'idle') {
+            sh.on = true; sh.until = now + (ph === 3 ? 2800 : 2200);
             b.el.classList.add('boss-shielded');
             showFloatingMessage(t('bossShield'), b.x + W / 2 - 40, b.y - 10, '#7fe9ff');
         } else if (sh.on && now > sh.until) {
-            sh.on = false; sh.next = now + (b.phase === 3 ? 6500 : 9000);
+            sh.on = false; sh.next = now + (ph === 3 ? 8000 : 10000);
             b.el.classList.remove('boss-shielded');
+            expose(b, now, 1500);      // shield down → exposed: your window to hit hard
         }
 
-        // ===== SPECIAL POWER 2: blink (teleport) with a burst on arrival =====
-        if (b.phase >= 2 && d.state === 'idle' && b.beam.state === 'idle' && now > b.blinkNext && !b.blinkUntil) {
+        // ===== SPECIAL POWER 2: blink (teleport) =====
+        if (ph >= 2 && d.state === 'idle' && b.beam.state === 'idle' && !calm && !sh.on && now > b.blinkNext && !b.blinkUntil) {
             b.blinkUntil = now + 260;
             b.el.classList.add('boss-blink');
         }
         if (b.blinkUntil && now > b.blinkUntil) {
             const from = b.rect;
             if (from) shockwave(from.left + from.width / 2, from.top + from.height / 2, '#c04dff', 260);
-            // reappear on the far side of the player so the player has to re-aim
             const px = state.playerX + 25;
             const targetX = px < WW / 2 ? WW - W - 20 - Math.random() * 60 : 20 + Math.random() * 60;
             b.t0 = now - Math.asin(Math.max(-1, Math.min(1, (targetX - (WW / 2 - W / 2)) / amp))) * period;
             b.x = targetX; b.dodgeOff = 0; b.dodgeTarget = 0;
             b.el.classList.remove('boss-blink');
             b.blinkUntil = 0;
-            b.blinkNext = now + (b.phase === 3 ? 5000 : 8000);
-            ring(b.x + W / 2, b.y + W * 0.75, 10, 4.4, Math.random() * 36);
+            b.blinkNext = now + (ph === 3 ? 6500 : 9000);
+            ring(b.x + W / 2, b.y + W * 0.75, 8, 4.2, Math.random() * 45, ph);
         }
 
         // ===== SPECIAL ATTACK: telegraphed laser column =====
         const bm = b.beam;
         if (bm.state === 'idle') {
-            if (b.phase >= 2 && d.state === 'idle' && !b.blinkUntil && now > bm.next) {
+            if (ph >= 2 && d.state === 'idle' && !b.blinkUntil && !calm && !sh.on && now > bm.next) {
                 bm.state = 'warn'; bm.until = now + 1100; bm.hit = false;
                 bm.el = document.createElement('div');
                 bm.el.className = 'boss-beam warn';
@@ -268,15 +376,15 @@ export function updateBoss(now) {
                 bm.x = state.playerX + 25;
             }
         } else if (bm.state === 'warn') {
-            // keeps tracking the player, then locks 300ms before firing
             if (bm.until - now > 300) bm.x += (state.playerX + 25 - bm.x) * 0.15;
-            if (now > bm.until) { bm.state = 'fire'; bm.until = now + 550; bm.el.className = 'boss-beam fire'; }
+            if (now > bm.until) { bm.state = 'fire'; bm.until = now + 550; bm.el.className = 'boss-beam fire'; shake(450); }
         } else if (bm.state === 'fire') {
             const px = state.playerX + 25;
-            if (!bm.hit && Math.abs(px - bm.x) < 42) { bm.hit = true; damagePlayer(60, 'boss_beam'); }
+            if (!bm.hit && Math.abs(px - bm.x) < 42) { bm.hit = true; damagePlayer(45, 'boss_beam'); }
             if (now > bm.until) {
                 bm.el.remove(); bm.el = null; bm.state = 'idle';
-                bm.next = now + (b.phase === 3 ? 4500 : 7000);
+                bm.next = now + (ph === 3 ? 5500 : 8000);
+                expose(b, now, 1200);   // overheated after the beam
             }
         }
         if (bm.el) {
@@ -287,9 +395,16 @@ export function updateBoss(now) {
         }
     }
 
+    // ---- render ----
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
+    // lean into the movement
+    const vx = b.x - b.prevX; b.prevX = b.x;
+    b.tilt += (Math.max(-14, Math.min(14, vx * 1.4)) - b.tilt) * 0.2;
+    b.body.style.transform = `rotate(${b.tilt}deg)`;
     const rect = b.rect = b.el.getBoundingClientRect();
+    const exposedNow = now < b.weakUntil;
+    b.el.classList.toggle('boss-weak', exposedNow);
 
     // ---- player contact (rush) ----
     const pRect = state.playerRect || DOM.player.getBoundingClientRect();
@@ -302,23 +417,22 @@ export function updateBoss(now) {
 
     // ---- player bullets ----
     if (!b.enter) {
-        const cap = MAX_HIT;
+        const mult = exposedNow ? EXPOSED_MULT : 1;
         for (let i = state.bullets.length - 1; i >= 0; i--) {
             const bul = state.bullets[i];
             const r = bul.rect || bul.el.getBoundingClientRect();
             if (r.right < rect.left || r.left > rect.right || r.bottom < rect.top || r.top > rect.bottom) continue;
-            if (!b.shield.on) { b.hp -= Math.min(bul.damage || 1, cap); b.hitUntil = now + 80; }
-            createExplosion(r.left, r.top, b.shield.on ? '#7fe9ff' : (bul.isFeather ? '#ff6b35' : 'white'));
+            if (!b.shield.on) { b.hp -= Math.min(bul.damage || 1, MAX_HIT) * mult; b.hitUntil = now + 80; }
+            createExplosion(r.left, r.top, b.shield.on ? '#7fe9ff' : (exposedNow ? '#ffe600' : (bul.isFeather ? '#ff6b35' : 'white')));
             bul.el.remove();
             state.bullets.splice(i, 1);
         }
-        // dragon-shield ricochet bullets
         for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
             const eb = state.enemyBullets[i];
             if (!eb.ricochet) continue;
             const r = eb.rect || eb.el.getBoundingClientRect();
             if (r.right < rect.left || r.left > rect.right || r.bottom < rect.top || r.top > rect.bottom) continue;
-            if (!b.shield.on) { b.hp -= Math.min(eb.damage || 40, cap * 2); b.hitUntil = now + 80; }
+            if (!b.shield.on) { b.hp -= Math.min(eb.damage || 40, MAX_HIT * 2) * mult; b.hitUntil = now + 80; }
             createExplosion(eb.x, eb.y, '#ffaa33');
             eb.el.remove();
             state.enemyBullets.splice(i, 1);
@@ -329,5 +443,6 @@ export function updateBoss(now) {
     b.hp = Math.max(0, b.hp);
     b.hudFill.style.width = (b.hp / b.maxHP * 100) + '%';
     b.hudFill.dataset.phase = b.phase;
-    if (b.hp <= 0) defeat();
+    b.hudFill.classList.toggle('exposed', exposedNow);
+    if (b.hp <= 0 && !b.enter) startDeath(b, now);
 }
