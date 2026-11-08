@@ -505,7 +505,7 @@ export function updateBoss(now) {
             m.el.style.transform = `rotate(${na * 180 / Math.PI - 90 + 180}deg)`;
             const r = m.el.getBoundingClientRect();
             let dead = now - m.born > 7000 || m.y > H + 30;
-            if (hitPlayer(r)) { damagePlayer(14, 'boss_missile'); dead = true; createExplosion(r.left, r.top, '#ff7a2e'); }
+            if (hitPlayer(r)) { damagePlayer(10, 'boss_missile'); dead = true; createExplosion(r.left, r.top, '#ff7a2e'); }
             if (!dead) {
                 for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
                     const bu = state.bullets[bi], br = bu.rect || bu.el.getBoundingClientRect();
@@ -529,7 +529,7 @@ export function updateBoss(now) {
                 m.y += 13;
                 m.el.style.top = m.y + 'px';
                 const r = m.el.getBoundingClientRect();
-                if (!m.hit && hitPlayer(r)) { m.hit = true; damagePlayer(22, 'boss_meteor'); createExplosion(r.left + 20, r.top + 20, '#ff4d2f'); }
+                if (!m.hit && hitPlayer(r)) { m.hit = true; damagePlayer(16, 'boss_meteor'); createExplosion(r.left + 20, r.top + 20, '#ff4d2f'); }
                 if (m.y > H + 20) { createExplosion(m.x, H - 20, '#ff7a2e'); m.el.remove(); b.meteors.splice(i, 1); }
             }
         }
@@ -567,7 +567,7 @@ export function updateBoss(now) {
             el.style.top = (b.y + W * 0.8) + 'px';
             DOM.wrapper.appendChild(el);
             b.pickups.push({ el, x: px, y: b.y + W * 0.8 });
-            b.nextPickup = now + (state.playerHP < state.playerMaxHP * 0.5 ? 4500 : 7500);
+            b.nextPickup = now + (state.playerHP < state.playerMaxHP * 0.5 ? 3500 : 5500);
         }
         const pr = state.playerRect || DOM.player.getBoundingClientRect();
         for (let i = b.pickups.length - 1; i >= 0; i--) {
@@ -577,7 +577,7 @@ export function updateBoss(now) {
             const r = pk.el.getBoundingClientRect();
             const hit = !(r.right < pr.left || r.left > pr.right || r.bottom < pr.top || r.top > pr.bottom);
             if (hit) {
-                const heal = Math.round(state.playerMaxHP * 0.2);
+                const heal = Math.round(state.playerMaxHP * 0.3);
                 state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
                 updateHPUI();
                 showFloatingMessage(`+${heal} HP`, pk.x - 10, pk.y - 20, 'var(--health)');
