@@ -15,7 +15,7 @@ import { showBanner, confettiBurst, shockwave } from './fx.js';
 export const BOSS_LEVEL = 30;
 const W = 170;            // boss sprite size (px)
 const Y = 125;            // resting height (below the player HUD)
-const BOSS_HP_PER_POWER = 100; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
+const BOSS_HP_PER_POWER = 60; // boss HP = this x ship power (damage x fire rate). Sustained player dps is ~2.5 x power (ammo-limited), so ~140 => a fight of roughly a minute
 const MAX_HIT = 9;        // a single hit never takes more than this (keeps 999-dmg feathers from one-shotting)
 const EXPOSED_MULT = 2;   // damage multiplier while exposed
 
@@ -68,6 +68,7 @@ function ensureHud() {
 function removeBossDom(b) {
     if (!b) return;
     b.beam.el?.remove();
+    (b.pickups || []).forEach(p => p.el.remove());
     b.el.remove();
     document.getElementById('boss-hud')?.remove();
 }
@@ -108,7 +109,8 @@ function spawnBoss(now) {
         shield: { on: false, until: 0, next: now + 10000 },
         blinkNext: now + 9000, blinkUntil: 0,
         beam: { state: 'idle', until: 0, next: now + 8000, x: 0, hit: false, el: null },
-        spiral: { left: 0, angle: 0, next: 0, nextStart: now + 6000 }
+        spiral: { left: 0, angle: 0, next: 0, nextStart: now + 6000 },
+        pickups: [], nextPickup: now + 5000
     };
     el.style.left = state.boss.x + 'px';
     el.style.top = state.boss.y + 'px';
@@ -322,12 +324,13 @@ export function updateBoss(now) {
                 if (r.top - b.rect.bottom > 280) continue;
                 const bx = r.left + r.width / 2;
                 if (bx < b.rect.left - 12 || bx > b.rect.right + 12) continue;
+                if (Math.random() > 0.5) { b.dodgeCd = now + 700; break; }   // only dodges about half the time
                 let dir = bx < bcx ? 1 : -1;
                 const room = dir > 0 ? (WW - W - 10 - b.x) : (b.x - 10);
                 if (room < 90) dir = -dir;
-                b.dodgeTarget = dir * 150;
+                b.dodgeTarget = dir * 110;
                 b.dodgeReset = now + 550;
-                b.dodgeCd = now + (ph === 1 ? 1100 : ph === 2 ? 800 : 600);
+                b.dodgeCd = now + (ph === 1 ? 3200 : ph === 2 ? 2600 : 2000);
                 break;
             }
         }
@@ -392,6 +395,38 @@ export function updateBoss(now) {
             bm.el.style.left = (bm.x - 40) + 'px';
             bm.el.style.top = top + 'px';
             bm.el.style.height = (H - top) + 'px';
+        }
+    }
+
+    // ---- healing pickups: drift down from the boss; fly into one to repair ----
+    if (!b.enter) {
+        if (now > b.nextPickup && b.pickups.length < 2) {
+            const el = document.createElement('div');
+            el.className = 'boss-heal';
+            el.textContent = '✚';
+            const px = 40 + Math.random() * (WW - 100);
+            el.style.left = px + 'px';
+            el.style.top = (b.y + W * 0.8) + 'px';
+            DOM.wrapper.appendChild(el);
+            b.pickups.push({ el, x: px, y: b.y + W * 0.8 });
+            b.nextPickup = now + (state.playerHP < state.playerMaxHP * 0.5 ? 4500 : 7500);
+        }
+        const pr = state.playerRect || DOM.player.getBoundingClientRect();
+        for (let i = b.pickups.length - 1; i >= 0; i--) {
+            const pk = b.pickups[i];
+            pk.y += 2.4;
+            pk.el.style.top = pk.y + 'px';
+            const r = pk.el.getBoundingClientRect();
+            const hit = !(r.right < pr.left || r.left > pr.right || r.bottom < pr.top || r.top > pr.bottom);
+            if (hit) {
+                const heal = Math.round(state.playerMaxHP * 0.2);
+                state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
+                updateHPUI();
+                showFloatingMessage(`+${heal} HP`, pk.x - 10, pk.y - 20, 'var(--health)');
+                createExplosion(r.left + 15, r.top + 15, '#34e89e');
+                createExplosion(r.left + 15, r.top + 15, '#ffffff');
+            }
+            if (hit || pk.y > H + 20) { pk.el.remove(); b.pickups.splice(i, 1); }
         }
     }
 
