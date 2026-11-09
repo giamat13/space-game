@@ -501,7 +501,44 @@ export const UPGRADES = {
         nameKey: 'upgDoubleScoreName',
         descKey: 'upgDoubleScoreDesc',
         cost: 300000,
-        skin: 'global'
+        skin: 'global',
+        scoreMultiplier: 2
+    },
+    score_x4: {
+        key: 'score_x4',
+        nameKey: 'upgScoreX4Name',
+        descKey: 'upgScoreX4Desc',
+        cost: 2000000,
+        skin: 'global',
+        requires: 'double_score',
+        scoreMultiplier: 4
+    },
+    score_x6: {
+        key: 'score_x6',
+        nameKey: 'upgScoreX6Name',
+        descKey: 'upgScoreX6Desc',
+        cost: 6000000,
+        skin: 'global',
+        requires: 'score_x4',
+        scoreMultiplier: 6
+    },
+    score_x8: {
+        key: 'score_x8',
+        nameKey: 'upgScoreX8Name',
+        descKey: 'upgScoreX8Desc',
+        cost: 8000000,
+        skin: 'global',
+        requires: 'score_x6',
+        scoreMultiplier: 8
+    },
+    score_x10: {
+        key: 'score_x10',
+        nameKey: 'upgScoreX10Name',
+        descKey: 'upgScoreX10Desc',
+        cost: 10000000,
+        skin: 'global',
+        requires: 'score_x8',
+        scoreMultiplier: 10
     },
     joker_kill_coins: {
         key: 'joker_kill_coins',
@@ -632,9 +669,11 @@ export function isUpgradeActive(key) {
     return getOwnedUpgrades().includes(key) && !getDisabledUpgrades().includes(key);
 }
 
-// Score helper: every score gain goes through here so the x2 upgrade applies everywhere.
+// Score helper: every score gain goes through here so the score upgrade applies everywhere.
 export function addScore(points) {
-    const mult = isUpgradeActive('double_score') ? 2 : 1;
+    const mult = Object.values(UPGRADES)
+        .filter(upgrade => upgrade.scoreMultiplier && isUpgradeActive(upgrade.key))
+        .reduce((highest, upgrade) => Math.max(highest, upgrade.scoreMultiplier), 1);
     state.score += points * mult;
 }
 
