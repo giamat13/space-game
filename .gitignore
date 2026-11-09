@@ -8,6 +8,7 @@ out/
 classes/
 bin/
 dist/
+deploy/
 target/
 *.jar
 *.war
@@ -96,6 +97,8 @@ ehthumbs.db
 *.otf
 *.glb
 *.gltf
+!assets/
+!assets/*.png
 
 # ── Minified / vendored libs ────────────────────────────────────
 *.min.js

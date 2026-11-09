@@ -14,7 +14,7 @@ import {
     limit,
     getDocs,
     addDoc,
-    updateDoc,
+    runTransaction,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -188,55 +188,47 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
             settings: settings || null
         };
         
-        // Save every game session (for cross-device filter search)
-        await addDoc(collection(db, 'game_sessions'), {
-            ...scoreData,
-            clientTimestamp: Date.now()
-        });
-
-        // Save to general leaderboard - only one record per user
         const overallRef = doc(db, 'leaderboard', user.uid);
-        const existingOverall = await getDoc(overallRef);
-        if (!existingOverall.exists() || level > (existingOverall.data().level || 0) || (level === (existingOverall.data().level || 0) && score > existingOverall.data().score)) {
-            await setDoc(overallRef, scoreData);
-        }
-
-        // Save to skin leaderboard - only one record per user
         const skinRef = doc(db, `scores/${skinKey}/entries`, user.uid);
-        const existingSkin = await getDoc(skinRef);
-        if (!existingSkin.exists() || level > (existingSkin.data().level || 0) || (level === (existingSkin.data().level || 0) && score > existingSkin.data().score)) {
-            await setDoc(skinRef, scoreData);
-        }
-        
-        // Update user statistics
         const userStatsRef = doc(db, 'userStats', user.uid);
-        const userStats = await getDoc(userStatsRef);
-        
-        if (userStats.exists()) {
-            const currentBest = userStats.data().bestScore || 0;
-            if (score > currentBest) {
-                await updateDoc(userStatsRef, {
+
+        await runTransaction(db, async (transaction) => {
+            const [overallDoc, skinDoc, statsDoc] = await Promise.all([
+                transaction.get(overallRef),
+                transaction.get(skinRef),
+                transaction.get(userStatsRef)
+            ]);
+
+            const isBetter = (existing) =>
+                !existing.exists() ||
+                level > (existing.data().level || 0) ||
+                (level === (existing.data().level || 0) && score > (existing.data().score || 0));
+
+            if (isBetter(overallDoc)) transaction.set(overallRef, scoreData);
+            if (isBetter(skinDoc)) transaction.set(skinRef, scoreData);
+
+            const stats = statsDoc.exists() ? statsDoc.data() : {};
+            const statsUpdate = {
+                totalGames: (stats.totalGames || 0) + 1,
+                lastPlayed: serverTimestamp()
+            };
+            if (!statsDoc.exists() || score > (stats.bestScore || 0)) {
+                Object.assign(statsUpdate, {
                     bestScore: score,
                     bestLevel: level,
-                    bestSkin: skinKey,
-                    totalGames: (userStats.data().totalGames || 0) + 1,
-                    lastPlayed: serverTimestamp()
-                });
-            } else {
-                await updateDoc(userStatsRef, {
-                    totalGames: (userStats.data().totalGames || 0) + 1,
-                    lastPlayed: serverTimestamp()
+                    bestSkin: skinKey
                 });
             }
-        } else {
-            await setDoc(userStatsRef, {
-                bestScore: score,
-                bestLevel: level,
-                bestSkin: skinKey,
-                totalGames: 1,
-                lastPlayed: serverTimestamp()
-            });
-        }
+            transaction.set(userStatsRef, statsUpdate, { merge: true });
+        });
+
+        // The per-user bests are authoritative; history is supplementary.
+        addDoc(collection(db, 'game_sessions'), {
+            ...scoreData,
+            clientTimestamp: Date.now()
+        }).catch((error) => {
+            console.error('❌ [CLOUD] Score history save failed:', error);
+        });
         
         console.log('✅ [CLOUD] Score saved successfully');
         return true;
@@ -262,30 +254,18 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
         const collected = [];
 
         if (skinKey === 'overall') {
-            const snap = await getDocs(query(
-                collection(db, 'leaderboard'),
-                orderBy('level', 'desc'),
-                limit(100)
-            ));
+            const snap = await getDocs(collection(db, 'leaderboard'));
             snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
         } else {
             // Per-skin runs written at game-over.
-            const snap = await getDocs(query(
-                collection(db, `scores/${skinKey}/entries`),
-                orderBy('level', 'desc'),
-                limit(100)
-            ));
+            const snap = await getDocs(collection(db, `scores/${skinKey}/entries`));
             snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
 
             // Historical runs that only ever landed in the overall leaderboard
             // (the per-skin collections were populated later). Pull the matching
             // skin from there so old records show up in their category too.
             try {
-                const overallSnap = await getDocs(query(
-                    collection(db, 'leaderboard'),
-                    orderBy('level', 'desc'),
-                    limit(100)
-                ));
+                const overallSnap = await getDocs(collection(db, 'leaderboard'));
                 overallSnap.forEach((d) => {
                     const data = d.data();
                     if (data.skin === skinKey) collected.push({ id: d.id, ...data });
@@ -295,13 +275,14 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             }
         }
 
-        // Also fetch game sessions for complete filter coverage.
+        // Include recent game sessions for settings filters; canonical bests
+        // above ensure historical session volume cannot hide leaderboard entries.
         // When viewing a specific skin's leaderboard, only include sessions for
         // that skin so dragon/joker sessions don't leak into the vortex tab.
         try {
             const sessSnap = await getDocs(query(
                 collection(db, 'game_sessions'),
-                orderBy('level', 'desc'),
+                orderBy('timestamp', 'desc'),
                 limit(500)
             ));
             sessSnap.forEach((d) => {
@@ -314,7 +295,7 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             console.warn('⚠️ [CLOUD] game_sessions fetch failed:', e);
         }
 
-        // All collected entries — deduplication happens client-side after filtering
+        // Keep rendering bounded; canonical bests are included before this cap.
         const scores = collected
             .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
             .slice(0, 500);

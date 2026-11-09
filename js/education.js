@@ -75,12 +75,12 @@ function activeBank() {
 
 export async function loadQuestionBank() {
     try {
-        const res = await fetch('./questions.json', { cache: 'no-cache' });
+        const res = await fetch('./data/questions.json', { cache: 'no-cache' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         questionBank = await res.json();
         bankLoaded = true;
         try {
-            const resEn = await fetch('./questions.en.json', { cache: 'no-cache' });
+            const resEn = await fetch('./data/questions.en.json', { cache: 'no-cache' });
             if (resEn.ok) questionBankEn = await resEn.json();
         } catch (e2) { /* English bank optional */ }
         console.log('📚 [EDU] Question bank loaded:', Object.keys(questionBank.subjects || {}));

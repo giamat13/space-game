@@ -106,7 +106,7 @@ export const SKINS = {
         get description() { return t('skinDescJoker'); }
     },
     dragon: {
-        svg: `<img src="dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
+        svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
         unlockLevel: 25,
         get name() { return t('skinDragon'); },
@@ -671,8 +671,14 @@ export async function saveScore(skinKey, score, level, userName = null, settings
         date: new Date().toLocaleDateString('he-IL'),
         settings: settings || null
     };
-    skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
-    skinLeaderboard.push(newEntry);
+    const isBetter = (candidate, existing) =>
+        (candidate.level || 0) > (existing.level || 0) ||
+        ((candidate.level || 0) === (existing.level || 0) && candidate.score > existing.score);
+    const existingSkinBest = skinLeaderboard.find(e => e.userName === effectiveName);
+    if (!existingSkinBest || isBetter(newEntry, existingSkinBest)) {
+        skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
+        skinLeaderboard.push(newEntry);
+    }
     skinLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     skinLeaderboard = skinLeaderboard.slice(0, 5);
     setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
@@ -686,18 +692,21 @@ export async function saveScore(skinKey, score, level, userName = null, settings
         date: new Date().toLocaleDateString('he-IL'),
         settings: settings || null
     };
-    overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
-    overallLeaderboard.push(overallEntry);
+    const existingOverallBest = overallLeaderboard.find(e => e.userName === effectiveName);
+    if (!existingOverallBest || isBetter(overallEntry, existingOverallBest)) {
+        overallLeaderboard = overallLeaderboard.filter(e => e.userName !== effectiveName);
+        overallLeaderboard.push(overallEntry);
+    }
     overallLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
 
     // Save to cloud
     try {
-        await saveScoreToCloud(skinKey, score, level, userName, settings);
-        console.log('✅ [SCORE] Saved to cloud');
+        const saved = await saveScoreToCloud(skinKey, score, level, userName, settings);
+        console.log(saved ? '✅ [SCORE] Saved to cloud' : '⚠️ [SCORE] Saved locally only');
     } catch (error) {
-        console.log('⚠️ [SCORE] Cloud save failed, local score saved');
+        console.error('⚠️ [SCORE] Cloud save failed; score is saved locally:', error);
     }
 }
 

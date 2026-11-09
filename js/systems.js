@@ -164,8 +164,10 @@ export function damagePlayer(amount, source = 'unknown') {
                 };
 
                 // Save to global leaderboard (cloud + local)
-                dataModule.saveScore(skinKey, state.score, state.level, userName, settings);
-                console.log(`✅ [GAME OVER] Score saved for user: ${userName}`);
+                dataModule.saveScore(skinKey, state.score, state.level, userName, settings)
+                    .then(() => window.__refreshLeaderboard?.())
+                    .catch(err => console.error('❌ [GAME OVER] Leaderboard save failed:', err));
+                console.log(`💾 [GAME OVER] Score save started for user: ${userName}`);
 
                 // Save speedrun results
                 const allGoals = [...(dataModule.SPEEDRUN_GOALS || []), ...(dataModule.getCustomSpeedrunGoals?.() || [])];

@@ -1,10 +1,14 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
-import { initFirestoreSync, getMoneyLeaderboard } from './firestore-sync.js';
+import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
+import { celebrateSkinUnlock, levelUpFx } from './fx.js';
+import { updateBoss, resetBoss, hideBoss } from './boss.js';
+window.__resetBoss = resetBoss;
+window.__hideBoss = hideBoss;
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -582,6 +586,12 @@ function _lbTriggerDisplay() {
     else                             displayLeaderboard('money');
 }
 
+window.__refreshLeaderboard = function() {
+    if (document.getElementById('leaderboard-container')?.style.display === 'block' && _lbMode === 'score') {
+        displayLeaderboard(_lbSkinSel);
+    }
+};
+
 // Multi-select skin toggle (regular LB)
 window.__lbToggleSkin = function(key) {
     if (!key) { _lbSkinSel = []; }
@@ -669,6 +679,7 @@ const SHOP_TABS = [
     { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
     { key: 'dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+    { key: 'global',      labelKey: 'shopTabGlobal',    icon: '⭐' },
     { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
 ];
 let _currentShopTab = 'all';
@@ -975,8 +986,8 @@ function renderShopItems() {
         return;
     }
 
-    // Skin-specific tab: HP card + skin upgrades
-    container.appendChild(_makeHPCard(_currentShopTab, coins));
+    // Skin-specific tab: HP card + skin upgrades (the 'global' tab has no HP card)
+    if (_currentShopTab !== 'global') container.appendChild(_makeHPCard(_currentShopTab, coins));
 
     const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
     if (skinUpgrades.length === 0) {
@@ -1159,6 +1170,7 @@ window.closeEntrySettings = closeEntrySettings;
 window.setEntrySettingsFilter = setEntrySettingsFilter;
 
 let _rawLeaderboard = [];
+let _leaderboardLoadToken = 0;
 
 function _renderLbContent() {
     const content = document.getElementById('leaderboard-content');
@@ -1221,6 +1233,7 @@ function _renderLbContent() {
             ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduDisplay = entry.settings?.eduEnabled
             ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
+        const bossDisplay = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputDisplay = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
@@ -1237,7 +1250,7 @@ function _renderLbContent() {
             <div class="lb-rank">${medals[index] || (index + 1)}</div>
             <div class="lb-info">
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
-                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${inputDisplay}
+                    👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${bossDisplay}${inputDisplay}
                 </div>
                 <div class="lb-score">${entry.score.toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
@@ -1289,7 +1302,7 @@ function checkSpeedrunMilestones() {
     let hitAny = false;
     for (const goal of allGoals) {
         if (state.speedrunHits[goal.key] != null) continue;
-        const val = goal.type === 'score' ? state.score : state.level;
+        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossDone ? 1 : 0) : state.level;
         if (val >= goal.target) {
             const elapsed = Date.now() - state.startTime;
             state.speedrunHits[goal.key] = elapsed;
@@ -1352,6 +1365,7 @@ function _renderSrContent(goalKey) {
 }
 
 async function displaySpeedrunLeaderboard(goalKey) {
+    const loadToken = ++_leaderboardLoadToken;
     const content = document.getElementById('leaderboard-content');
     if (!content) return;
 
@@ -1366,8 +1380,10 @@ async function displaySpeedrunLeaderboard(goalKey) {
     try {
         const { getSpeedrunLeaderboardFromCloud } = await import('./firestore-sync.js');
         const cloud = await getSpeedrunLeaderboardFromCloud(goalKey);
+        if (loadToken !== _leaderboardLoadToken) return;
         _rawSpeedrunEntries = (cloud && cloud.length > 0) ? cloud : getSpeedrunLeaderboard(goalKey);
     } catch (e) {
+        if (loadToken !== _leaderboardLoadToken) return;
         _rawSpeedrunEntries = getSpeedrunLeaderboard(goalKey);
     }
 
@@ -1391,6 +1407,7 @@ function _mergeSkinEntries(arrays) {
 }
 
 async function displayLeaderboard(categoryOrSkinSel) {
+    const loadToken = ++_leaderboardLoadToken;
     const content = document.getElementById('leaderboard-content');
     if (!content) return;
 
@@ -1423,14 +1440,17 @@ async function displayLeaderboard(categoryOrSkinSel) {
         if (skinSel.length === 0) {
             // Overall
             const cloud = await getLeaderboardFromCloud('overall');
+            if (loadToken !== _leaderboardLoadToken) return;
             _rawLeaderboard = cloud?.length ? cloud : getLeaderboard('overall');
         } else if (skinSel.length === 1) {
             // Single skin
             const cloud = await getLeaderboardFromCloud(skinSel[0]);
+            if (loadToken !== _leaderboardLoadToken) return;
             _rawLeaderboard = cloud?.length ? cloud : getLeaderboard(skinSel[0]);
         } else {
             // Multiple skins — fetch each, merge client-side
             const clouds = await Promise.all(skinSel.map(k => getLeaderboardFromCloud(k).catch(() => [])));
+            if (loadToken !== _leaderboardLoadToken) return;
             const anyCloud = clouds.some(c => c?.length > 0);
             if (anyCloud) {
                 _rawLeaderboard = _mergeSkinEntries(clouds);
@@ -1439,6 +1459,7 @@ async function displayLeaderboard(categoryOrSkinSel) {
             }
         }
     } catch (e) {
+        if (loadToken !== _leaderboardLoadToken) return;
         if (skinSel.length <= 1) {
             _rawLeaderboard = getLeaderboard(skinSel[0] || 'overall');
         } else {
@@ -1476,9 +1497,10 @@ function updateSkinOptions() {
         
         if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
             console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
+            // Silent catch-up only: this runs on every page load (possibly before the saved
+            // skins finished loading), so it must never show the "new ship" celebration.
+            // The celebration is triggered only by an actual level-up during a run.
             unlockSkin(skinKey);
-            option.classList.add('newly-unlocked');
-            setTimeout(() => option.classList.remove('newly-unlocked'), 1000);
         }
         
         if (isSkinUnlocked(skinKey)) {
@@ -1514,8 +1536,12 @@ window.selectSkin = selectSkin;
 
 // ===== GAME INITIALIZATION =====
 
-function initGame() {
+async function initGame() {
+    resetBoss();
+    // Apply the latest cloud shop purchases (any device) before the run starts
+    try { await Promise.race([pullShopState(), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* offline */ }
     resetState();
+    applyPendingStartLevel();
     
     // ===== ANALYTICS: start session =====
     startAnalyticsSession(currentSkinKey, currentUser?.displayName || 'Anonymous', {
@@ -1544,7 +1570,7 @@ function initGame() {
     DOM.playerSpriteContainer.innerHTML = skin.svg;
     document.documentElement.style.setProperty('--primary', skin.color);
 
-    DOM.scoreEl.innerText = '0';
+    DOM.scoreEl.innerText = String(state.score);
     DOM.levelEl.innerText = state.level;
     updateHPUI();
     updateAmmoUI();
@@ -1612,8 +1638,7 @@ function handleLevelUp() {
         state.lastLevelScore += threshold;
         state.level++;
         DOM.levelEl.innerText = state.level;
-        state.speedMult += 0.2;
-        state.spawnRate = Math.max(250, state.spawnRate - 200);
+        { const df = difficultyForLevel(state.level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
         state.playerHP = state.playerMaxHP;
         updateHPUI();
         
@@ -1627,6 +1652,7 @@ function handleLevelUp() {
             if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
+                    celebrateSkinUnlock({ svg: skin.svg, name: skin.name, color: skin.color });
                     showFloatingMessage(
                         tf('newSkin', { name: skin.name.toUpperCase() }), 
                         DOM.wrapper.clientWidth/2 - 100, 
@@ -1641,6 +1667,7 @@ function handleLevelUp() {
             updateSkinOptions();
         }
         
+        levelUpFx(state.level);
         showFloatingMessage(t('levelUpRefill'), DOM.wrapper.clientWidth/2 - 70, DOM.wrapper.clientHeight/2, "var(--primary)");
 
         {
@@ -1672,8 +1699,8 @@ function update() {
     if(state.paused) return; // loop restarts from togglePause
     const now = Date.now();
 
-    handleLevelUp();
-    handleSpawning(now);
+    if (!state.boss) { handleLevelUp(); handleSpawning(now); }
+    updateBoss(now);
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
@@ -2337,8 +2364,7 @@ window.setLvl = function(lvlNum) {
     DOM.scoreEl.innerText = state.score;
     
     // Update game difficulty based on level
-    state.speedMult = 1 + ((level - 1) * 0.2);
-    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
 
     // Mark as debug game so score won't be saved to the leaderboard
     state.isDebugGame = true;
@@ -2354,6 +2380,38 @@ window.setLvl = function(lvlNum) {
     return true;
 };
 
+
+// startLvl(n): the NEXT game starts at level n. Such games are marked as debug games,
+// so their results are never saved to the leaderboards. startLvl() / startLvl(0) cancels.
+let _pendingStartLevel = null;
+window.startLvl = window.startlvl = function(n) {
+    if (n === undefined || n === null || Number(n) === 0) {
+        _pendingStartLevel = null;
+        console.log('✅ [DEBUG] Start level cleared - next game starts normally');
+        return true;
+    }
+    const level = Math.floor(Number(n));
+    if (!Number.isFinite(level) || level < 1 || level > 1000) {
+        console.error('❌ [DEBUG] Invalid level! Use a number between 1 and 1000');
+        return false;
+    }
+    _pendingStartLevel = level;
+    console.log(`✅ [DEBUG] Next game will start at level ${level}`);
+    console.log('⚠️ [DEBUG] Games started this way are NOT saved to the leaderboards');
+    return true;
+};
+
+function applyPendingStartLevel() {
+    if (_pendingStartLevel == null) return;
+    const level = _pendingStartLevel;
+    _pendingStartLevel = null;
+    state.level = level;
+    state.lastLevelScore = (level - 1) * 1000;
+    state.score = state.lastLevelScore;
+    { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
+    state.isDebugGame = true;   // never saved to leaderboards / history / speedruns
+    saveMaxLevel(level);
+}
 
 window.spawn = function(type) {
     if (!state.active) {
@@ -2477,6 +2535,7 @@ console.log('  - debugUnlockSkin("skinName") - Unlock a specific skin');
 console.log('  - debugUnlockAllSkins() - Unlock all skins');
 console.log('  - debugListSkins() - Show all available skins');
 console.log('  - setLvl(number) - Set current level (game must be active)');
+console.log('  - startLvl(number) - Next game starts at this level (not saved to leaderboards); startLvl() cancels');
 console.log('  - spawn(type) - Spawn entity: "burger", "asteroid", "enemy", "red", "orange"/"elite", "green", "blue"');
 console.log('  - DebugUnlockEdu() - Remove the education lock on this device');
 console.log('  - DebugAddMoney(number) - Add coins to your balance');
@@ -3593,6 +3652,7 @@ function renderHistoryList() {
         const showDevice = _histFilters.device === 'all';
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
+        const bossTagH = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
@@ -3605,7 +3665,7 @@ function renderHistoryList() {
                     <span style="color:var(--primary);font-weight:bold">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.6">${tf('levelN', { n: entry.level })}</span>
                     <span style="opacity:0.5;font-size:0.7rem">${skinName}</span>
-                    ${upgradesTag}${coinsTag}${deviceTag}${inputTagHtml}
+                    ${upgradesTag}${coinsTag}${deviceTag}${bossTagH}${inputTagHtml}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>
@@ -3647,6 +3707,7 @@ function renderBestsList(skinKey) {
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
+        const bossTag = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';
@@ -3657,7 +3718,7 @@ function renderBestsList(skinKey) {
                     <span style="color:var(--primary);font-weight:bold;font-size:1rem">${entry.score.toLocaleString()}</span>
                     <span style="opacity:0.65">${tf('levelN', { n: entry.level })}</span>
                     ${skinKey === 'overall' ? `<span style="opacity:0.5;font-size:0.72rem">${skinName}</span>` : ''}
-                    ${upgradesTag}${deviceTag}${eduTag}${inputTagHtml}
+                    ${upgradesTag}${deviceTag}${eduTag}${bossTag}${inputTagHtml}
                 </div>
                 <div style="opacity:0.45;font-size:0.7rem;margin-top:2px">${entry.date || ''} ${entry.duration ? '• ' + formatDuration(entry.duration) : ''}</div>
             </div>

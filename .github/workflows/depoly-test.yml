@@ -14,9 +14,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare static site
+        run: |
+          mkdir -p deploy
+          cp index.html deploy/
+          cp -R js css assets data deploy/
+
       - name: Deploy to Subfolder
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: .
+          folder: deploy
           target-folder: test
           branch: main # זה ידחוף את התיקייה לתוך ה-test שלך
