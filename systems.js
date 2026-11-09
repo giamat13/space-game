@@ -369,7 +369,8 @@ export function enemyShoot(en) {
         vy: vy, 
         friendly: !!eb.dataset.friendlyFire,
         chaotic: !!eb.dataset.chaoticShot,
-        shooterId: en.el
+        shooterId: en.el,
+        dmg: state.level <= 20 ? 9 : 15
     });
 }
 
@@ -705,10 +706,12 @@ export function handleSpawning(now) {
             const enemyCap = deviceMode.isMobile ? 35 : 70;
             if (state.enemies.length >= enemyCap) { state.lastSpawn = now; return; }
 
-            const redWeight    = state.level < 10 ? Math.max(0, 1.0 - (state.level - 1) * 0.12) : 0;
-            const orangeWeight = Math.min(1.0, 0.25 + state.level * 0.05);
-            const greenWeight  = state.level >= 5  ? Math.min(1.0, (state.level - 4) * 0.18) : 0;
-            const blueWeight   = state.level >= 10 ? Math.min(1.0, (state.level - 9) * 0.20) : 0;
+            // levels 1-20: enemy types unlock more slowly, and enemies have fewer HP
+            const lvl = state.level <= 20 ? Math.max(1, Math.round(state.level * 0.6)) : state.level;
+            const redWeight    = lvl < 10 ? Math.max(0, 1.0 - (lvl - 1) * 0.12) : 0;
+            const orangeWeight = Math.min(1.0, 0.25 + lvl * 0.05);
+            const greenWeight  = lvl >= 5  ? Math.min(1.0, (lvl - 4) * 0.18) : 0;
+            const blueWeight   = lvl >= 10 ? Math.min(1.0, (lvl - 9) * 0.20) : 0;
             const totalWeight  = redWeight + orangeWeight + greenWeight + blueWeight;
             const roll = Math.random() * totalWeight;
             let type;
@@ -717,7 +720,7 @@ export function handleSpawning(now) {
             else if (roll < redWeight + orangeWeight + greenWeight)     type = 'green';
             else                                                         type = 'blue';
 
-            const scaleEnemyHP = (hp) => Math.ceil(hp * 1.5);
+            const scaleEnemyHP = (hp) => Math.ceil(hp * (state.level <= 20 ? 0.9 : 1.5));
             const enemyStats = {
                 red:    { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 1), colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
                 orange: { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 3), colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },

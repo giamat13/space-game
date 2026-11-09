@@ -1,4 +1,4 @@
-import { DOM, SKINS, state, resetState, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -1623,8 +1623,7 @@ function handleLevelUp() {
         state.lastLevelScore += threshold;
         state.level++;
         DOM.levelEl.innerText = state.level;
-        state.speedMult += 0.2;
-        state.spawnRate = Math.max(250, state.spawnRate - 200);
+        { const df = difficultyForLevel(state.level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
         state.playerHP = state.playerMaxHP;
         updateHPUI();
         
@@ -2350,8 +2349,7 @@ window.setLvl = function(lvlNum) {
     DOM.scoreEl.innerText = state.score;
     
     // Update game difficulty based on level
-    state.speedMult = 1 + ((level - 1) * 0.2);
-    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
 
     // Mark as debug game so score won't be saved to the leaderboard
     state.isDebugGame = true;
@@ -2395,8 +2393,7 @@ function applyPendingStartLevel() {
     state.level = level;
     state.lastLevelScore = (level - 1) * 1000;
     state.score = state.lastLevelScore;
-    state.speedMult = 1 + ((level - 1) * 0.2);
-    state.spawnRate = Math.max(250, 1400 - ((level - 1) * 200));
+    { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
     state.isDebugGame = true;   // never saved to leaderboards / history / speedruns
     saveMaxLevel(level);
 }

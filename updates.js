@@ -433,7 +433,7 @@ export function updateEnemies(now) {
         if(en.y > DOM.wrapper.clientHeight - 30) {
             // Only damage player if not chaotic
             if (!en.isChaotic) {
-                damagePlayer(30, 'enemy_collision');
+                damagePlayer(state.level <= 20 ? 18 : 30, 'enemy_collision');
             }
             en.el.remove();
             state.enemies.splice(i, 1);

@@ -768,6 +768,17 @@ export const state = {
     inputUsed: { keyboard: false, gamepad: false },
 };
 
+// Difficulty curve. Levels 1-20 are deliberately gentle; levels 21-30 ramp smoothly up to the
+// original (hard) values, which are unchanged from level 30 onward.
+export function difficultyForLevel(level) {
+    const orig = (l) => ({ mult: 1 + (l - 1) * 0.2, spawn: Math.max(250, 1400 - (l - 1) * 200) });
+    const easy = (l) => ({ mult: 1 + (l - 1) * 0.05, spawn: 1500 - (l - 1) * 40 });
+    if (level <= 20) return easy(level);
+    if (level >= 30) return orig(level);
+    const k = (level - 20) / 10, a = easy(20), b = orig(30);
+    return { mult: a.mult + (b.mult - a.mult) * k, spawn: a.spawn + (b.spawn - a.spawn) * k };
+}
+
 export function resetState() {
     console.log('🔄 [STATE] Resetting game state...');
     state.active = true;
@@ -795,8 +806,7 @@ export function resetState() {
     state.lightnings = [];
     state.lastSpawn = Date.now();
     const levelsAboveOne = state.level - 1;
-    state.spawnRate = Math.max(250, 1400 - levelsAboveOne * 200);
-    state.speedMult = 1 + levelsAboveOne * 0.2;
+    { const df = difficultyForLevel(state.level); state.spawnRate = df.spawn; state.speedMult = df.mult; }
     state.lastShot = 0;
     state.shotCooldown = 180;
     state.lastHealScore = 0;
