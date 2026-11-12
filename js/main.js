@@ -8,6 +8,7 @@ import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, r
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
 import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
 initScene();
+initIcons();
 // Ship cards in the menu show the same art as the game.
 document.querySelectorAll('.skin-option').forEach(o => { const pv = o.querySelector('.skin-preview'); if (pv && SKINS[o.dataset.skin]) pv.innerHTML = SKINS[o.dataset.skin].svg; });
 window.__resetBoss = resetBoss;
@@ -15,6 +16,7 @@ window.__resetBoss = resetBoss;
 window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
 window.__hideBoss = hideBoss;
 import { initScene } from './scene.js';
+import { initIcons } from './icons.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
