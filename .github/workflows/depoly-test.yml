@@ -19,6 +19,8 @@ jobs:
           mkdir -p deploy
           cp index.html deploy/
           cp -R js css assets data deploy/
+          # main's .gitignore ignores *.png; this nested rule lets the images reach test/assets
+          printf '!*.png\n' > deploy/.gitignore
 
       - name: Deploy to Subfolder
         uses: JamesIves/github-pages-deploy-action@v4

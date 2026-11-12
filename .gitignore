@@ -99,6 +99,7 @@ ehthumbs.db
 *.gltf
 !assets/
 !assets/*.png
+!**/assets/*.png
 
 # ── Minified / vendored libs ────────────────────────────────────
 *.min.js
