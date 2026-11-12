@@ -129,6 +129,8 @@ export const BOSS_STRINGS = {
     bossFormHive: L('צורה: כוורת', 'FORM: HIVE', 'الشكل: خلية', 'ФОРМА: УЛЕЙ', 'FORME : RUCHE', 'FORMA: COLMENA'),
     bossDay: L('יום — פגע בירח!', 'DAY — HIT THE MOON!', 'نهار — اضرب القمر!', 'ДЕНЬ — БЕЙ ЛУНУ!', 'JOUR — FRAPPE LA LUNE !', 'DÍA: ¡GOLPEA LA LUNA!'),
     bossNight: L('לילה — פגע בשמש!', 'NIGHT — HIT THE SUN!', 'ليل — اضرب الشمس!', 'НОЧЬ — БЕЙ СОЛНЦЕ!', 'NUIT — FRAPPE LE SOLEIL !', 'NOCHE: ¡GOLPEA EL SOL!'),
+    kShieldDown: L('המגן נשבר!', 'SHIELD DOWN!', 'انكسر الدرع!', 'ЩИТ СЛОМАН!', 'BOUCLIER BRISÉ !', '¡ESCUDO ROTO!'),
+    kDrained: L('-3 תחמושת', '-3 AMMO', '-3 ذخيرة', '-3 ПАТРОНА', '-3 MUNITIONS', '-3 MUNICIÓN'),
     goalBosses: L('{n} בוסים', '{n} bosses', '{n} زعماء', 'Боссов: {n}', '{n} boss', '{n} jefes'),
     bossCountTitle: L('בוסים שהובסו במשחק הזה', 'Bosses defeated in this run', 'الزعماء المهزومون في هذه الجولة', 'Боссов побеждено за забег', 'Boss vaincus dans cette partie', 'Jefes vencidos en esta partida'),
 };
