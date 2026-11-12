@@ -7,10 +7,14 @@ import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firesto
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
 import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
+initScene();
+// Ship cards in the menu show the same art as the game.
+document.querySelectorAll('.skin-option').forEach(o => { const pv = o.querySelector('.skin-preview'); if (pv && SKINS[o.dataset.skin]) pv.innerHTML = SKINS[o.dataset.skin].svg; });
 window.__resetBoss = resetBoss;
 // Boss fights are part of the run's record: the replay timeline and the analytics log.
 window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
 window.__hideBoss = hideBoss;
+import { initScene } from './scene.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,

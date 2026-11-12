@@ -1,4 +1,6 @@
 import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
+import { ART, enemyArt } from './art.js';
+import { burst } from './scene.js';
 import { t, tf, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -447,28 +449,11 @@ let activeParticles = 0;
 function particleCap() { return deviceMode.isMobile ? 70 : 180; }
 
 export function spawnParticle(x, y, color, opts = {}) {
-    if (activeParticles >= particleCap()) return;
-    activeParticles++;
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.background = color;
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    if (opts.size) { p.style.width = opts.size + 'px'; p.style.height = opts.size + 'px'; }
-    DOM.wrapper.appendChild(p);
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * (opts.dist || 60) + 10;
-    p.animate([
-        { opacity: 1 },
-        { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-    ], opts.duration || 500).onfinish = () => { p.remove(); activeParticles--; };
+    burst(x, y, color, 1, { speed: (opts.dist || 60) * 2.2, life: (opts.duration || 500) / 1000, size: (opts.size || 4) * 0.6 });
 }
 
 export function createExplosion(x, y, color) {
-    const count = deviceMode.isMobile ? 6 : 12;
-    for(let i=0; i<count; i++) {
-        spawnParticle(x, y, color);
-    }
+    burst(x, y, color, deviceMode.isMobile ? 9 : 16);
 }
 
 export function showFloatingMessage(text, x, y, color) {
@@ -741,7 +726,7 @@ export function handleSpawning(now) {
             el.style.top = '-60px';
             el.innerHTML = `
                 <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
-                <svg viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round"><path d="M8 52 Q10 12 50 10 Q90 12 92 52 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M12 52 L88 52 L84 62 L16 62 Z" fill="#7a4a30" stroke="#3d2010" stroke-width="3"/><path d="M14 62 L86 62 L82 70 L18 70 Z" fill="#ffd21a" stroke="#8a6a00" stroke-width="3"/><path d="M12 70 L88 70 L80 90 L20 90 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M24 26 L42 32 L28 38 Z" fill="#111"/><path d="M76 26 L58 32 L72 38 Z" fill="#111"/><circle cx="36" cy="22" r="2.4" fill="#ffe600"/><circle cx="62" cy="20" r="2.4" fill="#ffe600"/><circle cx="50" cy="42" r="2.4" fill="#ffe600"/></svg>`;
+                ${ART.burger}`;
             DOM.wrapper.appendChild(el);
             state.burgers.push({
                 el: el, 
@@ -755,7 +740,7 @@ export function handleSpawning(now) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><path d="M18 32 L38 8 L72 18 L92 48 L76 88 L30 92 L8 60 Z" fill="#8f98ad" stroke="#3c4252" stroke-width="3.6"/><path d="M32 30 L44 38 L34 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M64 30 L52 38 L62 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M40 62 L46 66 L52 62 L58 66" fill="none" stroke="#3c4252" stroke-width="2.6"/><circle cx="22" cy="56" r="2.6" fill="#ffe600"/><circle cx="76" cy="62" r="2.6" fill="#ffe600"/><circle cx="50" cy="80" r="2.6" fill="#ffe600"/><circle cx="70" cy="30" r="2.6" fill="#ffe600"/></svg>`;
+            el.innerHTML = `${ART.asteroid}`;
             DOM.wrapper.appendChild(el);
             state.asteroids.push({ 
                 el: el, 
@@ -797,7 +782,7 @@ export function handleSpawning(now) {
             el.className = `enemy-ship ${type}`;
             el.style.left = posX + 'px';
             el.style.top = '-60px';
-            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><g fill="${({red:'#ff3b3b',orange:'#ffa31a',green:'#25d96b',blue:'#3d9bff'})[type]}" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="3.6"><path d="M14 10 L40 6 L50 28 L60 6 L86 10 L78 42 L60 62 L51 94 L44 62 L24 42 Z"/></g><path d="M31.0 29.0 L47.0 33.0 L34.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M37.0 33.0 L42.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M69.0 29.0 L53.0 33.0 L66.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M63.0 33.0 L58.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="48" r="2.3" fill="#ffe600"/><circle cx="44" cy="60" r="2.3" fill="#ffe600"/><circle cx="56" cy="66" r="2.3" fill="#ffe600"/><circle cx="24" cy="20" r="2.3" fill="#ffe600"/><circle cx="76" cy="22" r="2.3" fill="#ffe600"/><circle cx="50" cy="80" r="2.3" fill="#ffe600"/><path d="M42 50 L46 54 L50 50 L54 54 L58 50" fill="none" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="2.2"/></svg>`;
+            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>${enemyArt(type)}`;
             DOM.wrapper.appendChild(el);
 
             // Check if chaos mode is active

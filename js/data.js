@@ -41,10 +41,12 @@ import {
 
 export { sendCoinsToFriend, claimPendingTransfers };
 
+import { SHIPS } from './art.js';
+
 // Skin Configuration
 export const SKINS = {
     classic: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #1fd1ee);" stroke-linejoin="round" stroke-linecap="round"><g fill="#1fd1ee" stroke="#07788a" stroke-width="3.6"><path d="M37 38 L10 58 L8 70 L30 58 Z"/><path d="M63 38 L90 58 L92 70 L70 58 Z"/><path d="M50 5 L64 26 L61 52 L71 80 L57 75 L50 95 L43 75 L29 80 L39 52 L36 26 Z"/></g><path d="M34.8 29.3 L49.2 32.9 L37.5 38.3 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M40.2 32.9 L44.7 33.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M65.2 29.3 L50.8 32.9 L62.5 38.3 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M59.8 32.9 L55.3 33.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="48" cy="50" r="2.4" fill="#ffe600"/><circle cx="55" cy="60" r="2.4" fill="#ffe600"/><circle cx="44" cy="64" r="2.4" fill="#ffe600"/><circle cx="52" cy="76" r="2.4" fill="#ffe600"/><circle cx="20" cy="60" r="2.4" fill="#ffe600"/><circle cx="80" cy="62" r="2.4" fill="#ffe600"/><path d="M45 46 Q50 49 55 46" fill="none" stroke="#07788a" stroke-width="2"/></svg>`,
+        get svg() { return SHIPS.classic; },
         color: '#00f2ff',
         unlockLevel: 0,
         get name() { return t('skinClassic'); },
@@ -54,7 +56,7 @@ export const SKINS = {
         get description() { return t('skinDescClassic'); }
     },
     interceptor: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #d63de0);" stroke-linejoin="round" stroke-linecap="round"><g fill="#d63de0" stroke="#7a1a85" stroke-width="3.6"><path d="M34 44 L16 90 L40 72 Z"/><path d="M66 44 L84 90 L60 72 Z"/><path d="M50 4 L58 22 L74 14 L68 42 L60 72 L50 92 L40 72 L32 42 L26 14 L42 22 Z"/></g><path d="M34.8 35.3 L49.2 38.9 L37.5 44.3 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M40.2 38.9 L44.7 39.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M65.2 35.3 L50.8 38.9 L62.5 44.3 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M59.8 38.9 L55.3 39.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="22" r="2.4" fill="#ffe600"/><circle cx="47" cy="56" r="2.4" fill="#ffe600"/><circle cx="54" cy="64" r="2.4" fill="#ffe600"/><circle cx="50" cy="78" r="2.4" fill="#ffe600"/><circle cx="30" cy="56" r="2.4" fill="#ffe600"/><circle cx="70" cy="56" r="2.4" fill="#ffe600"/><path d="M44 50 L50 54 L56 50" fill="none" stroke="#7a1a85" stroke-width="2"/></svg>`,
+        get svg() { return SHIPS.interceptor; },
         color: '#ff00ea',
         unlockLevel: 0,
         get name() { return t('skinInterceptor'); },
@@ -64,7 +66,7 @@ export const SKINS = {
         get description() { return t('skinDescInterceptor'); }
     },
     tanker: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #2fd16a);" stroke-linejoin="round" stroke-linecap="round"><g fill="#2fd16a" stroke="#137a35" stroke-width="3.6"><path d="M30 20 L33 4 L41 6 L40 22 Z"/><path d="M60 22 L59 6 L67 4 L70 20 Z"/><path d="M16 22 L50 17 L86 21 L84 58 L88 86 L52 92 L14 85 L19 56 Z"/></g><path d="M27.2 36.7 L44.8 41.1 L30.5 47.7 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M33.8 41.1 L39.3 41.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M72.8 36.7 L55.2 41.1 L69.5 47.7 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M66.2 41.1 L60.7 41.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="26" cy="30" r="2.6" fill="#ffe600"/><circle cx="74" cy="32" r="2.6" fill="#ffe600"/><circle cx="50" cy="30" r="2.6" fill="#ffe600"/><circle cx="28" cy="70" r="2.6" fill="#ffe600"/><circle cx="70" cy="72" r="2.6" fill="#ffe600"/><circle cx="50" cy="80" r="2.6" fill="#ffe600"/><circle cx="40" cy="60" r="2.6" fill="#ffe600"/><circle cx="60" cy="62" r="2.6" fill="#ffe600"/><path d="M38 56 L44 62 L50 56 L56 62 L62 56" fill="none" stroke="#137a35" stroke-width="2.6"/></svg>`,
+        get svg() { return SHIPS.tanker; },
         color: '#2ecc71',
         unlockLevel: 0,
         get name() { return t('skinTanker'); },
@@ -74,7 +76,7 @@ export const SKINS = {
         get description() { return t('skinDescTanker'); }
     },
     phoenix: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #ff7a2e);" stroke-linejoin="round" stroke-linecap="round"><g fill="#ff7a2e" stroke="#a33a08" stroke-width="3.6"><path d="M30 28 L4 44 L10 54 L2 66 L22 70 L34 56 Z"/><path d="M70 28 L96 44 L90 54 L98 66 L78 70 L66 56 Z"/><path d="M38 70 L28 96 L44 84 L50 98 L56 84 L72 96 L62 70 Z"/><path d="M50 4 L62 22 L68 52 L58 74 L50 70 L42 74 L32 52 L38 22 Z"/></g><path d="M42 16 L50 2 L58 16 Z" fill="#ffd21a" stroke="#a33a08" stroke-width="2.4"/><path d="M36.2 31.4 L49.8 34.9 L38.8 40.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M41.3 34.9 L45.5 35.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M63.8 31.4 L50.2 34.9 L61.2 40.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M58.7 34.9 L54.5 35.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="48" r="2.4" fill="#ffe600"/><circle cx="46" cy="58" r="2.4" fill="#ffe600"/><circle cx="54" cy="60" r="2.4" fill="#ffe600"/><circle cx="16" cy="52" r="2.4" fill="#ffe600"/><circle cx="84" cy="52" r="2.4" fill="#ffe600"/><circle cx="50" cy="86" r="2.4" fill="#ffe600"/><circle cx="30" cy="60" r="2.4" fill="#ffe600"/><circle cx="70" cy="60" r="2.4" fill="#ffe600"/></svg>`,
+        get svg() { return SHIPS.phoenix; },
         color: '#ff6b35',
         unlockLevel: 3,
         get name() { return t('skinPhoenix'); },
@@ -84,7 +86,7 @@ export const SKINS = {
         get description() { return t('skinDescPhoenix'); }
     },
     vortex: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #9b59f0);" stroke-linejoin="round" stroke-linecap="round"><g fill="#9b59f0" stroke="#4a1f9a" stroke-width="3.6"><path d="M50 3 L60 20 L80 14 L74 34 L96 46 L76 56 L84 78 L62 72 L50 96 L38 72 L16 78 L24 56 L4 46 L26 34 L20 14 L40 20 Z"/></g><circle cx="50" cy="52" r="15" fill="#c9a4ff" stroke="#4a1f9a" stroke-width="3"/><path d="M38.4 45.9 L49.6 48.7 L40.5 52.9 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M42.6 48.7 L46.1 49.0" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M61.6 45.9 L50.4 48.7 L59.5 52.9 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M57.4 48.7 L53.9 49.0" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="16" r="2.6" fill="#ffe600"/><circle cx="24" cy="30" r="2.6" fill="#ffe600"/><circle cx="76" cy="30" r="2.6" fill="#ffe600"/><circle cx="16" cy="52" r="2.6" fill="#ffe600"/><circle cx="84" cy="52" r="2.6" fill="#ffe600"/><circle cx="50" cy="80" r="2.6" fill="#ffe600"/><circle cx="30" cy="68" r="2.6" fill="#ffe600"/><circle cx="70" cy="68" r="2.6" fill="#ffe600"/><circle cx="50" cy="62" r="2.6" fill="#ffe600"/></svg>`,
+        get svg() { return SHIPS.vortex; },
         color: '#9b59b6',
         unlockLevel: 5,
         get name() { return t('skinVortex'); },
@@ -95,7 +97,7 @@ export const SKINS = {
         get description() { return t('skinDescVortex'); }
     },
     joker: {
-        svg: `<svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px #ff3b2e);" stroke-linejoin="round" stroke-linecap="round"><g fill="#ff3b2e" stroke="#8a0f08" stroke-width="3.6"><path d="M24 34 L2 14 L8 40 Z"/><path d="M76 34 L98 14 L92 40 Z"/><path d="M30 80 L14 98 L40 90 Z"/><path d="M70 80 L86 98 L60 90 Z"/><path d="M50 4 L66 18 L88 38 L84 66 L68 88 L50 80 L32 88 L16 66 L12 38 L34 18 Z"/></g><path d="M38 14 L50 2 L62 14 Z" fill="#ffe600" stroke="#8a0f08" stroke-width="2.4"/><path d="M26.8 34.5 L45.2 39.1 L30.2 46.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M33.7 39.1 L39.5 39.7" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M73.2 34.5 L54.8 39.1 L69.8 46.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M66.3 39.1 L60.5 39.7" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="24" r="2.6" fill="#ffe600"/><circle cx="24" cy="52" r="2.6" fill="#ffe600"/><circle cx="76" cy="52" r="2.6" fill="#ffe600"/><circle cx="30" cy="72" r="2.6" fill="#ffe600"/><circle cx="70" cy="72" r="2.6" fill="#ffe600"/><circle cx="50" cy="64" r="2.6" fill="#ffe600"/><path d="M34 56 L40 66 L46 57 L50 67 L54 57 L60 66 L66 56" fill="#fff" stroke="#111" stroke-width="2.6"/></svg>`,
+        get svg() { return SHIPS.joker; },
         color: '#ff4500',
         unlockLevel: 10,
         get name() { return t('skinJoker'); },

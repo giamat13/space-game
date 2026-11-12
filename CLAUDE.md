@@ -34,6 +34,10 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - **[js/firestore-sync.js](js/firestore-sync.js)** — All Firestore reads/writes: leaderboards, cloud save/sync of skins, coins, upgrades, achievements, settings, speedrun results, peer-to-peer coin transfers, and a one-time migration of local `gameHistory` to the cloud. Reuses the app/auth from `js/auth.js` via `getApp()`/`getAuth()`.
 - **[js/education.js](js/education.js)** — "Education mode": gates gameplay events (e.g. death/level-up) behind quiz questions from [data/questions.json](data/questions.json). Supports a remote teacher→student lock/unlock session model with a 45-min auto-unlock (`LOCK_DURATION_MS`). See the `edu-session-model` memory for design intent.
 - **[js/i18n.js](js/i18n.js)** — Translation tables and `t()`, `applyLang()`, `toggleLang()`. 6 languages (he/en/ar/ru/fr/es), with RTL/LTR direction switching. Fires a `langchange` event that `js/main.js` listens to for re-rendering.
+- **[js/bosses.js](js/bosses.js)** — Boss engine: schedule (`bossLevel`: level 10, then every 25; milestone bosses at 100/250/500/750/1000), the attack/telegraph toolkit `K`, hit detection, phases, HUD, death and rewards. Boss time is its own clock that only advances on game ticks, so pausing pauses telegraphs.
+- **[js/boss-roster.js](js/boss-roster.js)** — The 25 bosses + 5 milestone bosses as data (attack decks, hooks for each signature mechanic) and `MUTATIONS` (tricks that returning, ranked-up bosses borrow). **[js/boss-art.js](js/boss-art.js)** holds their vector art, **[js/i18n-bosses.js](js/i18n-bosses.js)** their texts (`bn_`/`bt_`/`bh_<id>`), **[css/bosses.css](css/bosses.css)** their styles.
+- **[js/art.js](js/art.js)** — Ship, enemy, asteroid and burger art (the Dragon keeps `assets/dragon.png`). **[js/scene.js](js/scene.js)** — canvas backdrop (nebula + parallax stars, colours shift every 25 levels) and the canvas particle layer behind `createExplosion` / `spawnParticle`.
+- **[css/theme.css](css/theme.css)** — The "Neon Forge" theme, loaded last; it re-skins everything in `css/styles.css`.
 - **[js/analytics.js](js/analytics.js)** — Fine-grained gameplay telemetry (shots, hits, damage, kills, abilities, deaths) batched into a per-session record written to the `game_sessions` Firestore collection.
 - **[js/achievements.js](js/achievements.js)** — Achievement definitions, unlock checks, and toast UI; syncs unlocked set via `js/firestore-sync.js`.
 - **[js/game-history.js](js/game-history.js)** — Local (localStorage) per-game history, personal bests, and aggregate stats.
@@ -42,6 +46,14 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 ### The game loop
 
 `update()` in [js/main.js:1670](js/main.js#L1670) is the single `requestAnimationFrame` loop. Each frame it runs level-up, spawning, ammo recharge, ability cooldowns, movement, speedrun checks, analytics, then the `js/updates.js` entity passes. It early-returns when `!state.active` or `state.paused`; pausing/resuming re-arms the loop via `requestAnimationFrame(update)` (also exposed as `window.__resumeGameLoop`).
+
+### Gameplay rules worth knowing
+
+- **Fixed timestep:** `update()` runs the logic at 60 steps/second whatever the display refresh rate.
+- **Difficulty:** `difficultyForLevel` (speed/spawn, levels off after level 30) and `dangerForLevel` / `enemyHpScale` (damage and enemy HP keep growing). Level 1000 is meant to be possible only in theory with the current ships.
+- **Ship control modifiers:** bosses bend the controls through `state.ctrl` (offset / walls / lag) in `js/systems.js`; all movement goes through `movePlayer`, `stepPlayer`, `pushPlayer`.
+- **Leaderboards:** one document per player per table, written by `upsertBestEntry` in `js/firestore-sync.js`; records are ordered by level, then score (`isBetterRun`). Failed saves are queued in localStorage and retried.
+- **Testing bosses:** `startLvl(n)` in the console starts the next game at level n as a debug game (never saved).
 
 ### Cross-module conventions
 
