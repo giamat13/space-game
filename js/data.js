@@ -172,7 +172,9 @@ export const SPEEDRUN_GOALS = [
     { key: 'score_1m', get label() { return tf('goalPts', { n: (1_000_000).toLocaleString() }); }, icon: '🎯', type: 'score', target: 1_000_000 },
     { key: 'level_10', get label() { return tf('goalLevel', { n: 10 }); }, icon: '📈', type: 'level', target: 10 },
     { key: 'level_50', get label() { return tf('goalLevel', { n: 50 }); }, icon: '📈', type: 'level', target: 50 },
-    { key: 'boss_cube_king', get label() { return t('goalBoss'); }, icon: '👑', type: 'boss', target: 1 },
+    { key: 'bosses_1', get label() { return tf('goalBosses', { n: 1 }); }, icon: '👑', type: 'boss', target: 1 },
+    { key: 'bosses_5', get label() { return tf('goalBosses', { n: 5 }); }, icon: '👑', type: 'boss', target: 5 },
+    { key: 'bosses_10', get label() { return tf('goalBosses', { n: 10 }); }, icon: '👑', type: 'boss', target: 10 },
     { key: 'level_100', get label() { return tf('goalLevel', { n: 100 }); }, icon: '📈', type: 'level', target: 100 },
 ];
 
@@ -758,6 +760,10 @@ export async function saveScore(skinKey, score, level, userName = null, settings
 // Game State
 export const state = {
     active: false,
+    // ship-control modifiers bosses can apply (see systems.js)
+    ctrl: { offset: 0, min: null, max: null, lag: 0, target: null, pointer: null, release: false },
+    ammoRate: 1,
+    boss: null, bossIndex: null, bossesBeaten: 0, bossLog: [], runHpBonus: 0,
     score: 0,
     level: 1,
     playerX: 0,
@@ -824,13 +830,26 @@ export const state = {
 
 // Difficulty curve. Levels 1-20 are deliberately gentle; levels 21-30 ramp smoothly up to the
 // original (hard) values, which are unchanged from level 30 onward.
+// Past level 30 speed levels off (the old straight line reached speeds where shots skipped
+// over the ship), and the pressure moves to damage instead: see dangerForLevel.
 export function difficultyForLevel(level) {
-    const orig = (l) => ({ mult: 1 + (l - 1) * 0.2, spawn: Math.max(250, 1400 - (l - 1) * 200) });
+    const orig = (l) => ({ mult: l <= 30 ? 1 + (l - 1) * 0.2 : 6.8 + 2.4 * (1 - Math.exp(-(l - 30) / 260)), spawn: Math.max(250, 1400 - (l - 1) * 200) });
     const easy = (l) => ({ mult: 1 + (l - 1) * 0.05, spawn: 1500 - (l - 1) * 40 });
     if (level <= 20) return easy(level);
     if (level >= 30) return orig(level);
     const k = (level - 20) / 10, a = easy(20), b = orig(30);
     return { mult: a.mult + (b.mult - a.mult) * k, spawn: a.spawn + (b.spawn - a.spawn) * k };
+}
+
+// How hard everything hits. 1 up to level 30, then it climbs without limit: about 2x at
+// level 150, 4.6x at 500 and 8.5x at 1000. With today's ships level 1000 is meant to be
+// possible only in theory.
+export function dangerForLevel(level) {
+    return level <= 30 ? 1 : 1 + (level - 30) / 130;
+}
+// Regular enemies also get tougher, which slows the climb.
+export function enemyHpScale(level) {
+    return level <= 30 ? 1 : 1 + (level - 30) / 220;
 }
 
 export function resetState() {
@@ -867,6 +886,9 @@ export function resetState() {
     state.lastLevelScore = 0;
     state.burgersEatenAtFullHP = 0;
     state.isPlayerFat = false;
+    Object.assign(state.ctrl, { offset: 0, min: null, max: null, lag: 0, target: null, release: false });
+    state.ammoRate = 1;
+    state.runHpBonus = 0;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
     state.specialAbility.cooldown = (currentSkinKey === 'vortex' && isUpgradeActive('vortex_cooldown_half')) ? 15000 : 30000;

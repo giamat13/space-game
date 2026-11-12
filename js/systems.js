@@ -1,4 +1,4 @@
-import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
+import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
 import { t, tf, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -65,7 +65,7 @@ export function updateAmmoUI() {
 export function rechargeAmmo(now) {
     if (!state.active) return;
     // During the boss fight ammo comes back twice as fast so the player isn't starved.
-    const interval = Math.round(400 / state.currentSkinStats.fireRate / (state.boss ? 2 : 1));
+    const interval = Math.round(400 / state.currentSkinStats.fireRate / (state.boss ? 2 : 1) / (state.ammoRate || 1));
     if (now - state.lastAmmoRecharge >= interval && state.ammo < state.maxAmmo) {
         state.ammo++;
         state.lastAmmoRecharge = now;
@@ -73,11 +73,63 @@ export function rechargeAmmo(now) {
     }
 }
 
+// ----- ship control -----
+// state.ctrl lets a boss bend the controls without touching the input code:
+//   offset  displacement between the pointer and the ship (wind, gravity)
+//   min/max walls that narrow the arena
+//   lag     0 = direct control, close to 1 = the ship slides (ice)
+function clampX(x) {
+    const c = state.ctrl;
+    return Math.max(c.min ?? 0, Math.min(x, c.max ?? (DOM.wrapper.clientWidth - 50)));
+}
+
 export function movePlayer(clientX) {
     const rect = DOM.wrapper.getBoundingClientRect();
-    let x = clientX - rect.left - 25;
-    state.playerX = Math.max(0, Math.min(x, DOM.wrapper.clientWidth - 50));
+    const c = state.ctrl;
+    c.pointer = clientX - rect.left - 25;
+    const x = clampX(c.pointer + c.offset);
+    if (c.lag > 0) { c.target = x; return; }
+    state.playerX = x;
     updatePlayerPos();
+}
+
+// Keyboard / gamepad movement by `dx` pixels.
+export function stepPlayer(dx) {
+    const c = state.ctrl;
+    if (c.lag > 0) { c.target = clampX((c.target ?? state.playerX) + dx); return; }
+    state.playerX = clampX(state.playerX + dx);
+    updatePlayerPos();
+}
+
+// An outside force on the ship. With pointer control the ship ends up displaced from the
+// pointer by at most `bound` px, so the player never has to chase it off the screen.
+export function pushPlayer(dx, bound = 170) {
+    const c = state.ctrl;
+    if (keyBindings.controlType !== 'arrows' && c.pointer != null) {
+        c.offset = Math.max(-bound, Math.min(bound, c.offset + dx));
+        c.release = false;
+        const x = clampX(c.pointer + c.offset);
+        if (c.lag > 0) c.target = x; else state.playerX = x;
+    } else if (c.lag > 0) c.target = clampX((c.target ?? state.playerX) + dx);
+    else state.playerX = clampX(state.playerX + dx);
+    updatePlayerPos();
+}
+
+// Once per game tick.
+export function tickPlayerControl() {
+    const c = state.ctrl;
+    if (c.lag > 0) {
+        if (c.target == null) c.target = state.playerX;
+        state.playerX = clampX(state.playerX + (c.target - state.playerX) * (1 - c.lag));
+        updatePlayerPos();
+    } else c.target = null;
+    if (c.release) {                       // the force is gone: glide back under the pointer
+        c.offset *= 0.88;
+        if (Math.abs(c.offset) < 0.6) { c.offset = 0; c.release = false; }
+        if (keyBindings.controlType !== 'arrows' && c.pointer != null && !(c.lag > 0)) { state.playerX = clampX(c.pointer + c.offset); updatePlayerPos(); }
+    }
+    const x = clampX(state.playerX);
+    if (x !== state.playerX) { state.playerX = x; updatePlayerPos(); }
 }
 
 export function damagePlayer(amount, source = 'unknown') {
@@ -87,6 +139,7 @@ export function damagePlayer(amount, source = 'unknown') {
         return;
     }
 
+    amount = Math.round(amount * dangerForLevel(state.level));
     const hpBefore = state.playerHP;
     state.playerHP -= amount;
     trackDamageTaken(amount, source, hpBefore, state.playerHP);
@@ -156,6 +209,8 @@ export function damagePlayer(amount, source = 'unknown') {
                     upgrades: dataModule.getOwnedUpgrades(),
                     hpLevel: dataModule.getHPLevel(skinKey),
                     bossKilled: !!state.bossDone,
+                    bossesKilled: state.bossesBeaten || 0,
+                    bossLog: (state.bossLog || []).map(r => r.id),
                     // Input devices actually used this game (keyboard / gamepad)
                     inputMethods: [
                         ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
@@ -729,7 +784,7 @@ export function handleSpawning(now) {
             else if (roll < redWeight + orangeWeight + greenWeight)     type = 'green';
             else                                                         type = 'blue';
 
-            const scaleEnemyHP = (hp) => Math.ceil(hp * (state.level <= 20 ? 0.9 : 1.5));
+            const scaleEnemyHP = (hp) => Math.ceil(hp * (state.level <= 20 ? 0.9 : 1.5) * enemyHpScale(state.level));
             const enemyStats = {
                 red:    { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 1), colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
                 orange: { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 3), colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },

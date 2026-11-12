@@ -1,13 +1,15 @@
 import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
+import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
-import { updateBoss, resetBoss, hideBoss } from './boss.js';
+import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
 window.__resetBoss = resetBoss;
+// Boss fights are part of the run's record: the replay timeline and the analytics log.
+window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
 window.__hideBoss = hideBoss;
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
@@ -1237,7 +1239,7 @@ function _renderLbContent() {
             ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduDisplay = entry.settings?.eduEnabled
             ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
-        const bossDisplay = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossDisplay = bossBadge(entry.settings);
         const inputDisplay = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
@@ -1276,6 +1278,13 @@ function inputTag(methods) {
     return ` <span style="font-size:0.72rem;opacity:0.7;">${icons.join('')}</span>`;
 }
 
+// 👑 + how many bosses fell in that run (older entries only know "at least one").
+function bossBadge(settings) {
+    const n = settings?.bossesKilled || (settings?.bossKilled ? 1 : 0);
+    if (!n) return '';
+    return ` <span class="boss-badge" title="${t('bossCountTitle')}">👑${n > 1 ? '×' + n : ''}</span>`;
+}
+
 // ===== DEVELOPER BADGE =====
 const DEV_UIDS = new Set(['DKtEN7zq6MchwPdYU8FMahf32wu2', 'uIAbJtHx5vasN0vczBe0aooYv2B3']);
 
@@ -1306,7 +1315,7 @@ function checkSpeedrunMilestones() {
     let hitAny = false;
     for (const goal of allGoals) {
         if (state.speedrunHits[goal.key] != null) continue;
-        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossDone ? 1 : 0) : state.level;
+        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossesBeaten || 0) : state.level;
         if (val >= goal.target) {
             const elapsed = Date.now() - state.startTime;
             state.speedrunHits[goal.key] = elapsed;
@@ -1745,9 +1754,20 @@ function handleLevelUp() {
 
 // ===== MAIN UPDATE LOOP =====
 
-function update() {
+// The game logic runs at a fixed 60 steps per second whatever the screen's refresh rate
+// (on a 120 Hz phone the old loop simply ran the whole game twice as fast).
+let _loopLast = 0, _loopAcc = 0;
+function update(ts) {
     if(!state.active) return;
     if(state.paused) return; // loop restarts from togglePause
+    const stamp = typeof ts === 'number' ? ts : performance.now();
+    let dt = _loopLast ? stamp - _loopLast : 16.7;
+    _loopLast = stamp;
+    if (dt > 100 || dt < 0) dt = 16.7;
+    _loopAcc += dt;
+    if (_loopAcc < 14.6) { requestAnimationFrame(update); return; }
+    _loopAcc = Math.max(0, _loopAcc - 16.667);
+    if (_loopAcc > 16.667) _loopAcc = 0;
     const now = Date.now();
 
     if (!state.boss) { handleLevelUp(); handleSpawning(now); }
@@ -1755,6 +1775,7 @@ function update() {
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
+    tickPlayerControl();
     checkSpeedrunMilestones();
     trackScoreUpdate(state.score);
     replayRecordPos(now);
@@ -2021,12 +2042,10 @@ function updateArrowMovement() {
     if (keyBindings.controlType === 'arrows') {
         const speed = 8;
         if (arrowKeysPressed.left) {
-            state.playerX = Math.max(0, state.playerX - speed);
-            updatePlayerPos();
+            stepPlayer(-speed);
         }
         if (arrowKeysPressed.right) {
-            state.playerX = Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed);
-            updatePlayerPos();
+            stepPlayer(speed);
         }
     }
     
@@ -2146,8 +2165,7 @@ function pollGamepad() {
                 // (L3/R3) switches to full/normal speed.
                 const maxSpeed = (held(GP_BTN.L3) || held(GP_BTN.R3)) ? 9 : 4.5;
                 const speed = maxSpeed * axisX;
-                state.playerX = Math.max(0, Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed));
-                updatePlayerPos();
+                stepPlayer(speed);
                 // Keep Phoenix-feather targeting aimed forward from the ship
                 state.lastMouseX = state.playerX + 25;
                 state.lastMouseY = DOM.wrapper.clientHeight - 80;
@@ -2419,6 +2437,7 @@ window.setLvl = function(lvlNum) {
 
     // Mark as debug game so score won't be saved to the leaderboard
     state.isDebugGame = true;
+    state.bossIndex = firstEncounterFrom(level);
 
     console.log(`✅ [DEBUG] Level set to ${level}`);
     console.log(`📊 [DEBUG] Score set to: ${state.score}`);
@@ -2461,6 +2480,7 @@ function applyPendingStartLevel() {
     state.score = state.lastLevelScore;
     { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
     state.isDebugGame = true;   // never saved to leaderboards / history / speedruns
+    state.bossIndex = firstEncounterFrom(level);
     saveMaxLevel(level);
 }
 
@@ -3703,7 +3723,7 @@ function renderHistoryList() {
         const showDevice = _histFilters.device === 'all';
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
-        const bossTagH = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossTagH = bossBadge(entry.settings);
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
@@ -3758,7 +3778,7 @@ function renderBestsList(skinKey) {
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
-        const bossTag = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossTag = bossBadge(entry.settings);
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';

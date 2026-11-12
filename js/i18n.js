@@ -16,7 +16,10 @@ export const LANGUAGES = [
     { code: 'es', name: 'Español',  flag: '🇪🇸', dir: 'ltr' },
 ];
 
+import { BOSS_STRINGS } from './i18n-bosses.js';
+
 const STRINGS = {
+    ...BOSS_STRINGS,
     // ---- HUD ----
     score:            { he: 'ניקוד: ',   en: 'Score: ',    ar: 'النتيجة: ', ru: 'Счёт: ',    fr: 'Score : ',   es: 'Puntos: ' },
     hp:               { he: 'HP: ',      en: 'HP: ',       ar: 'الصحة: ',   ru: 'HP: ',      fr: 'PV : ',      es: 'VP: ' },
