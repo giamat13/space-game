@@ -1,6 +1,7 @@
 import { DOM, state, addScore, gameRules, deviceMode, hasUpgrade, isUpgradeActive, currentSkinKey, addCoins } from './data.js';
 import { t, tf } from './i18n.js';
 import { damagePlayer, updateHPUI, enemyShoot, createExplosion, spawnParticle, showFloatingMessage, healPlayer, spawnIngredients, updateAmmoUI, getEnemyPoints, getEnemyAmmoGrant, getEnemyColor, getEnemyFlatHeal, registerJokerKill } from './systems.js';
+import { KINDS, tickKind } from './enemy-types.js';
 import {
     trackShotHit, trackEnemyKilled, trackFriendlyFire,
     trackChaoticKill, trackAsteroidDestroyed, trackIngredientCollected,
@@ -136,6 +137,7 @@ export function updateEnemyBullets() {
                     continue;
                 }
                 damagePlayer(eb.dmg || 15, 'enemy_bullet');
+                if (eb.drain) { state.ammo = Math.max(0, state.ammo - eb.drain); updateAmmoUI(); showFloatingMessage(t('kDrained'), eb.x - 30, eb.y - 30, '#b4ff6a'); }
                 createExplosion(eb.x, eb.y, 'var(--primary)');
                 eb.el.remove();
                 state.enemyBullets.splice(i, 1);
@@ -419,14 +421,16 @@ export function updateAsteroids() {
 export function updateEnemies(now) {
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         let en = state.enemies[i];
-        en.y += en.speed;
-        en.el.style.top = en.y + 'px';
+        if (!(en.def && tickKind(en))) {
+            en.y += en.speed;
+            en.el.style.top = en.y + 'px';
+        }
         // Cache this enemy's rect once per frame instead of recomputing it
         // for every player bullet (was an O(enemies×bullets) layout thrash).
         en.rect = en.el.getBoundingClientRect();
 
         if (now - en.lastShot > en.fireRate) {
-            enemyShoot(en);
+            if (en.def?.shoot && !en.isChaotic) en.def.shoot(en); else enemyShoot(en);
             en.lastShot = now;
         }
         
@@ -446,7 +450,8 @@ export function updateEnemies(now) {
             const bRect = bul.rect || bul.el.getBoundingClientRect();
 
             if(!(bRect.right < eRect.left || bRect.left > eRect.right || bRect.bottom < eRect.top || bRect.top > eRect.bottom)) {
-                const damage = bul.damage || 1.0;
+                if (en.def?.ghost?.(en)) continue;            // phased out: the shot passes through
+                const damage = (bul.damage || 1.0) * (en.def?.hit ? en.def.hit(en, bul) : 1);
                 
                 // Phoenix Feather explosion - damages nearby enemies
                 if (bul.isFeather) {
@@ -539,6 +544,7 @@ export function updateEnemies(now) {
                     }
                     en.el.remove();
                     state.enemies.splice(i, 1);
+                    en.def?.die?.(en);
                     registerJokerKill(eRect.left, eRect.top);
 
                     // Education mode: chance for a bonus question on a kill.

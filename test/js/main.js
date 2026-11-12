@@ -16,7 +16,8 @@ window.__resetBoss = resetBoss;
 window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
 window.__hideBoss = hideBoss;
 import { initScene } from './scene.js';
-import { initIcons } from './icons.js';
+import { initIcons, icon } from './icons.js';
+import { KINDS, spawnKind } from './enemy-types.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -1650,22 +1651,22 @@ async function initGame() {
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '⚡';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abVortex');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'phoenix') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🔥';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abPhoenix');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'joker') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🃏';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abJoker');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'dragon') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🐉';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abDragon');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
@@ -2501,6 +2502,7 @@ window.spawn = function(type) {
         return false;
     }
 
+    if (KINDS[String(type)]) return !!spawnKind(String(type), Math.random() * (DOM.wrapper.clientWidth - 60), -60);
     const validTypes = ['burger', 'asteroid', 'enemy', 'elite', 'orange', 'red', 'green', 'blue'];
     const lowerType = String(type).toLowerCase();
 

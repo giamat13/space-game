@@ -9,7 +9,10 @@ import {
 
 // ===== ENEMY TYPE HELPERS =====
 
+import { KINDS, maybeSpawnKind } from './enemy-types.js';
+
 export function getEnemyPoints(type) {
+    if (KINDS[type]) return KINDS[type].pts;
     return { red: 50, orange: 150, green: 100, blue: 250 }[type] ?? 50;
 }
 
@@ -24,12 +27,15 @@ export function registerJokerKill(x = 0, y = 0) {
     }
 }
 export function getEnemyAmmoGrant(type) {
+    if (KINDS[type]) return KINDS[type].ammo;
     return { red: 1, orange: 2, green: 2, blue: 3 }[type] ?? 1;
 }
 export function getEnemyColor(type) {
+    if (KINDS[type]) return KINDS[type].color;
     return { red: 'var(--danger)', orange: 'var(--elite)', green: '#00cc44', blue: '#0088ff' }[type] ?? 'var(--danger)';
 }
 export function getEnemyFlatHeal(type) {
+    if (KINDS[type]) return KINDS[type].heal;
     return { red: 0, orange: 50, green: 35, blue: 75 }[type] ?? 0;
 }
 
@@ -754,6 +760,8 @@ export function handleSpawning(now) {
             // this prevents the runaway lag spiral in advanced stages.
             const enemyCap = deviceMode.isMobile ? 35 : 70;
             if (state.enemies.length >= enemyCap) { state.lastSpawn = now; return; }
+            // from level 30, new enemy kinds join the waves (js/enemy-types.js)
+            if (maybeSpawnKind(posX, now)) { state.lastSpawn = now; return; }
 
             // levels 1-20: enemy types unlock more slowly, and enemies have fewer HP
             const lvl = state.level <= 20 ? Math.max(1, Math.round(state.level * 0.6)) : state.level;
