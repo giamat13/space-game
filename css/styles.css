@@ -1620,3 +1620,17 @@ kbd {
 .boss-zap.warn { border: 3px dashed #9fd8ff; background: radial-gradient(circle, rgba(159,216,255,0.35), transparent 70%); animation: fxBlink 0.14s linear infinite alternate; }
 .boss-zap.strike { background: radial-gradient(circle, #fff, rgba(159,216,255,0.8) 40%, transparent 70%); box-shadow: 0 0 60px #9fd8ff; }
 .boss-zap.strike::before { content: ''; position: absolute; left: 50%; bottom: 50%; width: 16px; margin-left: -8px; height: 120vh; background: linear-gradient(0deg, #fff, #9fd8ff 40%, transparent); box-shadow: 0 0 20px #9fd8ff; }
+
+/* ===== Score save status + toasts ===== */
+.save-status { margin: 8px auto 4px; padding: 7px 14px; max-width: 420px; border-radius: 10px; font-size: 0.82rem; line-height: 1.35; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #dfe8ff; }
+.save-status-record { border-color: rgba(255,215,0,0.7); background: rgba(255,215,0,0.12); color: #ffe27a; }
+.save-status-ok { border-color: rgba(57,255,20,0.45); color: #b8ffab; }
+.save-status-guest { border-color: rgba(0,242,255,0.45); color: #a8f6ff; }
+.save-status-fail { border-color: rgba(255,90,90,0.7); background: rgba(255,60,60,0.12); color: #ffb3b3; }
+.save-status-pending { opacity: 0.75; }
+#toast-box { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 460px); }
+.toast { padding: 10px 16px; border-radius: 12px; background: rgba(8,14,30,0.95); border: 1px solid rgba(0,242,255,0.5); color: #fff; font-size: 0.85rem; text-align: center; animation: toastIn 0.3s ease-out; }
+.toast-ok { border-color: rgba(57,255,20,0.6); }
+.toast-fail { border-color: rgba(255,90,90,0.8); }
+.toast-out { opacity: 0; transform: translateY(8px); transition: all 0.4s; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

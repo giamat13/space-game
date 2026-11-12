@@ -1197,12 +1197,16 @@ function _renderLbContent() {
     window.__lbReplayByStart = _lbReplayByStart;
     window.__lbReplayByScore = _lbReplayByScore;
 
-    const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
+    // Damaged entries (no score / level) are skipped so one bad row can never break the table.
+    const sortedRaw = _rawLeaderboard
+        .filter(e => e && Number.isFinite(Number(e.score)) && Number.isFinite(Number(e.level)))
+        .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)));
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
-    // Keep only best entry per player (already sorted best-first)
+    // Keep only the best entry per player (already sorted best-first). Players are told
+    // apart by account, not by display name: two players may share a name.
     const seen = new Set();
     const deduped = filtered.filter(e => {
-        const key = (e.userName || 'Anonymous').toLowerCase();
+        const key = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1252,7 +1256,7 @@ function _renderLbContent() {
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
                     👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${bossDisplay}${inputDisplay}
                 </div>
-                <div class="lb-score">${entry.score.toLocaleString()}</div>
+                <div class="lb-score">${Number(entry.score).toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
             </div>
             ${replayBtn}${settingsBtn}
@@ -1397,7 +1401,8 @@ function _mergeSkinEntries(arrays) {
         (a.level || 0) > (b.level || 0) ||
         ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
     for (const e of arrays.flat()) {
-        const uid = e.userId || e.userName || '';
+        if (!e || !Number.isFinite(Number(e.score)) || !Number.isFinite(Number(e.level))) continue;
+        const uid = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
         const cur = byUser.get(uid);
         if (!cur || isBetter(e, cur)) byUser.set(uid, e);
     }
@@ -1469,6 +1474,52 @@ async function displayLeaderboard(categoryOrSkinSel) {
 
     _renderLbContent();
 }
+
+// ===== SCORE SAVE STATUS =====
+// Tells the player what happened to the result of the game that just ended:
+// new record, record kept, saved on this device only (guest), or failed (and queued).
+function showScoreSaveStatus(result) {
+    let el = document.getElementById('score-save-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'score-save-status';
+        document.getElementById('sub-title')?.insertAdjacentElement('afterend', el);
+    }
+    let kind = 'info', text = '';
+    if (!result) { el.style.display = 'none'; return; }
+    if (result.pending) { kind = 'pending'; text = t('saveStSaving'); }
+    else if (result.ok && result.overall === 'saved') { kind = 'record'; text = t('saveStRecord'); }
+    else if (result.ok && result.skin === 'saved') { kind = 'record'; text = t('saveStSkinRecord'); }
+    else if (result.ok) { kind = 'ok'; text = t('saveStKept'); }
+    else if (result.reason === 'guest') { kind = 'guest'; text = t('saveStGuest'); }
+    else { kind = 'fail'; text = t(result.queued ? 'saveStFailQueued' : 'saveStFail'); }
+    el.className = `save-status save-status-${kind}`;
+    el.textContent = text;
+    el.style.display = '';
+}
+window.__showScoreSaveStatus = showScoreSaveStatus;
+window.__onPendingSavesFlushed = (count) => {
+    showToast(tf('saveStFlushed', { n: count }), 'ok');
+    const el = document.getElementById('score-save-status');
+    if (el && el.classList.contains('save-status-fail')) showScoreSaveStatus({ ok: true });
+    window.__refreshLeaderboard?.();
+};
+
+// Small transient message at the bottom of the screen.
+function showToast(text, kind = 'info') {
+    let box = document.getElementById('toast-box');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'toast-box';
+        document.body.appendChild(box);
+    }
+    const el = document.createElement('div');
+    el.className = `toast toast-${kind}`;
+    el.textContent = text;
+    box.appendChild(el);
+    setTimeout(() => { el.classList.add('toast-out'); setTimeout(() => el.remove(), 400); }, 4200);
+}
+window.__showToast = showToast;
 
 // Export to window for HTML onclick
 console.log('🔗 [EXPORT] Exporting functions to window object...');

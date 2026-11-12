@@ -22,6 +22,7 @@ import {
     syncUnlockedSkins,
     syncMaxLevel,
     saveScoreToCloud,
+    isBetterRun,
     unlockSkinInCloud,
     syncCoins,
     syncUpgrades,
@@ -209,14 +210,18 @@ export function getSpeedrunLeaderboard(goalKey) {
 }
 
 export function saveSpeedrunResult(goalKey, entry) {
+    // Local table: one entry per player, replaced only by a faster time.
     let lb = getSpeedrunLeaderboard(goalKey);
-    lb = lb.filter(e => e.userName !== entry.userName || e.time > entry.time);
-    lb.push(entry);
+    const mine = lb.find(e => e.userName === entry.userName);
+    if (!mine || entry.time < mine.time) {
+        lb = lb.filter(e => e.userName !== entry.userName);
+        lb.push(entry);
+    }
     lb.sort((a, b) => a.time - b.time);
     lb = lb.slice(0, 10);
     localStorage.setItem(`sr_lb_${goalKey}`, JSON.stringify(lb));
-    // Cloud save (fire and forget)
-    saveSpeedrunToCloud(goalKey, entry).catch(() => {});
+    return saveSpeedrunToCloud(goalKey, entry)
+        .catch(() => ({ ok: false, reason: 'error', queued: false }));
 }
 
 // Game Rules
@@ -710,9 +715,7 @@ export async function saveScore(skinKey, score, level, userName = null, settings
         date: new Date().toLocaleDateString('he-IL'),
         settings: settings || null
     };
-    const isBetter = (candidate, existing) =>
-        (candidate.level || 0) > (existing.level || 0) ||
-        ((candidate.level || 0) === (existing.level || 0) && candidate.score > existing.score);
+    const isBetter = isBetterRun;
     const existingSkinBest = skinLeaderboard.find(e => e.userName === effectiveName);
     if (!existingSkinBest || isBetter(newEntry, existingSkinBest)) {
         skinLeaderboard = skinLeaderboard.filter(e => e.userName !== effectiveName);
@@ -740,12 +743,15 @@ export async function saveScore(skinKey, score, level, userName = null, settings
     overallLeaderboard = overallLeaderboard.slice(0, 5);
     setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
 
-    // Save to cloud
+    // Save to cloud. The result tells the caller what actually happened, so the player
+    // can be told (new record / record kept / not saved / playing as a guest).
     try {
-        const saved = await saveScoreToCloud(skinKey, score, level, userName, settings);
-        console.log(saved ? '✅ [SCORE] Saved to cloud' : '⚠️ [SCORE] Saved locally only');
+        const result = await saveScoreToCloud(skinKey, score, level, userName, settings);
+        console.log(result.ok ? '✅ [SCORE] Saved to cloud' : `⚠️ [SCORE] Saved locally only (${result.reason})`);
+        return result;
     } catch (error) {
         console.error('⚠️ [SCORE] Cloud save failed; score is saved locally:', error);
+        return { ok: false, reason: 'error', queued: false };
     }
 }
 

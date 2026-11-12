@@ -164,9 +164,16 @@ export function damagePlayer(amount, source = 'unknown') {
                 };
 
                 // Save to global leaderboard (cloud + local)
+                window.__showScoreSaveStatus?.({ pending: true });
                 dataModule.saveScore(skinKey, state.score, state.level, userName, settings)
-                    .then(() => window.__refreshLeaderboard?.())
-                    .catch(err => console.error('❌ [GAME OVER] Leaderboard save failed:', err));
+                    .then((result) => {
+                        window.__showScoreSaveStatus?.(result);
+                        window.__refreshLeaderboard?.();
+                    })
+                    .catch(err => {
+                        console.error('❌ [GAME OVER] Leaderboard save failed:', err);
+                        window.__showScoreSaveStatus?.({ ok: false, reason: 'error', queued: false });
+                    });
                 console.log(`💾 [GAME OVER] Score save started for user: ${userName}`);
 
                 // Save speedrun results
