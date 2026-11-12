@@ -131,3 +131,9 @@ button:active { transform: translateY(1px) scale(0.97); }
 .kb.juggernaut { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: radial-gradient(circle, #fff 0 25%, #ffb347 50%, #d8482a 78%); box-shadow: 0 0 10px 2px rgba(255, 107, 74, 0.85); }
 .kb.swarm { width: 8px; height: 8px; margin: -4px 0 0 -4px; background: radial-gradient(circle, #fff 0 30%, #ff4dc4 70%); box-shadow: 0 0 7px 2px rgba(255, 77, 196, 0.8); }
 .kb.wraith { background: radial-gradient(circle, #1a0530 0 30%, #b06bff 55%, #5a1ad0 78%); box-shadow: 0 0 10px 3px rgba(176, 107, 255, 0.9); }
+
+/* ---------- Vortex cone + Joker servants ---------- */
+.vortex-cone { position: absolute; transform: translateX(-50%); z-index: 100; pointer-events: none; clip-path: polygon(46% 100%, 54% 100%, 100% 0, 0 0);
+    background: linear-gradient(0deg, #fff, rgba(47, 230, 255, 0.85) 25%, rgba(200, 92, 255, 0.35) 75%, transparent); filter: drop-shadow(0 0 18px #2fe6ff); animation: coneOut 0.38s ease-out forwards; transform-origin: 50% 100%; }
+@keyframes coneOut { from { opacity: 1; scale: 1 0.6; } to { opacity: 0; scale: 1.08 1; } }
+.joker-servant { position: absolute; left: 0; bottom: 96px; width: 36px; height: 36px; z-index: 55; pointer-events: none; filter: drop-shadow(0 0 8px #ff3b2e); animation: enemyIn 0.35s ease-out; }

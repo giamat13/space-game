@@ -519,67 +519,101 @@ export function usePhoenixFeathers() {
     console.log(`✅ [PHOENIX] ${count} Feathers launched (homing:${homing}, dmg:${damage})`);
 }
 
+// Vortex laser: a forward cone from the ship (straight ahead and a little to each side),
+// not the whole screen. Against a boss it removes a big slice of HP, never the whole bar.
+const VORTEX_BASE = 42, VORTEX_SPREAD = 0.22;     // half-width at the ship (px) / widening per px of height
 export function useVortexLaser() {
-    window.__damageBoss?.(0.06);
-    console.log('⚡ [VORTEX] Activating laser!');
-    const playerCenterX = state.playerX + 25;
-    const playerY = DOM.wrapper.clientHeight - 90;
-    
-    const numBeams = 12;
-    for (let i = 0; i < numBeams; i++) {
-        const angle = (i / numBeams) * 360;
-        const laser = document.createElement('div');
-        laser.className = 'laser-beam';
-        laser.style.left = playerCenterX + 'px';
-        laser.style.bottom = '90px';
-        laser.style.transform = `rotate(${angle}deg)`;
-        DOM.wrapper.appendChild(laser);
-        setTimeout(() => laser.remove(), 300);
-    }
-    
+    const wr = DOM.wrapper.getBoundingClientRect();
+    const px = state.playerX + 25, py = DOM.wrapper.clientHeight - 90;
+    const inCone = (x, y, pad = 0) => y < py + 20 && Math.abs(x - px) <= VORTEX_BASE + Math.max(0, py - y) * VORTEX_SPREAD + pad;
+
+    const cone = document.createElement('div');
+    cone.className = 'vortex-cone';
+    cone.style.cssText = `left:${px}px;bottom:90px;height:${py}px;width:${2 * (VORTEX_BASE + py * VORTEX_SPREAD)}px;`;
+    DOM.wrapper.appendChild(cone);
+    setTimeout(() => cone.remove(), 380);
+
+    // boss: counts as hit if the cone touches its body
+    const bs = state.boss;
+    if (bs && !bs.enter && !bs.dying && inCone(bs.x + bs.w / 2, bs.y + bs.h, bs.w / 2)) window.__damageBoss?.(0.06);
+
     let killCount = 0;
-    
-    // Kill enemies and GIVE POINTS
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
-        const points = getEnemyPoints(en.type);
-        addScore(points);
-        const eRect = en.el.getBoundingClientRect();
-        createExplosion(eRect.left + 25, eRect.top + 25, getEnemyColor(en.type));
+        const r = en.el.getBoundingClientRect();
+        if (!inCone(r.left - wr.left + r.width / 2, r.top - wr.top + r.height / 2, r.width / 2)) continue;
+        addScore(getEnemyPoints(en.type));
+        createExplosion(r.left + r.width / 2, r.top + r.height / 2, getEnemyColor(en.type));
         en.el.remove();
         state.enemies.splice(i, 1);
+        en.def?.die?.(en);
         killCount++;
     }
-    
-    // Kill asteroids (no points for asteroids)
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
         const ast = state.asteroids[i];
-        const aRect = ast.el.getBoundingClientRect();
-        createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+        const r = ast.el.getBoundingClientRect();
+        if (!inCone(r.left - wr.left + r.width / 2, r.top - wr.top + r.height / 2, r.width / 2)) continue;
+        createExplosion(r.left + 25, r.top + 25, 'var(--stone)');
         ast.el.remove();
         state.asteroids.splice(i, 1);
         killCount++;
     }
-    
-    // Destroy enemy bullets
     for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
         const eb = state.enemyBullets[i];
-        createExplosion(eb.x, eb.y, '#ff0000');
+        if (eb.ricochet || !inCone(eb.x, eb.y)) continue;
+        createExplosion(wr.left + eb.x, wr.top + eb.y, '#ff0000');
         eb.el.remove();
         state.enemyBullets.splice(i, 1);
     }
-    
-    DOM.scoreEl.innerText = state.score; // Update score display
-    
-    if (killCount > 0) {
-        showFloatingMessage(tf('msgVortex', { n: killCount }), playerCenterX - 80, playerY - 50, 'var(--primary)');
+    DOM.scoreEl.innerText = state.score;
+    if (killCount > 0) showFloatingMessage(tf('msgVortex', { n: killCount }), px - 80, py - 50, 'var(--primary)');
+}
+
+// Joker, boss fights only: four jester servants appear beside the ship and shoot the boss
+// for 10 seconds. (Outside boss fights the ability still turns the enemies against each other.)
+const SERVANT_ART = '<svg viewBox="0 0 40 40" style="width:100%;height:100%;overflow:visible"><path d="M8 14 L3 3 L12 9 L20 2 L28 9 L37 3 L32 14Z" fill="#ffb703" stroke="#05070f" stroke-width="1.6" stroke-linejoin="round"/><circle cx="20" cy="22" r="13" fill="#ff3b2e" stroke="#05070f" stroke-width="2"/><path d="M11 20 L18 23 L12 27Z M29 20 L22 23 L28 27Z" fill="#ffe45c" stroke="#05070f" stroke-width="1.4"/><path d="M13 30 Q20 35 27 30" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="3" cy="3" r="2.2" fill="#2fe6ff"/><circle cx="37" cy="3" r="2.2" fill="#2fe6ff"/></svg>';
+let servants = [], servantLoop = 0;
+function servantTick() {
+    servantLoop = 0;
+    if (!state.active || !servants.length) { servants.forEach(v => v.el.remove()); servants = []; return; }
+    if (!state.paused) {
+        const now = Date.now(), px = state.playerX + 25;
+        servants = servants.filter(v => {
+            if (now > v.until || !state.boss) { createExplosion(v.x + DOM.wrapper.getBoundingClientRect().left, DOM.wrapper.clientHeight - 130, '#ffb703'); v.el.remove(); return false; }
+            v.x += (px + v.off - v.x) * 0.12;
+            v.el.style.transform = `translate(${v.x - 18}px, ${Math.sin(now / 260 + v.off) * 5}px)`;
+            if (now - v.last > 520) {
+                v.last = now;
+                const b = document.createElement('div');
+                b.className = 'bullet';
+                b.style.left = (v.x - 2) + 'px'; b.style.bottom = '120px';
+                b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
+                b.style.boxShadow = '0 0 14px #ff4500';
+                DOM.wrapper.appendChild(b);
+                state.bullets.push({ el: b, y: 120, damage: Math.max(1, state.currentSkinStats.bulletDamage * 0.7) });
+            }
+            return true;
+        });
     }
-    
-    console.log(`✅ [VORTEX] Killed: ${killCount}, Score: ${state.score}`);
+    servantLoop = requestAnimationFrame(servantTick);
+}
+function summonServants() {
+    servants.forEach(v => v.el.remove()); servants = [];
+    const px = state.playerX + 25;
+    [-80, -40, 40, 80].forEach((off) => {
+        const el = document.createElement('div');
+        el.className = 'joker-servant';
+        el.innerHTML = SERVANT_ART;
+        DOM.wrapper.appendChild(el);
+        servants.push({ el, off, x: px + off * 2, last: Date.now() + Math.random() * 300, until: Date.now() + 10000 });
+    });
+    if (!servantLoop) servantLoop = requestAnimationFrame(servantTick);
+    showFloatingMessage(t('msgServants'), px - 70, DOM.wrapper.clientHeight - 150, '#ffb703');
 }
 
 export function useJokerChaos() {
     window.__damageBoss?.(0.04);
+    if (state.boss) { summonServants(); return; }
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
