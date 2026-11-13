@@ -1359,7 +1359,14 @@ function _renderSrContent(goalKey) {
     if (_lbSrSkinSel.length > 0) {
         base = base.filter(e => _lbSrSkinSel.includes(e.skin));
     }
-    const filtered = applyEntryFilters(base, _lbFilters);
+    // Best (fastest) run per player among the runs that match the filters.
+    const srSeen = new Set();
+    const filtered = applyEntryFilters([...base].sort((a, b) => a.time - b.time), _lbFilters).filter(e => {
+        const key = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
+        if (srSeen.has(key)) return false;
+        srSeen.add(key);
+        return true;
+    }).slice(0, 10);
 
     if (!filtered.length) {
         const empty = _rawSpeedrunEntries.length === 0
@@ -1421,21 +1428,12 @@ async function displaySpeedrunLeaderboard(goalKey) {
     _renderSrContent(goalKey);
 }
 
-// Merge entries from multiple skins: deduplicate by user, keep best score
+// Merge entries from multiple skins. Every run is kept: the table keeps only the best
+// row per player AFTER the filters, so a lower run that matches a filter is not lost here.
 function _mergeSkinEntries(arrays) {
-    const byUser = new Map();
-    const isBetter = (a, b) =>
-        (a.level || 0) > (b.level || 0) ||
-        ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
-    for (const e of arrays.flat()) {
-        if (!e || !Number.isFinite(Number(e.score)) || !Number.isFinite(Number(e.level))) continue;
-        const uid = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
-        const cur = byUser.get(uid);
-        if (!cur || isBetter(e, cur)) byUser.set(uid, e);
-    }
-    return [...byUser.values()]
-        .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
-        .slice(0, 50);
+    return arrays.flat()
+        .filter(e => e && Number.isFinite(Number(e.score)) && Number.isFinite(Number(e.level)))
+        .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)));
 }
 
 async function displayLeaderboard(categoryOrSkinSel) {

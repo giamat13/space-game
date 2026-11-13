@@ -44,6 +44,20 @@ service cloud.firestore {
       allow delete: if ownsEntry(entryId);
     }
 
+    // Every run is stored on its own and never changed or deleted. Filtered leaderboard
+    // views (language, device, upgrades…) pick each player's best matching run from here.
+    match /runs/{skin}/entries/{runId} {
+      allow read: if true;
+      allow create: if writesOwnEntry();
+      allow update, delete: if false;
+    }
+
+    match /speedrunRuns/{goalKey}/entries/{runId} {
+      allow read: if true;
+      allow create: if writesOwnEntry();
+      allow update, delete: if false;
+    }
+
     match /userStats/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);

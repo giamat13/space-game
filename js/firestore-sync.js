@@ -301,6 +301,16 @@ const withTimeout = (promise, ms) => Promise.race([
 
 const newPendingId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+// Stores one run as its own document in each path. The id is fixed per run, so a retried
+// save never creates a duplicate (an existing document is left as it is).
+async function writeRunOnce(paths, id, data) {
+    await Promise.all(paths.map(async (p) => {
+        const ref = doc(db, p, id);
+        if ((await getDoc(ref)).exists()) return;
+        await setDoc(ref, data);
+    }));
+}
+
 // ===== SAVE SCORE TO FIRESTORE =====
 async function writeScore(user, entry) {
     const { skin: skinKey, score, level } = entry;
@@ -313,6 +323,10 @@ async function writeScore(user, entry) {
     ]);
     if (overall.status === 'rejected') throw overall.reason;
     if (skin.status === 'rejected') throw skin.reason;
+
+    // Every run is also kept on its own, never replaced by a better one. Filtered views
+    // (language, device, upgrades…) pick the best matching run of each player from these.
+    await writeRunOnce(['runs/all/entries', `runs/${skinKey}/entries`], `${user.uid}_${entry.clientTimestamp || Date.now()}`, data);
 
     // Personal stats and run history are supplementary: never let them fail a record save.
     (async () => {
@@ -421,29 +435,26 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             }
         }
 
-        // Recent runs carry the settings used by the filters (device, language, upgrades…),
-        // so a filtered view can still show a player's best matching run.
+        // Every saved run carries the settings used by the filters (device, language,
+        // upgrades…), so a filtered view can show each player's best MATCHING run, even
+        // when it is not their best run overall.
         try {
-            const sessSnap = await getDocs(query(
-                collection(db, 'game_sessions'),
-                orderBy('timestamp', 'desc'),
-                limit(500)
+            const runsSnap = await getDocs(query(
+                collection(db, `runs/${skinKey === 'overall' ? 'all' : skinKey}/entries`),
+                orderBy('level', 'desc'),
+                limit(1500)
             ));
-            sessSnap.forEach((d) => {
-                const data = d.data();
-                if (skinKey === 'overall' || !data.skin || data.skin === skinKey) {
-                    collected.push({ id: d.id, ...data });
-                }
-            });
+            runsSnap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
         } catch (e) {
-            console.warn('⚠️ [CLOUD] game_sessions fetch failed:', e);
+            console.warn('⚠️ [CLOUD] runs fetch failed:', e);
         }
 
         // Empty / damaged documents are dropped here so they can never break the table.
+        // The screen keeps the best row per player after the filters are applied.
         const scores = collected
             .filter(isValidRun)
             .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
-            .slice(0, 500);
+            .slice(0, 2000);
 
         console.log(`✅ [CLOUD] Fetched ${scores.length} scores`);
         return scores;
@@ -663,7 +674,10 @@ async function writeMoneyLeaderboard(user, coins) {
 // ===== SPEEDRUN LEADERBOARD =====
 async function writeSpeedrun(user, goalKey, entry) {
     const data = { ...entry, userId: user.uid, updatedAt: serverTimestamp() };
-    return upsertBestEntry(`speedrun/${goalKey}/entries`, user.uid, data, isFasterTime, isValidTime);
+    const result = await upsertBestEntry(`speedrun/${goalKey}/entries`, user.uid, data, isFasterTime, isValidTime);
+    // Every run is kept (never replaced) so filtered views can find the best matching one.
+    await writeRunOnce([`speedrunRuns/${goalKey}/entries`], `${user.uid}_${entry.clientTimestamp || entry.timestamp || Date.now()}`, data);
+    return result;
 }
 
 // Returns { ok, reason?, result? } — same contract as saveScoreToCloud.
@@ -692,9 +706,12 @@ export async function getSpeedrunLeaderboardFromCloud(goalKey) {
         const snap = await getDocs(q);
         const rows = [];
         snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-        return bestPerPlayer(rows, isFasterTime, isValidTime)
-            .sort((a, b) => a.time - b.time)
-            .slice(0, 10);
+        try {
+            const runs = await getDocs(query(collection(db, `speedrunRuns/${goalKey}/entries`), orderBy('time', 'asc'), limit(1500)));
+            runs.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        } catch (e) { console.warn('⚠️ [CLOUD] speedrun runs fetch failed:', e.code || e); }
+        // All valid runs; the screen keeps each player's best one AFTER filtering.
+        return rows.filter(isValidTime).sort((a, b) => a.time - b.time);
     } catch (e) {
         console.error('❌ [CLOUD] Error fetching speedrun leaderboard:', e);
         return [];
