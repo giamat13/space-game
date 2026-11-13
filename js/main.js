@@ -545,7 +545,7 @@ const LB_SKINS = [
     { key: 'phoenix',     get label() { return t('skinPhoenix'); } },
     { key: 'vortex',      get label() { return t('skinVortex'); } },
     { key: 'joker',       get label() { return t('skinJoker'); } },
-    { key: 'dragon',      get label() { return '🐉 ' + t('skinDragon'); } },
+    { key: 'baby_dragon',      get label() { return '🐉 ' + t('skinDragon'); } },
 ];
 
 function _skinSubHtml(sel, onClickFn) {
@@ -689,7 +689,7 @@ const SHOP_TABS = [
     { key: 'phoenix',     labelKey: 'skinPhoenix',     icon: '🔥' },
     { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
-    { key: 'dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+    { key: 'baby_dragon',      labelKey: 'skinDragon',      icon: '🐉' },
     { key: 'global',      labelKey: 'shopTabGlobal',    icon: '⭐' },
     { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
 ];
@@ -1673,7 +1673,7 @@ async function initGame() {
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerHTML = icon('abJoker');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
-    } else if (currentSkinKey === 'dragon') {
+    } else if (currentSkinKey === 'baby_dragon') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerHTML = icon('abDragon');
@@ -1885,7 +1885,7 @@ function updateAbilityCooldown(now) {
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
-    } else if (currentSkinKey === 'dragon') {
+    } else if (currentSkinKey === 'baby_dragon') {
         // Clear invincibility visual when it expires
         if (state.dragonAbility.invincibleUntil > 0 && now >= state.dragonAbility.invincibleUntil) {
             DOM.player.classList.remove('dragon-invincible');
@@ -1937,7 +1937,7 @@ function activateSpecialAbility() {
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('joker_chaos', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'joker' });
-    } else if (currentSkinKey === 'dragon') {
+    } else if (currentSkinKey === 'baby_dragon') {
         if (!state.dragonAbility.ready) return;
 
         useDragonFire();
@@ -1945,7 +1945,7 @@ function activateSpecialAbility() {
         state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('dragon_fire', state.level, state.playerHP);
-        replayRecordEvent('ability', { ability: 'dragon' });
+        replayRecordEvent('ability', { ability: 'baby_dragon' });
     }
 }
 
@@ -2383,7 +2383,7 @@ DOM.playerSpriteContainer.innerHTML = SKINS.classic.svg;
 document.querySelectorAll('.skin-option[data-skin]').forEach(card => {
     const k = card.dataset.skin;
     const prev = card.querySelector('.skin-preview');
-    if (prev && k !== 'dragon' && SKINS[k]) prev.innerHTML = SKINS[k].svg;
+    if (prev && k !== 'baby_dragon' && SKINS[k]) prev.innerHTML = SKINS[k].svg;
 });
 console.log('✅ [INIT] Player sprite set to classic skin');
 console.log('🎮 [INIT] All systems ready!');
@@ -3456,7 +3456,8 @@ const ABILITY_INFO = {
     vortex:  { icon: '⚡', color: '#9b59b6', get label() { return t('abilityVortex'); } },
     phoenix: { icon: '🔥', color: '#ff6b35', get label() { return t('abilityPhoenix'); } },
     joker:   { icon: '🃏', color: '#ff4500', get label() { return t('abilityJoker'); } },
-    dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },
+    baby_dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },
+    dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },   // replays saved before the rename
 };
 
 function _replayRenderAbilityFlash(offsetMs) {

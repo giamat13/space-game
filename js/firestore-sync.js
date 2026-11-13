@@ -17,6 +17,7 @@ import {
     deleteDoc,
     updateDoc,
     runTransaction,
+    arrayUnion,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -62,53 +63,58 @@ function getCookie(name) {
 }
 
 // ===== SYNC UNLOCKED SKINS =====
+const DEFAULT_SKINS = ['classic', 'interceptor', 'tanker'];
+// Old skin keys that were renamed. 'dragon' is now 'baby_dragon' (a real 'dragon' ship is planned).
+const LEGACY_SKIN_KEYS = { dragon: 'baby_dragon' };
+export function normalizeSkins(list) {
+    return [...new Set((Array.isArray(list) ? list : []).map(k => LEGACY_SKIN_KEYS[k] || k))];
+}
+function readLocalSkins() {
+    try { return normalizeSkins(JSON.parse(getCookie('unlockedSkins') || 'null') || DEFAULT_SKINS); }
+    catch { return [...DEFAULT_SKINS]; }
+}
+
 export async function syncUnlockedSkins() {
     if (!auth) {
         console.error('❌ [SYNC] Auth not initialized');
-        return JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
+        return readLocalSkins();
     }
 
     const user = auth.currentUser;
     if (!user) {
         console.log('⚠️ [SYNC] Not logged in, using local skins only');
-        return JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
+        return readLocalSkins();
     }
 
     try {
         console.log('🔄 [SYNC] Syncing unlocked skins...');
-        
-        // Read from Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
-        if (userDoc.exists()) {
-            const cloudSkins = userDoc.data().unlockedSkins || ['classic', 'interceptor', 'tanker'];
-            const localSkins = JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
-            
-            // Merge - any skin in either source
-            const mergedSkins = [...new Set([...cloudSkins, ...localSkins])];
-            
-            // Update in cloud and cookies
-            await setDoc(doc(db, 'users', user.uid), {
-                unlockedSkins: mergedSkins,
-                lastUpdated: serverTimestamp()
-            }, { merge: true });
-            
-            setCookie('unlockedSkins', JSON.stringify(mergedSkins));
-            console.log('✅ [SYNC] Skins synced:', mergedSkins);
-            return mergedSkins;
-        } else {
-            // No document - create new
-            const localSkins = JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
-            await setDoc(doc(db, 'users', user.uid), {
-                unlockedSkins: localSkins,
-                lastUpdated: serverTimestamp()
-            });
-            console.log('✅ [SYNC] Created new user document');
-            return localSkins;
+        const cloudRaw = userDoc.exists() ? (userDoc.data().unlockedSkins || []) : [];
+        const cloudSkins = normalizeSkins(cloudRaw);
+        // Read the cookie AFTER the cloud read: a ship unlocked while the read was in flight
+        // is in the cookie and must never be dropped by this sync.
+        const mergedSkins = normalizeSkins([...DEFAULT_SKINS, ...cloudSkins, ...readLocalSkins()]);
+
+        // arrayUnion only ever adds, so a stale sync can never remove a newer unlock.
+        // Skins still stored under an old key are replaced by their new key.
+        const legacyInCloud = cloudRaw.filter(k => LEGACY_SKIN_KEYS[k]);
+        await setDoc(doc(db, 'users', user.uid), {
+            unlockedSkins: arrayUnion(...mergedSkins),
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        if (legacyInCloud.length) {
+            // Keep the old key in the cloud so older open tabs keep working; it is ignored on read.
+            console.log('🔁 [SYNC] Migrated legacy skin keys:', legacyInCloud);
         }
+
+        // Re-read the cookie so an unlock that happened during the sync survives.
+        const finalSkins = normalizeSkins([...mergedSkins, ...readLocalSkins()]);
+        setCookie('unlockedSkins', JSON.stringify(finalSkins));
+        console.log('✅ [SYNC] Skins synced:', finalSkins);
+        return finalSkins;
     } catch (error) {
         console.error('❌ [SYNC] Error syncing skins:', error);
-        return JSON.parse(getCookie('unlockedSkins') || '["classic", "interceptor", "tanker"]');
+        return readLocalSkins();
     }
 }
 
@@ -393,7 +399,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
 export async function renameInLeaderboards(newName) {
     const user = auth?.currentUser;
     if (!db || !user || !newName) return;
-    const skins = ['classic', 'interceptor', 'tanker', 'phoenix', 'vortex', 'joker', 'dragon'];
+    const skins = ['classic', 'interceptor', 'tanker', 'phoenix', 'vortex', 'joker', 'baby_dragon', 'dragon'];
     const paths = ['leaderboard', 'moneyLeaderboard', ...skins.map(s => `scores/${s}/entries`)];
     await Promise.all(paths.flatMap((p) => [user.uid, user.uid + ALT_SUFFIX].map(async (id) => {
         try { await updateDoc(doc(db, p, id), { userName: newName }); }
@@ -420,8 +426,11 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             const snap = await getDocs(collection(db, 'leaderboard'));
             snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
         } else {
-            const snap = await getDocs(collection(db, `scores/${skinKey}/entries`));
-            snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+            // Runs saved before the 'dragon' → 'baby_dragon' rename live under the old key
+            for (const k of (skinKey === 'baby_dragon' ? ['baby_dragon', 'dragon'] : [skinKey])) {
+                const snap = await getDocs(collection(db, `scores/${k}/entries`));
+                snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+            }
 
             // Runs that only ever landed in the overall table (the per-skin tables
             // were added later) still belong in their ship's category.
@@ -429,7 +438,7 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
                 const overallSnap = await getDocs(collection(db, 'leaderboard'));
                 overallSnap.forEach((d) => {
                     const data = d.data();
-                    if (data.skin === skinKey) collected.push({ id: d.id, ...data });
+                    if (data.skin === skinKey || (skinKey === 'baby_dragon' && data.skin === 'dragon')) collected.push({ id: d.id, ...data });
                 });
             } catch (e) {
                 console.warn('⚠️ [CLOUD] Skin backfill from overall failed:', e);
@@ -440,12 +449,14 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
         // upgrades…), so a filtered view can show each player's best MATCHING run, even
         // when it is not their best run overall.
         try {
-            const runsSnap = await getDocs(query(
-                collection(db, `runs/${skinKey === 'overall' ? 'all' : skinKey}/entries`),
-                orderBy('level', 'desc'),
-                limit(1500)
-            ));
-            runsSnap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+            for (const k of (skinKey === 'overall' ? ['all'] : skinKey === 'baby_dragon' ? ['baby_dragon', 'dragon'] : [skinKey])) {
+                const runsSnap = await getDocs(query(
+                    collection(db, `runs/${k}/entries`),
+                    orderBy('level', 'desc'),
+                    limit(1500)
+                ));
+                runsSnap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
+            }
         } catch (e) {
             console.warn('⚠️ [CLOUD] runs fetch failed:', e);
         }
@@ -505,26 +516,14 @@ export async function unlockSkinInCloud(skinKey) {
     try {
         console.log(`🔓 [CLOUD] Unlocking skin: ${skinKey}`);
         
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        let currentSkins = ['classic', 'interceptor', 'tanker'];
-        
-        if (userDoc.exists()) {
-            currentSkins = userDoc.data().unlockedSkins || currentSkins;
-        }
-        
-        if (!currentSkins.includes(skinKey)) {
-            currentSkins.push(skinKey);
-            
-            await setDoc(doc(db, 'users', user.uid), {
-                unlockedSkins: currentSkins,
-                lastUpdated: serverTimestamp()
-            }, { merge: true });
-            
-            console.log('✅ [CLOUD] Skin unlocked in cloud');
-            return true;
-        }
-        
-        return false;
+        // Atomic add: no read-modify-write, so it cannot be overwritten by a concurrent sync.
+        await setDoc(doc(db, 'users', user.uid), {
+            unlockedSkins: arrayUnion(...DEFAULT_SKINS, skinKey),
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        console.log('✅ [CLOUD] Skin unlocked in cloud');
+        return true;
     } catch (error) {
         console.error('❌ [CLOUD] Error unlocking skin:', error);
         return false;

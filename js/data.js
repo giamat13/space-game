@@ -20,6 +20,7 @@ import { t, tf } from './i18n.js';
 // Import Firestore sync functions
 import {
     syncUnlockedSkins,
+    normalizeSkins,
     syncMaxLevel,
     saveScoreToCloud,
     isBetterRun,
@@ -108,7 +109,7 @@ export const SKINS = {
         isFire: true,
         get description() { return t('skinDescJoker'); }
     },
-    dragon: {
+    baby_dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
         unlockLevel: 25,        // still used for the starting level of a run
@@ -375,8 +376,11 @@ export async function loadUnlockedSkins() {
     try {
         const cloudSkins = await syncUnlockedSkins();
         if (cloudSkins) {
-            unlockedSkins = cloudSkins;
+            // Never drop a ship unlocked while the load was in flight
+            unlockedSkins = [...new Set([...cloudSkins, ...unlockedSkins])];
             console.log(`✅ [SKINS] Loaded from cloud:`, unlockedSkins);
+            // The skin cards were drawn before this finished; redraw them
+            window.__updateSkinOptions?.();
             return;
         }
     } catch (error) {
@@ -387,8 +391,9 @@ export async function loadUnlockedSkins() {
     const saved = getCookie('unlockedSkins');
     if (saved) {
         try {
-            unlockedSkins = JSON.parse(saved);
+            unlockedSkins = normalizeSkins(JSON.parse(saved));
             console.log(`✅ [SKINS] Loaded from cookies:`, unlockedSkins);
+            window.__updateSkinOptions?.();
         } catch (e) {
             console.error('❌ [SKINS] Error:', e);
         }
@@ -396,7 +401,8 @@ export async function loadUnlockedSkins() {
 }
 
 export function refreshUnlockedSkins(skins) {
-    unlockedSkins = [...skins];
+    // Merge, never replace: a sync that started before an unlock must not remove it
+    unlockedSkins = [...new Set([...normalizeSkins(skins), ...unlockedSkins])];
 }
 
 export async function unlockSkin(skinKey) {
@@ -474,7 +480,7 @@ export const UPGRADES = {
         nameKey: 'upgDragonHomingName',
         descKey: 'upgDragonHomingDesc',
         cost: 25000,
-        skin: 'dragon'
+        skin: 'baby_dragon'
     },
     phoenix_super_feathers: {
         key: 'phoenix_super_feathers',

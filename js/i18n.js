@@ -213,7 +213,7 @@ const STRINGS = {
     skinPhoenix:          { he: 'פניקס', en: 'Phoenix', ar: 'العنقاء', ru: 'Феникс', fr: 'Phénix', es: 'Fénix' },
     skinVortex:           { he: 'וורטקס', en: 'Vortex', ar: 'الدوامة', ru: 'Вортекс', fr: 'Vortex', es: 'Vórtice' },
     skinJoker:            { he: "ג'וקר", en: 'Joker', ar: 'الجوكر', ru: 'Джокер', fr: 'Joker', es: 'Comodín' },
-    skinDragon:           { he: 'דרגון', en: 'Dragon', ar: 'التنين', ru: 'Дракон', fr: 'Dragon', es: 'Dragón' },
+    skinDragon:           { he: 'דרגון תינוק', en: 'Baby Dragon', ar: 'التنين الصغير', ru: 'Малыш-дракон', fr: 'Bébé dragon', es: 'Dragón bebé' },
 
     // ---- Upgrade names & descriptions ----
     upgDragonHomingName:      { he: '🐉 כדורי דרגון חכמים', en: '🐉 Dragon Smart Bullets', ar: '🐉 رصاصات التنين الذكية', ru: '🐉 Умные пули Дракона', fr: '🐉 Balles intelligentes du Dragon', es: '🐉 Balas inteligentes del Dragón' },

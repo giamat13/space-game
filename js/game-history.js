@@ -43,7 +43,7 @@ export function addGameToHistory(entry) {
 }
 
 // ===== PERSONAL BESTS — read from existing leaderboard cookies =====
-const ALL_SKINS = ['classic','interceptor','tanker','phoenix','vortex','joker','dragon'];
+const ALL_SKINS = ['classic','interceptor','tanker','phoenix','vortex','joker','baby_dragon'];
 
 export function getPersonalBests(skinKey = 'overall', limit = 10) {
     if (skinKey === 'overall') {
