@@ -1,6 +1,7 @@
 import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
+import { ART, enemyArt } from './art.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
@@ -3069,87 +3070,111 @@ function clearDevConsole() {
 import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration } from './game-history.js';
 import { getAchievementProgress } from './achievements.js';
 
-// ===== REPLAY LOGGING — Snapshot-based =====
-// Every 200ms: snapshot player stats + all visible objects, read from state arrays (no layout queries).
-// Each object is a compact array whose LAST element is a stable id, so frames can be
-// interpolated by matching the SAME object across frames (not by array index, which shifts on splice).
-//   enemy:           ['e', x, y, color, hp, id]
-//   burger:          ['B', x, y, id]
-//   asteroid:        ['a', x, y, id]
-//   player bullet:   ['p', x, y, id]
-//   ability flame:   ['f', x, y, id]   (phoenix feathers / dragon flames)
-//   enemy bullet:    ['q', x, y, angle, id]
-// x/y are permille (0-1000) of the wrapper dimensions.
+// ===== REPLAY — records what the game DRAWS, so the viewer looks exactly like the game =====
+// Every 200ms a snapshot of the player and of every visible game element is stored.
+// An element is described once per run (class names, inline style, inner HTML: the real
+// art) and then only by its position, so the viewer builds the SAME DOM with the SAME CSS
+// classes as the game. Strings are interned in a per-run table to keep the log small.
+//   log      = [ meta, frame, frame, ... ]
+//   meta     = { meta: 2, strs: [...], defs: { id: [cssIdx, htmlIdx, w, h] } }
+//   frame    = { t, px, hp, ammo, score, level, pc, pt, W, H, objs }   (or an event frame { t, ev, ... })
+//   obj      = [ id, x, y, classIdx, hp%, transformIdx|-1 ]            (x/y: top-left in game pixels)
+// Logs recorded by older versions (no meta) are converted when they are opened.
 
 let _replayFrames = [];
 let _replayLastFrameTime = 0;
 let _ridCounter = 1;
+let _rStrs = [];
+let _rStrIdx = new Map();
+let _rDefs = {};
+let _rSkew = 0;                 // time spent paused / in a hidden tab, cut out of the timeline
 const REPLAY_INTERVAL  = 200;   // ms between snapshots
 const REPLAY_MAX_FRAMES = 1800; // 6 min @ 200ms
 
 // Stamp a stable id on a live game object (object references persist across frames).
 function _rid(obj) { return obj._rid || (obj._rid = _ridCounter++); }
 
+function _rIntern(s) {
+    let i = _rStrIdx.get(s);
+    if (i === undefined) { i = _rStrs.length; _rStrs.push(s); _rStrIdx.set(s, i); }
+    return i;
+}
+
+// Inline style of an element without the properties that change every frame.
+const _R_SKIP_PROPS = new Set(['left', 'top', 'bottom', 'right', 'transform', 'translate', 'rotate', 'scale', 'display']);
+function _rBaseCss(el) {
+    const s = el.style;
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+        const p = s[i];
+        if (!_R_SKIP_PROPS.has(p)) out += `${p}:${s.getPropertyValue(p)};`;
+    }
+    return out;
+}
+
+// One element → one entry in `objs`. Reads only inline styles (no layout queries) after the
+// first sighting of an element.
+function _rSnap(objs, ent, H, hpPct) {
+    const el = ent && ent.el;
+    if (!el || !el.isConnected) return;
+    const id = _rid(ent);
+    const s = el.style;
+    let def = _rDefs[id];
+    if (!def) {
+        const w = parseFloat(s.width)  || el.offsetWidth  || 0;
+        const h = parseFloat(s.height) || el.offsetHeight || 0;
+        // the HP bar fill is redrawn from the recorded hp%, so its inline width is dropped
+        const html = el.innerHTML.replace(/(<div class="hp-bar-fill[^"]*")\s+style="[^"]*"/g, '$1');
+        def = _rDefs[id] = [_rIntern(_rBaseCss(el)), _rIntern(html), Math.round(w), Math.round(h)];
+    }
+    let x = parseFloat(s.left), y = parseFloat(s.top), tf = s.transform || '';
+    const m = /translate3d\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px,\s*[^)]*\)/.exec(tf);
+    if (m) {
+        x = (Number.isFinite(x) ? x : 0) + parseFloat(m[1]);
+        y = (Number.isFinite(y) ? y : 0) + parseFloat(m[2]);
+        tf = tf.replace(m[0], '').trim();
+    }
+    if (!Number.isFinite(x)) x = 0;
+    if (!Number.isFinite(y)) { const b = parseFloat(s.bottom); y = Number.isFinite(b) ? H - b - def[3] : 0; }
+    objs.push([id, Math.round(x), Math.round(y), _rIntern(el.className), hpPct, tf ? _rIntern(tf) : -1]);
+}
+
 function replayRecordPos(now) {
     if (!state.active || state.isDebugGame) return;
     if (now - _replayLastFrameTime < REPLAY_INTERVAL) return;
+    // A long gap between snapshots means the game was paused (or the tab hidden): cut it out.
+    const gap = now - _replayLastFrameTime;
+    if (_replayLastFrameTime && gap > 1000) _rSkew += gap - REPLAY_INTERVAL;
     _replayLastFrameTime = now;
     if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
 
     const W = DOM.wrapper.clientWidth  || 500;
     const H = DOM.wrapper.clientHeight || 700;
-    const px = v => Math.round((v / W) * 1000);
-    const py = v => Math.round((v / H) * 1000);
-
+    const hpOf = (e) => (e.maxHP ? Math.max(0, Math.round((e.hp / e.maxHP) * 100)) : -1);
     const objs = [];
 
-    for (const e of state.enemies) {
-        const ex = parseFloat(e.el.style.left) || 0;
-        const c = { red:'r', orange:'o', green:'g', blue:'b' }[e.type] || 'r';
-        const ehp = Math.round((e.hp / e.maxHP) * 100);
-        objs.push(['e', px(ex), py(e.y), c, ehp, _rid(e)]);
+    for (const e of state.enemies)      _rSnap(objs, e, H, hpOf(e));
+    for (const b of state.burgers)      _rSnap(objs, b, H, hpOf(b));
+    for (const a of state.asteroids)    _rSnap(objs, a, H, -1);
+    for (const b of state.bullets)      _rSnap(objs, b, H, -1);
+    for (const b of state.enemyBullets) _rSnap(objs, b, H, -1);
+    for (const l of state.lightnings || []) _rSnap(objs, l, H, -1);
+    for (const i of state.ingredients || []) _rSnap(objs, i, H, -1);
+    if (state.boss) {
+        _rSnap(objs, state.boss, H, -1);
+        for (const o of state.boss.objs || []) _rSnap(objs, o, H, -1);
+        for (const p of state.boss.pickups || []) _rSnap(objs, p, H, -1);
     }
-    for (const b of state.burgers) {
-        objs.push(['B', px(parseFloat(b.el.style.left) || 0), py(b.y), _rid(b)]);
-    }
-    for (const a of state.asteroids) {
-        objs.push(['a', px(parseFloat(a.el.style.left) || 0), py(a.y), _rid(a)]);
-    }
-    for (const b of state.bullets) {
-        const bx = parseFloat(b.el.style.left) || 0;
-        if (b.isFeather || b.directional) {
-            // Ability projectiles (feathers / dragon flames) use style.top
-            const by = parseFloat(b.el.style.top) || 0;
-            objs.push(['f', px(bx), py(by), _rid(b)]);
-        } else {
-            // Regular bullets use style.bottom — convert to top-based coords
-            const bottomPx = parseFloat(b.el.style.bottom) || 0;
-            objs.push(['p', px(bx), py(H - bottomPx - 15), _rid(b)]);
-        }
-    }
-    for (const b of state.enemyBullets) {
-        const angle = Math.round(Math.atan2(b.vy || 0, b.vx || 0) * 180 / Math.PI);
-        // Derive a color char from the bullet's inline background (set per enemy type)
-        const bg = b.el.style.background || '';
-        let c = 'r';
-        if (b.chaotic) c = 'c';
-        else if (bg.includes('elite')) c = 'o';
-        else if (bg.includes('00cc44')) c = 'g';
-        else if (bg.includes('0088ff')) c = 'b';
-        objs.push(['q', px(b.x), py(b.y), angle, c, _rid(b)]);
-    }
-
-    // Dragon shield active?
-    const shielded = state.dragonAbility && now < state.dragonAbility.invincibleUntil ? 1 : 0;
 
     _replayFrames.push({
-        t:     now - (state.startTime || now),
+        t:     now - (state.startTime || now) - _rSkew,
         px:    Math.round(state.playerX),
         hp:    Math.round((state.playerHP / state.playerMaxHP) * 100),
         ammo:  Math.round((state.ammo / state.maxAmmo) * 100),
         score: state.score,
         level: state.level,
-        sh:    shielded,
+        pc:    _rIntern(DOM.player.className || ''),
+        pt:    _rIntern(DOM.player.style.transform || ''),
         W, H, objs
     });
 }
@@ -3158,7 +3183,7 @@ function replayRecordPos(now) {
 function replayRecordEvent(type, extra) {
     if (!state.active || state.isDebugGame) return;
     if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
-    _replayFrames.push({ t: Date.now() - (state.startTime || Date.now()), ev: type, ...extra });
+    _replayFrames.push({ t: Date.now() - (state.startTime || Date.now()) - _rSkew, ev: type, ...extra });
 }
 window.__replayRecordEvent = replayRecordEvent;
 
@@ -3166,106 +3191,73 @@ function replayReset() {
     _replayFrames = [];
     _replayLastFrameTime = 0;
     _ridCounter = 1;
+    _rStrs = [];
+    _rStrIdx = new Map();
+    _rDefs = {};
+    _rSkew = 0;
 }
 
 window.__flushReplayLog = function() {
     const frames = _replayFrames.slice();
+    const meta = { meta: 2, strs: _rStrs, defs: _rDefs };
     replayReset();
-    return frames.length > 1 ? frames : null;
+    return frames.length > 1 ? [meta, ...frames] : null;
 };
 
 // ===== REPLAY VIEWER =====
 
-let _replayData    = null;
+let _replayData    = null;   // snapshot + event frames, sorted by time
+let _replayMeta    = null;   // { strs, defs }
 let _replaySkin    = 'classic';
 let _replayPlaying = false;
 let _replayRAF     = null;
 let _replayStartWall = 0;
 let _replayOffsetMs  = 0;
 let _replayDuration  = 0;
+const _replayEls = new Map();   // object id → DOM element currently in the stage
 
-// Object dimensions [w, h] per type — used for centering. 'p' is overridden per-skin at openReplay.
-const OBJ_DIM = { e: [40, 48], B: [40, 40], a: [36, 36], p: [4, 15], f: [20, 20], q: [8, 20] };
+const _rStr = (i) => (i >= 0 ? (_replayMeta.strs[i] ?? '') : '');
 
-// Pre-built DOM elements — innerHTML set once at creation, only position updated each frame.
-// Enemy ('e') and enemy-bullet ('q') are pooled per color.
-const _replayPool = { e: {}, B: [], a: [], p: [], f: [], q: {} };
-
-const ENEMY_COLORS_HEX = { r: '#ff4d4d', o: '#ff9900', g: '#00cc44', b: '#0088ff' };
-const EBULLET_COLORS   = { r: ['#ff4444','#ff0000'], o: ['#ff9900','#ff9900'], g: ['#00cc44','#00cc44'], b: ['#0088ff','#0088ff'], c: ['#00f2ff','#00f2ff'] };
-
-// Player-bullet style derived from the recorded run's skin (constant per run).
-let _replayPBulletStyle = '';
-
-function _computePlayerBulletStyle(skinKey) {
-    const skin = SKINS[skinKey] || SKINS.classic;
-    const col  = skin.color || '#00f2ff';
-    const dmg  = skin.bulletDamage || 1.0;
-    if (dmg >= 3.0) {
-        // Fire bullet (joker / dragon)
-        OBJ_DIM.p = [8, 25];
-        _replayPBulletStyle = `background:linear-gradient(to top,#ff4500,#ffa500,#ffff00);border-radius:50% 50% 40% 40%;box-shadow:0 0 16px #ff4500,0 0 8px #ffff00;`;
-    } else if (dmg > 1.5) {
-        OBJ_DIM.p = [6, 20];
-        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 14px ${col},0 0 6px #fff;`;
-    } else if (dmg > 1.0) {
-        OBJ_DIM.p = [5, 18];
-        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 12px ${col};`;
-    } else {
-        OBJ_DIM.p = [4, 15];
-        _replayPBulletStyle = `background:linear-gradient(to top,${col},#fff);border-radius:2px;box-shadow:0 0 8px ${col};`;
-    }
+// Logs from older versions: objects were [type, x‰, y‰, ..., id] and drawn with their own
+// hand-made shapes. They are converted to the current format so one renderer shows both.
+const _LEGACY_ENEMY = { r: 'red', o: 'orange', g: 'green', b: 'blue' };
+function _legacyConvert(frames) {
+    const meta = { meta: 2, strs: [], defs: {} };
+    const idx = new Map();
+    const intern = (s) => { let i = idx.get(s); if (i === undefined) { i = meta.strs.length; meta.strs.push(s); idx.set(s, i); } return i; };
+    const hpBar = '<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>';
+    const out = frames.map((f) => {
+        if (!f.objs) return f;
+        const W = f.W || 500, H = f.H || 700;
+        const objs = [];
+        for (const o of f.objs) {
+            const type = o[0], id = o[o.length - 1];
+            const x = Math.round((o[1] / 1000) * W), y = Math.round((o[2] / 1000) * H);
+            let cls, html = '', hp = -1, tf = -1, w = 50, h = 50;
+            if (type === 'e') {
+                const name = _LEGACY_ENEMY[o[3]] || 'red';
+                cls = `enemy-ship ${name}`; html = hpBar + enemyArt(name); hp = o[4];
+            } else if (type === 'B') { cls = 'burger'; html = hpBar + ART.burger; }
+            else if (type === 'a')   { cls = 'asteroid'; html = ART.asteroid; }
+            else if (type === 'p')   { cls = 'bullet'; w = 4; h = 15; }
+            else if (type === 'f')   { cls = 'phoenix-feather'; w = 20; h = 40; }
+            else if (type === 'q')   { cls = 'enemy-bullet'; w = 8; h = 20; tf = intern(`rotate(${(o[3] || 0) - 90}deg)`); }
+            else continue;
+            if (!meta.defs[id]) meta.defs[id] = [intern(''), intern(html), w, h];
+            objs.push([id, x, y, intern(cls), hp, tf]);
+        }
+        return { ...f, objs, pc: intern(f.sh ? 'dragon-invincible' : ''), pt: intern('') };
+    });
+    return { meta, frames: out };
 }
 
-function _buildEl(type, color) {
+function _replayMake(id) {
+    const def = _replayMeta.defs[id] || [-1, -1, 20, 20];
     const el = document.createElement('div');
-    el.className = 'replay-obj';
-    el.dataset.rtype = type;
-    el.dataset.rcolor = color || '';
-    const [w, h] = OBJ_DIM[type] || [20, 20];
-    el.style.cssText = `position:absolute;pointer-events:none;width:${w}px;height:${h}px;`;
-    if (type === 'e') {
-        const c = ENEMY_COLORS_HEX[color] || '#ff4d4d';
-        el.innerHTML = `
-            <div style="height:4px;background:rgba(0,0,0,0.5);border-radius:2px;margin-bottom:2px;overflow:hidden;">
-                <div class="replay-enemy-hp" style="height:100%;width:100%;background:${c};border-radius:2px;"></div>
-            </div>
-            <svg viewBox="0 0 100 100" style="width:40px;height:40px;display:block;"><path d="M10 20 L50 90 L90 20 L50 40 Z" fill="${c}" stroke="#fff" stroke-width="2"/></svg>`;
-    } else if (type === 'B') {
-        el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><path d="M10 50 Q50 10 90 50 Z" fill="#e67e22"/><rect x="10" y="50" width="80" height="15" fill="#6d4c41"/><path d="M10 65 L90 65 L80 85 L20 85 Z" fill="#e67e22"/></svg>`;
-    } else if (type === 'a') {
-        el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><path d="M20 30 L40 10 L70 20 L90 50 L75 85 L30 90 L10 60 Z" fill="#444" stroke="#777" stroke-width="3"/></svg>`;
-    } else if (type === 'p') {
-        // Player bullet — styled to match the recorded run's skin
-        el.style.cssText += _replayPBulletStyle;
-    } else if (type === 'f') {
-        // Ability projectile (phoenix feather / dragon flame) — glowing orb
-        el.style.cssText += `background:radial-gradient(circle,#ffd700,#ff6b35);border-radius:50%;box-shadow:0 0 12px #ff6b35;`;
-    } else if (type === 'q') {
-        // Enemy bullet — color per shooter type; rotate applied per-frame
-        const [bg, glow] = EBULLET_COLORS[color] || EBULLET_COLORS.r;
-        el.style.cssText += `background:${bg};border-radius:4px;box-shadow:0 0 10px ${glow};transform-origin:center center;`;
-    }
+    el.style.cssText = _rStr(def[0]) + 'position:absolute;pointer-events:none;';
+    el.innerHTML = _rStr(def[1]);
     return el;
 }
-
-function _getEl(type, color) {
-    let pool;
-    if (type === 'e' || type === 'q') pool = _replayPool[type][color] || (_replayPool[type][color] = []);
-    else pool = _replayPool[type] || (_replayPool[type] = []);
-    return pool.length ? pool.pop() : _buildEl(type, color);
-}
-
-function _recycleEl(el) {
-    const type  = el.dataset.rtype;
-    const color = el.dataset.rcolor;
-    el.style.display = 'none';
-    if (type === 'e' || type === 'q') (_replayPool[type][color] || (_replayPool[type][color] = [])).push(el);
-    else (_replayPool[type] || (_replayPool[type] = [])).push(el);
-}
-
-// All active replay objects currently in the stage
-let _replayActiveEls = [];
 
 function openReplay(histEntry) {
     const log = histEntry.replayLog;
@@ -3274,32 +3266,51 @@ function openReplay(histEntry) {
         return;
     }
 
-    _replayData     = log.filter(f => f.objs || f.ev);
-    _replaySkin     = histEntry.skin || 'classic';
-    _replayDuration = log[log.length - 1]?.t || 1;
-    _replayOffsetMs = 0;
+    const metaFrame = log.find(f => f && f.meta);
+    let frames = log.filter(f => f && (f.objs || f.ev));
+    if (metaFrame) {
+        _replayMeta = metaFrame;
+    } else {
+        const conv = _legacyConvert(frames);
+        _replayMeta = conv.meta;
+        frames = conv.frames;
+    }
+    const firstSnap = frames.find(f => f.objs);
+    if (!firstSnap) { alert(t('replayNoData')); return; }
 
-    // Compute player-bullet appearance for this run's skin, then reset the element
-    // pool so previously-styled 'p' elements don't carry over from another run.
-    _computePlayerBulletStyle(_replaySkin);
-    _replayPool.e = {}; _replayPool.q = {};
-    _replayPool.B = []; _replayPool.a = []; _replayPool.p = []; _replayPool.f = [];
+    _replayData     = frames;
+    _replaySkin     = histEntry.skin || 'classic';
+    _replayDuration = frames[frames.length - 1]?.t || 1;
+    _replayOffsetMs = 0;
 
     const container = document.getElementById('replay-container');
     const stage     = document.getElementById('replay-stage');
+    const world     = document.getElementById('replay-world');
     container.style.display = 'flex';
-    // Remove stale pooled object elements from a previous replay
-    stage.querySelectorAll('.replay-obj').forEach(el => el.remove());
-    _replayActiveEls = [];
 
-    // Set player skin SVG
-    const playerEl = document.getElementById('replay-player-dot');
-    if (playerEl) playerEl.innerHTML = SKINS[_replaySkin]?.svg || SKINS.classic.svg;
+    // The stage keeps the shape of the screen the run was played on; the world is the
+    // game's own pixel size, scaled to fit.
+    const W = firstSnap.W || 500, H = firstSnap.H || 700;
+    const scale = Math.min((Math.min(window.innerWidth * 0.94, 560)) / W, (window.innerHeight * 0.78) / H);
+    stage.style.width  = Math.round(W * scale) + 'px';
+    stage.style.height = Math.round(H * scale) + 'px';
+    world.style.width  = W + 'px';
+    world.style.height = H + 'px';
+    world.style.transform = `scale(${scale})`;
+    stage.dataset.scale = String(scale);
+
+    // Drop everything drawn by a previous replay
+    for (const el of _replayEls.values()) el.remove();
+    _replayEls.clear();
+
+    // The player's ship: the same art the game uses
+    const sprite = document.getElementById('replay-player-sprite');
+    if (sprite) sprite.innerHTML = SKINS[_replaySkin]?.svg || SKINS.classic.svg;
 
     // Stars — create once, pause animation when viewer is paused
     const starsEl = document.getElementById('replay-stage-stars');
     if (starsEl && !starsEl.children.length) {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 40; i++) {
             const s = document.createElement('div');
             s.className = 'star';
             s.style.cssText = `width:2px;height:2px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${Math.random()*4+2}s`;
@@ -3343,105 +3354,92 @@ function _findFramePair(offsetMs) {
     }
     if (idxA < 0) return { frameA: null, frameB: null, alpha: 0 };
     // Walk back to the latest SNAPSHOT frame (skip event-only frames)
-    let frameA = null;
+    let iA = -1;
     for (let i = idxA; i >= 0; i--) {
-        if (_replayData[i].objs) { frameA = _replayData[i]; break; }
+        if (_replayData[i].objs) { iA = i; break; }
     }
-    if (!frameA) return { frameA: null, frameB: null, alpha: 0 };
+    if (iA < 0) return { frameA: null, frameB: null, alpha: 0 };
+    const frameA = _replayData[iA];
     // Next snapshot frame after frameA for interpolation
     let frameB = null;
-    for (let i = _replayData.indexOf(frameA) + 1; i < _replayData.length; i++) {
+    for (let i = iA + 1; i < _replayData.length; i++) {
         if (_replayData[i].objs) { frameB = _replayData[i]; break; }
     }
     const alpha = (frameB && frameB.t > frameA.t)
-        ? Math.min(1, (offsetMs - frameA.t) / (frameB.t - frameA.t))
+        ? Math.min(1, Math.max(0, (offsetMs - frameA.t) / (frameB.t - frameA.t)))
         : 0;
     return { frameA, frameB, alpha };
 }
 
 function _lerp(a, b, t) { return a + (b - a) * t; }
 
-// The stable id is always the LAST element of an object array.
-function _objId(o) { return o[o.length - 1]; }
-
 function _replayRender(offsetMs) {
-    const stage = document.getElementById('replay-stage');
-    if (!stage || !_replayData) return;
+    const world = document.getElementById('replay-world');
+    if (!world || !_replayData) return;
 
     const { frameA, frameB, alpha } = _findFramePair(offsetMs);
+    if (!frameA) return;
 
-    // Recycle previous active elements
-    for (const el of _replayActiveEls) _recycleEl(el);
-    _replayActiveEls = [];
+    // Player — the same element shape and classes as the game's #player
+    const playerEl = document.getElementById('replay-player');
+    if (playerEl) {
+        let px = frameA.px;
+        if (frameB && alpha > 0) px = _lerp(frameA.px, frameB.px, alpha);
+        playerEl.style.left = px + 'px';
+        const pc = _rStr(frameA.pc ?? -1);
+        if (playerEl.dataset.cls !== pc) { playerEl.className = pc; playerEl.dataset.cls = pc; }
+        playerEl.style.transform = _rStr(frameA.pt ?? -1);
+        const phb = document.getElementById('replay-player-hp');
+        if (phb) phb.style.width = (frameA.hp ?? 100) + '%';
+    }
 
-    const stageW = stage.clientWidth  || 420;
-    const stageH = stage.clientHeight || 700;
+    // Stats UI
+    const hpBar = document.getElementById('replay-hp-bar');
+    if (hpBar) {
+        const hp = frameA.hp ?? 100;
+        hpBar.style.width = hp + '%';
+        hpBar.style.background = hp > 50 ? 'var(--health)' : hp > 25 ? '#ffa500' : 'var(--danger)';
+    }
+    const ammoBar = document.getElementById('replay-ammo-bar');
+    if (ammoBar) ammoBar.style.width = (frameA.ammo ?? 100) + '%';
+    const scoreEl = document.getElementById('replay-score');
+    if (scoreEl) scoreEl.textContent = (frameA.score ?? 0).toLocaleString();
+    const levelEl = document.getElementById('replay-level');
+    if (levelEl) levelEl.textContent = frameA.level ?? 1;
 
-    if (frameA) {
-        // Player — interpolate X between frames
-        const playerEl = document.getElementById('replay-player-dot');
-        if (playerEl) {
-            const gameW = frameA.W || 500;
-            let px = frameA.px;
-            if (frameB && alpha > 0) px = _lerp(frameA.px, frameB.px, alpha);
-            playerEl.style.left = ((px / gameW) * stageW) + 'px';
-            // Dragon shield ring
-            playerEl.classList.toggle('replay-shielded', frameA.sh === 1);
+    // The SAME object (same id) is matched across the two frames and moved smoothly
+    const bById = new Map();
+    if (frameB && alpha > 0) for (const o of frameB.objs) bById.set(o[0], o);
+
+    const seen = new Set();
+    for (const o of frameA.objs) {
+        const [id, xa, ya, ci, hp, ti] = o;
+        seen.add(id);
+        let el = _replayEls.get(id);
+        if (!el) {
+            el = _replayMake(id);
+            _replayEls.set(id, el);
+            world.appendChild(el);
         }
+        let x = xa, y = ya;
+        const b = bById.get(id);
+        // a jump of more than 150px is a teleport / respawn, not movement: do not smear it
+        if (b && Math.abs(b[1] - xa) < 150 && Math.abs(b[2] - ya) < 150) { x = _lerp(xa, b[1], alpha); y = _lerp(ya, b[2], alpha); }
+        el.style.left = x + 'px';
+        el.style.top  = y + 'px';
 
-        // Stats UI
-        const hpBar = document.getElementById('replay-hp-bar');
-        if (hpBar) {
-            const hp = frameA.hp ?? 100;
-            hpBar.style.width = hp + '%';
-            hpBar.style.background = hp > 50 ? 'var(--health)' : hp > 25 ? '#ffa500' : 'var(--danger)';
+        const cls = _rStr(ci);
+        if (el._cls !== cls) { el.className = cls; el._cls = cls; }
+        const tf = _rStr(ti);
+        if (el._tf !== tf) { el.style.transform = tf; el._tf = tf; }
+        if (hp >= 0) {
+            const fill = el._fill || (el._fill = el.querySelector('.enemy-hp-fill'));
+            if (fill) fill.style.width = hp + '%';
         }
-        const ammoBar = document.getElementById('replay-ammo-bar');
-        if (ammoBar) ammoBar.style.width = (frameA.ammo ?? 100) + '%';
-        const scoreEl = document.getElementById('replay-score');
-        if (scoreEl) scoreEl.textContent = (frameA.score ?? 0).toLocaleString();
-        const levelEl = document.getElementById('replay-level');
-        if (levelEl) levelEl.textContent = frameA.level ?? 1;
-
-        // Build frameB lookup by stable id so the SAME object is interpolated across frames
-        const bById = {};
-        if (frameB && alpha > 0) {
-            for (const o of frameB.objs) bById[_objId(o)] = o;
-        }
-
-        for (const obj of frameA.objs) {
-            const type = obj[0], xp = obj[1], yp = obj[2];
-            const eColor = type === 'e' ? obj[3] : undefined;
-            const qColor = type === 'q' ? obj[4] : undefined;
-            const angle  = type === 'q' ? obj[3] : undefined;
-            const ehp    = type === 'e' ? obj[4] : undefined;
-
-            const el = _getEl(type, type === 'e' ? eColor : (type === 'q' ? qColor : ''));
-
-            let rx = xp, ry = yp;
-            if (alpha > 0) {
-                const bObj = bById[_objId(obj)];
-                // Only interpolate if matched obj is the same type (id is unique, so type always matches)
-                if (bObj) { rx = _lerp(xp, bObj[1], alpha); ry = _lerp(yp, bObj[2], alpha); }
-            }
-
-            const [w, h] = OBJ_DIM[type] || [20, 20];
-            el.style.left = ((rx / 1000) * stageW - w / 2) + 'px';
-            el.style.top  = ((ry / 1000) * stageH - h / 2) + 'px';
-
-            if (type === 'q' && angle != null) {
-                el.style.transform = `rotate(${angle - 90}deg)`;
-            }
-
-            if (type === 'e' && ehp != null) {
-                const hpFill = el.querySelector('.replay-enemy-hp');
-                if (hpFill) hpFill.style.width = ehp + '%';
-            }
-
-            el.style.display = '';
-            if (!el.parentElement) stage.appendChild(el);
-            _replayActiveEls.push(el);
-        }
+    }
+    // Objects that no longer exist in this frame leave the stage
+    for (const [id, el] of _replayEls) {
+        if (!seen.has(id)) { el.remove(); _replayEls.delete(id); }
     }
 
     // Ability flash — show a pulse when playback is near an ability-use event
@@ -3534,9 +3532,10 @@ window.__replaySeek = function(pct) {
 window.__replayClose = function() {
     _replayPlaying = false;
     cancelAnimationFrame(_replayRAF);
-    for (const el of _replayActiveEls) { el.style.display = 'none'; }
-    _replayActiveEls = [];
+    for (const el of _replayEls.values()) el.remove();
+    _replayEls.clear();
     _replayData = null;
+    _replayMeta = null;
     _replaySetStarsPaused(true);
     const flash = document.getElementById('replay-ability-flash');
     if (flash) flash.style.display = 'none';
