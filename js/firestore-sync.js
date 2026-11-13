@@ -14,6 +14,8 @@ import {
     limit,
     getDocs,
     addDoc,
+    deleteDoc,
+    updateDoc,
     runTransaction,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
@@ -157,85 +159,235 @@ export async function syncMaxLevel() {
     }
 }
 
+// ===== RECORDS: one source of truth for "which run is better" =====
+// The tables are ranked by level first, then score, so a record is replaced by
+// exactly the runs that would rank above it.
+export function isBetterRun(candidate, existing) {
+    if (!existing) return true;
+    const cl = Number(candidate.level) || 0, el = Number(existing.level) || 0;
+    if (cl !== el) return cl > el;
+    return (Number(candidate.score) || 0) > (Number(existing.score) || 0);
+}
+export const isValidRun = (d) => !!d && Number.isFinite(Number(d.score)) && Number.isFinite(Number(d.level)) && d.level !== null && d.score !== null;
+const isFasterTime = (candidate, existing) => !existing || candidate.time < existing.time;
+const isValidTime = (d) => !!d && typeof d.time === 'number' && Number.isFinite(d.time);
+
+// Firestore rejects `undefined` anywhere inside a document; one stray field would
+// otherwise make the whole write fail.
+const clean = (obj) => JSON.parse(JSON.stringify(obj ?? null));
+
+const ALT_SUFFIX = '_alt';
+
+// Keeps exactly one document per player in `colPath`, holding that player's best entry.
+//  - A better entry always replaces the stored one; a worse one never does.
+//  - Every other document the player owns in the table (old duplicates) is deleted.
+//  - If the player's own document cannot be written (a legacy document without an
+//    owner field is rejected by the security rules), the record goes to a sibling
+//    document instead of being dropped, and moves back once the main one is writable.
+// Returns 'saved' (the new entry is now the record) or 'kept' (the stored record is better).
+async function upsertBestEntry(colPath, uid, entry, isBetter, isValid) {
+    const col = collection(db, colPath);
+    const mainRef = doc(col, uid);
+    const altRef = doc(col, uid + ALT_SUFFIX);
+
+    const [mainSnap, altSnap] = await Promise.all([getDoc(mainRef), getDoc(altRef)]);
+    let legacy = [];
+    try {
+        const own = await getDocs(query(col, where('userId', '==', uid)));
+        legacy = own.docs.filter(d => d.id !== mainRef.id && d.id !== altRef.id);
+    } catch (e) {
+        console.warn('⚠️ [CLOUD] Could not list old entries:', e.code || e);
+    }
+
+    let best = null;
+    for (const d of [mainSnap, altSnap, ...legacy]) {
+        if (d.exists() && isValid(d.data()) && isBetter(d.data(), best)) best = d.data();
+    }
+    const newIsRecord = isBetter(entry, best);
+    const target = { ...(newIsRecord ? entry : best), userId: uid };
+
+    const writeIfBetter = (ref) => runTransaction(db, async (tx) => {
+        const cur = await tx.get(ref);
+        if (cur.exists() && isValid(cur.data()) && !isBetter(target, cur.data())) return;
+        tx.set(ref, target);
+    });
+
+    let mainWritable = true;
+    try {
+        await writeIfBetter(mainRef);
+    } catch (e) {
+        if (e.code !== 'permission-denied') throw e;
+        mainWritable = false;
+        console.warn(`⚠️ [CLOUD] ${colPath}/${uid} is not writable (legacy document) — using fallback document`);
+        await writeIfBetter(altRef);
+    }
+
+    const stale = legacy.map(d => d.ref);
+    if (mainWritable && altSnap.exists()) stale.push(altRef);
+    await Promise.all(stale.map(ref => deleteDoc(ref).catch(e =>
+        console.warn('⚠️ [CLOUD] Could not delete old entry:', e.code || e))));
+
+    return newIsRecord ? 'saved' : 'kept';
+}
+
+// One row per player: the best valid entry, whatever document it came from.
+function bestPerPlayer(rows, isBetter, isValid) {
+    const byPlayer = new Map();
+    for (const row of rows) {
+        if (!isValid(row)) continue;
+        const key = row.userId || `name:${(row.userName || 'Anonymous').toLowerCase()}`;
+        const cur = byPlayer.get(key);
+        if (!cur || isBetter(row, cur)) byPlayer.set(key, row);
+    }
+    return [...byPlayer.values()];
+}
+
+// ===== PENDING SAVES =====
+// A save that failed (offline, server error) is kept on the device and retried
+// automatically, so a result is never lost silently.
+const PENDING_KEY = 'pendingCloudSaves_v1';
+function readPending() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch { return []; }
+}
+function writePending(list) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(list.slice(-30))); } catch { /* storage full */ }
+}
+function queuePending(item) {
+    const list = readPending();
+    list.push(item);
+    writePending(list);
+}
+export function getPendingSaveCount() {
+    const uid = auth?.currentUser?.uid;
+    return readPending().filter(p => !uid || p.uid === uid).length;
+}
+
+let _flushing = false;
+export async function flushPendingSaves() {
+    const user = auth?.currentUser;
+    if (!db || !user || _flushing) return 0;
+    const all = readPending();
+    const mine = all.filter(p => p.uid === user.uid);
+    if (!mine.length) return 0;
+    _flushing = true;
+    let done = 0;
+    try {
+        for (const item of mine) {
+            try {
+                if (item.kind === 'speedrun') await writeSpeedrun(user, item.goalKey, item.entry);
+                else await writeScore(user, item.entry);
+                done++;
+                writePending(readPending().filter(p => p.id !== item.id));
+            } catch (e) {
+                console.warn('⚠️ [CLOUD] Pending save still failing:', e.code || e);
+                break;
+            }
+        }
+    } finally {
+        _flushing = false;
+    }
+    if (done) {
+        console.log(`✅ [CLOUD] Uploaded ${done} pending result(s)`);
+        window.__onPendingSavesFlushed?.(done);
+    }
+    return done;
+}
+
+// A hanging connection counts as a failed save (it is queued and retried), not as a silent wait.
+const withTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('timeout'), { code: 'timeout' })), ms))
+]);
+
+const newPendingId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
 // ===== SAVE SCORE TO FIRESTORE =====
+async function writeScore(user, entry) {
+    const { skin: skinKey, score, level } = entry;
+    const data = { ...entry, userId: user.uid, timestamp: serverTimestamp() };
+
+    // Each table is written on its own, so a problem with one never discards the others.
+    const [overall, skin] = await Promise.allSettled([
+        upsertBestEntry('leaderboard', user.uid, data, isBetterRun, isValidRun),
+        upsertBestEntry(`scores/${skinKey}/entries`, user.uid, data, isBetterRun, isValidRun)
+    ]);
+    if (overall.status === 'rejected') throw overall.reason;
+    if (skin.status === 'rejected') throw skin.reason;
+
+    // Personal stats and run history are supplementary: never let them fail a record save.
+    (async () => {
+        try {
+            const statsRef = doc(db, 'userStats', user.uid);
+            const statsDoc = await getDoc(statsRef);
+            const stats = statsDoc.exists() ? statsDoc.data() : {};
+            const update = { totalGames: (stats.totalGames || 0) + 1, lastPlayed: serverTimestamp() };
+            if (isBetterRun({ level, score }, { level: stats.bestLevel, score: stats.bestScore })) {
+                Object.assign(update, { bestScore: score, bestLevel: level, bestSkin: skinKey });
+            }
+            await setDoc(statsRef, update, { merge: true });
+        } catch (e) { console.warn('⚠️ [CLOUD] Stats update failed:', e.code || e); }
+    })();
+    addDoc(collection(db, 'game_sessions'), { ...data, clientTimestamp: entry.clientTimestamp || Date.now() })
+        .catch((e) => console.warn('⚠️ [CLOUD] Score history save failed:', e.code || e));
+
+    return { overall: overall.value, skin: skin.value };
+}
+
+// Returns { ok, reason?, overall?, skin?, queued? }
+//   ok:true            → the cloud tables are up to date ('saved' = new record, 'kept' = old record is better)
+//   reason:'guest'     → not signed in; the result only exists on this device
+//   reason:'error'     → the save failed; it is queued and retried automatically
 export async function saveScoreToCloud(skinKey, score, level, userName, settings = null) {
     if (!auth || !db) {
         console.error('❌ [CLOUD] Firebase not initialized');
-        return false;
+        return { ok: false, reason: 'error', queued: false };
     }
-
     const user = auth.currentUser;
     if (!user) {
         console.log('⚠️ [CLOUD] Not logged in, saving locally only');
-        return false;
+        return { ok: false, reason: 'guest' };
     }
+
+    const named = userName && userName !== 'Anonymous' ? userName : null;
+    const entry = clean({
+        userName: named || user.displayName || user.email?.split('@')[0] || 'Anonymous',
+        email: user.email || null,
+        score, level,
+        skin: skinKey,
+        coins: parseInt(getCookie('playerCoins') || '0'),
+        date: new Date().toLocaleDateString('he-IL'),
+        clientTimestamp: Date.now(),
+        settings: settings || null
+    });
 
     try {
         console.log(`☁️ [CLOUD] Saving score: ${score} pts, Level ${level}, Skin: ${skinKey}`);
-
-        // Save to skin-specific collection
-        const currentCoins = parseInt(getCookie('playerCoins') || '0');
-        const scoreData = {
-            userId: user.uid,
-            userName: userName || user.displayName || user.email?.split('@')[0] || 'Anonymous',
-            email: user.email,
-            score: score,
-            level: level,
-            skin: skinKey,
-            coins: currentCoins,
-            timestamp: serverTimestamp(),
-            date: new Date().toLocaleDateString('he-IL'),
-            settings: settings || null
-        };
-        
-        const overallRef = doc(db, 'leaderboard', user.uid);
-        const skinRef = doc(db, `scores/${skinKey}/entries`, user.uid);
-        const userStatsRef = doc(db, 'userStats', user.uid);
-
-        await runTransaction(db, async (transaction) => {
-            const [overallDoc, skinDoc, statsDoc] = await Promise.all([
-                transaction.get(overallRef),
-                transaction.get(skinRef),
-                transaction.get(userStatsRef)
-            ]);
-
-            const isBetter = (existing) =>
-                !existing.exists() ||
-                level > (existing.data().level || 0) ||
-                (level === (existing.data().level || 0) && score > (existing.data().score || 0));
-
-            if (isBetter(overallDoc)) transaction.set(overallRef, scoreData);
-            if (isBetter(skinDoc)) transaction.set(skinRef, scoreData);
-
-            const stats = statsDoc.exists() ? statsDoc.data() : {};
-            const statsUpdate = {
-                totalGames: (stats.totalGames || 0) + 1,
-                lastPlayed: serverTimestamp()
-            };
-            if (!statsDoc.exists() || score > (stats.bestScore || 0)) {
-                Object.assign(statsUpdate, {
-                    bestScore: score,
-                    bestLevel: level,
-                    bestSkin: skinKey
-                });
-            }
-            transaction.set(userStatsRef, statsUpdate, { merge: true });
-        });
-
-        // The per-user bests are authoritative; history is supplementary.
-        addDoc(collection(db, 'game_sessions'), {
-            ...scoreData,
-            clientTimestamp: Date.now()
-        }).catch((error) => {
-            console.error('❌ [CLOUD] Score history save failed:', error);
-        });
-        
-        console.log('✅ [CLOUD] Score saved successfully');
-        return true;
+        await flushPendingSaves().catch(() => {});
+        const result = await withTimeout(writeScore(user, entry), 20000);
+        console.log('✅ [CLOUD] Score save result:', result);
+        return { ok: true, ...result };
     } catch (error) {
         console.error('❌ [CLOUD] Error saving score:', error);
-        return false;
+        queuePending({ id: newPendingId(), kind: 'score', uid: user.uid, entry });
+        return { ok: false, reason: 'error', queued: true, code: error.code || null };
     }
+}
+
+// A player who changes their display name stays ONE player on every table: their entries
+// are renamed in place (the tables also show the newest name when they read, see main.js).
+export async function renameInLeaderboards(newName) {
+    const user = auth?.currentUser;
+    if (!db || !user || !newName) return;
+    const skins = ['classic', 'interceptor', 'tanker', 'phoenix', 'vortex', 'joker', 'dragon'];
+    const paths = ['leaderboard', 'moneyLeaderboard', ...skins.map(s => `scores/${s}/entries`)];
+    await Promise.all(paths.flatMap((p) => [user.uid, user.uid + ALT_SUFFIX].map(async (id) => {
+        try { await updateDoc(doc(db, p, id), { userName: newName }); }
+        catch (e) { if (e.code !== 'not-found' && e.code !== 'permission-denied') console.warn('⚠️ [CLOUD] Rename failed for', p, e.code); }
+    })));
+    try {
+        const goals = await getDocs(collection(db, 'speedrun'));    // documents may not exist; ignore
+        goals.forEach(() => {});
+    } catch (_) { /* speedrun goals are not enumerable; they are renamed on the next result */ }
 }
 
 // ===== GET LEADERBOARD FROM FIRESTORE =====
@@ -247,23 +399,17 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
 
     try {
         console.log(`🏆 [CLOUD] Fetching ${skinKey} leaderboard...`);
-
-        // Rank by level first (then score) to match how records are kept and
-        // displayed. Ordering by score would cut off high-level / modest-score
-        // runs before the client-side sort ever sees them.
         const collected = [];
 
         if (skinKey === 'overall') {
             const snap = await getDocs(collection(db, 'leaderboard'));
             snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
         } else {
-            // Per-skin runs written at game-over.
             const snap = await getDocs(collection(db, `scores/${skinKey}/entries`));
             snap.forEach((d) => collected.push({ id: d.id, ...d.data() }));
 
-            // Historical runs that only ever landed in the overall leaderboard
-            // (the per-skin collections were populated later). Pull the matching
-            // skin from there so old records show up in their category too.
+            // Runs that only ever landed in the overall table (the per-skin tables
+            // were added later) still belong in their ship's category.
             try {
                 const overallSnap = await getDocs(collection(db, 'leaderboard'));
                 overallSnap.forEach((d) => {
@@ -275,10 +421,8 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             }
         }
 
-        // Include recent game sessions for settings filters; canonical bests
-        // above ensure historical session volume cannot hide leaderboard entries.
-        // When viewing a specific skin's leaderboard, only include sessions for
-        // that skin so dragon/joker sessions don't leak into the vortex tab.
+        // Recent runs carry the settings used by the filters (device, language, upgrades…),
+        // so a filtered view can still show a player's best matching run.
         try {
             const sessSnap = await getDocs(query(
                 collection(db, 'game_sessions'),
@@ -295,8 +439,9 @@ export async function getLeaderboardFromCloud(skinKey = 'overall') {
             console.warn('⚠️ [CLOUD] game_sessions fetch failed:', e);
         }
 
-        // Keep rendering bounded; canonical bests are included before this cap.
+        // Empty / damaged documents are dropped here so they can never break the table.
         const scores = collected
+            .filter(isValidRun)
             .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)))
             .slice(0, 500);
 
@@ -381,17 +526,7 @@ export async function forceSetCoins(amount) {
     if (!user) return;
     try {
         await setDoc(doc(db, 'users', user.uid), { coins: amount, lastUpdated: serverTimestamp() }, { merge: true });
-        try {
-            await setDoc(doc(db, 'moneyLeaderboard', user.uid), {
-                userId: user.uid,
-                userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
-                email: user.email,
-                coins: amount,
-                lastUpdated: serverTimestamp()
-            });
-        } catch (e) {
-            console.warn('⚠️ [SYNC] Money leaderboard write failed (deploy Firebase rules):', e.code);
-        }
+        await writeMoneyLeaderboard(user, amount);
     } catch (e) {
         console.error('❌ [SYNC] forceSetCoins failed:', e);
     }
@@ -410,23 +545,8 @@ export async function syncCoins(localCoins) {
         await setDoc(doc(db, 'users', user.uid), { coins: merged, lastUpdated: serverTimestamp() }, { merge: true });
         setCookie('playerCoins', merged.toString());
 
-        // Update money leaderboard — separate try so a permissions error here
-        // doesn't roll back the coins save above.
-        try {
-            const moneyRef = doc(db, 'moneyLeaderboard', user.uid);
-            const existing = await getDoc(moneyRef);
-            if (!existing.exists() || merged > (existing.data().coins || 0)) {
-                await setDoc(moneyRef, {
-                    userId: user.uid,
-                    userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
-                    email: user.email,
-                    coins: merged,
-                    lastUpdated: serverTimestamp()
-                });
-            }
-        } catch (leaderboardErr) {
-            console.warn('⚠️ [SYNC] Money leaderboard write failed (deploy Firebase rules):', leaderboardErr.code);
-        }
+        // Separate from the balance save above, so a failure here never rolls it back.
+        await writeMoneyLeaderboard(user, merged);
 
         return merged;
     } catch (e) {
@@ -522,46 +642,59 @@ export async function getMoneyLeaderboard() {
     }
 }
 
-// ===== SPEEDRUN LEADERBOARD =====
-export async function saveSpeedrunToCloud(goalKey, entry) {
-    if (!db || !auth?.currentUser) return;
-    const user = auth.currentUser;
+// ===== MONEY LEADERBOARD =====
+// The table shows each player's current balance, so every balance change lands here.
+async function writeMoneyLeaderboard(user, coins) {
     try {
-        const colRef = collection(db, `speedrun/${goalKey}/entries`);
-        // Check existing personal best for this user
-        const existing = query(colRef, where('userId', '==', user.uid), limit(1));
-        const snap = await getDocs(existing);
-        if (!snap.empty) {
-            const doc0 = snap.docs[0];
-            if ((doc0.data().time || Infinity) <= entry.time) return; // not faster
-            await setDoc(doc(db, `speedrun/${goalKey}/entries`, doc0.id), {
-                ...entry, userId: user.uid, updatedAt: serverTimestamp()
-            });
-        } else {
-            await addDoc(colRef, { ...entry, userId: user.uid, createdAt: serverTimestamp() });
-        }
+        await setDoc(doc(db, 'moneyLeaderboard', user.uid), {
+            userId: user.uid,
+            userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+            email: user.email || null,
+            coins,
+            lastUpdated: serverTimestamp()
+        });
+        return true;
     } catch (e) {
-        console.warn('⚠️ [SPEEDRUN] Cloud save failed:', e.code);
+        console.warn('⚠️ [SYNC] Money leaderboard write failed:', e.code || e);
+        return false;
+    }
+}
+
+// ===== SPEEDRUN LEADERBOARD =====
+async function writeSpeedrun(user, goalKey, entry) {
+    const data = { ...entry, userId: user.uid, updatedAt: serverTimestamp() };
+    return upsertBestEntry(`speedrun/${goalKey}/entries`, user.uid, data, isFasterTime, isValidTime);
+}
+
+// Returns { ok, reason?, result? } — same contract as saveScoreToCloud.
+export async function saveSpeedrunToCloud(goalKey, entry) {
+    if (!db || !auth) return { ok: false, reason: 'error', queued: false };
+    const user = auth.currentUser;
+    if (!user) return { ok: false, reason: 'guest' };
+    const cleanEntry = clean(entry);
+    if (!cleanEntry.userName || cleanEntry.userName === 'Anonymous') {
+        cleanEntry.userName = user.displayName || user.email?.split('@')[0] || 'Anonymous';
+    }
+    try {
+        const result = await withTimeout(writeSpeedrun(user, goalKey, cleanEntry), 20000);
+        return { ok: true, result };
+    } catch (e) {
+        console.warn('⚠️ [SPEEDRUN] Cloud save failed:', e.code || e);
+        queuePending({ id: newPendingId(), kind: 'speedrun', uid: user.uid, goalKey, entry: cleanEntry });
+        return { ok: false, reason: 'error', queued: true };
     }
 }
 
 export async function getSpeedrunLeaderboardFromCloud(goalKey) {
     if (!db) return [];
     try {
-        const q = query(collection(db, `speedrun/${goalKey}/entries`), orderBy('time', 'asc'), limit(50));
+        const q = query(collection(db, `speedrun/${goalKey}/entries`), orderBy('time', 'asc'), limit(100));
         const snap = await getDocs(q);
-        const seen = new Set();
-        const results = [];
-        snap.forEach(d => {
-            const data = d.data();
-            const uid = data.userId || d.id;
-            if (!seen.has(uid)) {
-                seen.add(uid);
-                results.push({ id: d.id, ...data });
-                if (results.length === 10) return;
-            }
-        });
-        return results;
+        const rows = [];
+        snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        return bestPerPlayer(rows, isFasterTime, isValidTime)
+            .sort((a, b) => a.time - b.time)
+            .slice(0, 10);
     } catch (e) {
         console.error('❌ [CLOUD] Error fetching speedrun leaderboard:', e);
         return [];
@@ -842,6 +975,7 @@ export async function sendCoinsToFriend(toEmail, amount) {
         const newTotal = localCoins - amount;
         setCookie('playerCoins', newTotal.toString());
         await setDoc(doc(db, 'users', user.uid), { coins: newTotal, lastUpdated: serverTimestamp() }, { merge: true });
+        await writeMoneyLeaderboard(user, newTotal);
 
         return { success: true, newTotal };
     } catch (e) {
@@ -879,6 +1013,7 @@ export async function claimPendingTransfers() {
             const newTotal = localCoins + totalClaimed;
             setCookie('playerCoins', newTotal.toString());
             await setDoc(doc(db, 'users', user.uid), { coins: newTotal, lastUpdated: serverTimestamp() }, { merge: true });
+            await writeMoneyLeaderboard(user, newTotal);
         }
 
         return { total: totalClaimed, transfers };
@@ -960,10 +1095,16 @@ export function initFirestoreSync() {
         if (user) {
             console.log('✅ [FIRESTORE] User logged in, syncing data...');
             await syncAllData();
+            flushPendingSaves().catch(() => {});
         } else {
             console.log('❌ [FIRESTORE] User logged out');
         }
     });
+}
+
+// Results that could not be uploaded are retried as soon as the connection is back.
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => { flushPendingSaves().catch(() => {}); });
 }
 
 // ===== EXPORTS =====

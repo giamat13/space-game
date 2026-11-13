@@ -1,4 +1,6 @@
-import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins } from './data.js';
+import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
+import { ART, enemyArt } from './art.js';
+import { burst } from './scene.js';
 import { t, tf, currentLang } from './i18n.js';
 import {
     trackShot, trackDamageTaken, trackHeal,
@@ -7,7 +9,10 @@ import {
 
 // ===== ENEMY TYPE HELPERS =====
 
+import { KINDS, maybeSpawnKind } from './enemy-types.js';
+
 export function getEnemyPoints(type) {
+    if (KINDS[type]) return KINDS[type].pts;
     return { red: 50, orange: 150, green: 100, blue: 250 }[type] ?? 50;
 }
 
@@ -22,12 +27,15 @@ export function registerJokerKill(x = 0, y = 0) {
     }
 }
 export function getEnemyAmmoGrant(type) {
+    if (KINDS[type]) return KINDS[type].ammo;
     return { red: 1, orange: 2, green: 2, blue: 3 }[type] ?? 1;
 }
 export function getEnemyColor(type) {
+    if (KINDS[type]) return KINDS[type].color;
     return { red: 'var(--danger)', orange: 'var(--elite)', green: '#00cc44', blue: '#0088ff' }[type] ?? 'var(--danger)';
 }
 export function getEnemyFlatHeal(type) {
+    if (KINDS[type]) return KINDS[type].heal;
     return { red: 0, orange: 50, green: 35, blue: 75 }[type] ?? 0;
 }
 
@@ -65,7 +73,7 @@ export function updateAmmoUI() {
 export function rechargeAmmo(now) {
     if (!state.active) return;
     // During the boss fight ammo comes back twice as fast so the player isn't starved.
-    const interval = Math.round(400 / state.currentSkinStats.fireRate / (state.boss ? 2 : 1));
+    const interval = Math.round(400 / state.currentSkinStats.fireRate / (state.boss ? 2 : 1) / (state.ammoRate || 1));
     if (now - state.lastAmmoRecharge >= interval && state.ammo < state.maxAmmo) {
         state.ammo++;
         state.lastAmmoRecharge = now;
@@ -73,11 +81,63 @@ export function rechargeAmmo(now) {
     }
 }
 
+// ----- ship control -----
+// state.ctrl lets a boss bend the controls without touching the input code:
+//   offset  displacement between the pointer and the ship (wind, gravity)
+//   min/max walls that narrow the arena
+//   lag     0 = direct control, close to 1 = the ship slides (ice)
+function clampX(x) {
+    const c = state.ctrl;
+    return Math.max(c.min ?? 0, Math.min(x, c.max ?? (DOM.wrapper.clientWidth - 50)));
+}
+
 export function movePlayer(clientX) {
     const rect = DOM.wrapper.getBoundingClientRect();
-    let x = clientX - rect.left - 25;
-    state.playerX = Math.max(0, Math.min(x, DOM.wrapper.clientWidth - 50));
+    const c = state.ctrl;
+    c.pointer = clientX - rect.left - 25;
+    const x = clampX(c.pointer + c.offset);
+    if (c.lag > 0) { c.target = x; return; }
+    state.playerX = x;
     updatePlayerPos();
+}
+
+// Keyboard / gamepad movement by `dx` pixels.
+export function stepPlayer(dx) {
+    const c = state.ctrl;
+    if (c.lag > 0) { c.target = clampX((c.target ?? state.playerX) + dx); return; }
+    state.playerX = clampX(state.playerX + dx);
+    updatePlayerPos();
+}
+
+// An outside force on the ship. With pointer control the ship ends up displaced from the
+// pointer by at most `bound` px, so the player never has to chase it off the screen.
+export function pushPlayer(dx, bound = 170) {
+    const c = state.ctrl;
+    if (keyBindings.controlType !== 'arrows' && c.pointer != null) {
+        c.offset = Math.max(-bound, Math.min(bound, c.offset + dx));
+        c.release = false;
+        const x = clampX(c.pointer + c.offset);
+        if (c.lag > 0) c.target = x; else state.playerX = x;
+    } else if (c.lag > 0) c.target = clampX((c.target ?? state.playerX) + dx);
+    else state.playerX = clampX(state.playerX + dx);
+    updatePlayerPos();
+}
+
+// Once per game tick.
+export function tickPlayerControl() {
+    const c = state.ctrl;
+    if (c.lag > 0) {
+        if (c.target == null) c.target = state.playerX;
+        state.playerX = clampX(state.playerX + (c.target - state.playerX) * (1 - c.lag));
+        updatePlayerPos();
+    } else c.target = null;
+    if (c.release) {                       // the force is gone: glide back under the pointer
+        c.offset *= 0.88;
+        if (Math.abs(c.offset) < 0.6) { c.offset = 0; c.release = false; }
+        if (keyBindings.controlType !== 'arrows' && c.pointer != null && !(c.lag > 0)) { state.playerX = clampX(c.pointer + c.offset); updatePlayerPos(); }
+    }
+    const x = clampX(state.playerX);
+    if (x !== state.playerX) { state.playerX = x; updatePlayerPos(); }
 }
 
 export function damagePlayer(amount, source = 'unknown') {
@@ -87,6 +147,7 @@ export function damagePlayer(amount, source = 'unknown') {
         return;
     }
 
+    amount = Math.round(amount * dangerForLevel(state.level));
     const hpBefore = state.playerHP;
     state.playerHP -= amount;
     trackDamageTaken(amount, source, hpBefore, state.playerHP);
@@ -156,6 +217,8 @@ export function damagePlayer(amount, source = 'unknown') {
                     upgrades: dataModule.getOwnedUpgrades(),
                     hpLevel: dataModule.getHPLevel(skinKey),
                     bossKilled: !!state.bossDone,
+                    bossesKilled: state.bossesBeaten || 0,
+                    bossLog: (state.bossLog || []).map(r => r.id),
                     // Input devices actually used this game (keyboard / gamepad)
                     inputMethods: [
                         ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
@@ -164,9 +227,16 @@ export function damagePlayer(amount, source = 'unknown') {
                 };
 
                 // Save to global leaderboard (cloud + local)
+                window.__showScoreSaveStatus?.({ pending: true });
                 dataModule.saveScore(skinKey, state.score, state.level, userName, settings)
-                    .then(() => window.__refreshLeaderboard?.())
-                    .catch(err => console.error('❌ [GAME OVER] Leaderboard save failed:', err));
+                    .then((result) => {
+                        window.__showScoreSaveStatus?.(result);
+                        window.__refreshLeaderboard?.();
+                    })
+                    .catch(err => {
+                        console.error('❌ [GAME OVER] Leaderboard save failed:', err);
+                        window.__showScoreSaveStatus?.({ ok: false, reason: 'error', queued: false });
+                    });
                 console.log(`💾 [GAME OVER] Score save started for user: ${userName}`);
 
                 // Save speedrun results
@@ -385,28 +455,11 @@ let activeParticles = 0;
 function particleCap() { return deviceMode.isMobile ? 70 : 180; }
 
 export function spawnParticle(x, y, color, opts = {}) {
-    if (activeParticles >= particleCap()) return;
-    activeParticles++;
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.background = color;
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    if (opts.size) { p.style.width = opts.size + 'px'; p.style.height = opts.size + 'px'; }
-    DOM.wrapper.appendChild(p);
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * (opts.dist || 60) + 10;
-    p.animate([
-        { opacity: 1 },
-        { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`, opacity: 0 }
-    ], opts.duration || 500).onfinish = () => { p.remove(); activeParticles--; };
+    burst(x, y, color, 1, { speed: (opts.dist || 60) * 2.2, life: (opts.duration || 500) / 1000, size: (opts.size || 4) * 0.6 });
 }
 
 export function createExplosion(x, y, color) {
-    const count = deviceMode.isMobile ? 6 : 12;
-    for(let i=0; i<count; i++) {
-        spawnParticle(x, y, color);
-    }
+    burst(x, y, color, deviceMode.isMobile ? 9 : 16);
 }
 
 export function showFloatingMessage(text, x, y, color) {
@@ -466,67 +519,101 @@ export function usePhoenixFeathers() {
     console.log(`✅ [PHOENIX] ${count} Feathers launched (homing:${homing}, dmg:${damage})`);
 }
 
+// Vortex laser: a forward cone from the ship (straight ahead and a little to each side),
+// not the whole screen. Against a boss it removes a big slice of HP, never the whole bar.
+const VORTEX_BASE = 42, VORTEX_SPREAD = 0.22;     // half-width at the ship (px) / widening per px of height
 export function useVortexLaser() {
-    window.__damageBoss?.(0.06);
-    console.log('⚡ [VORTEX] Activating laser!');
-    const playerCenterX = state.playerX + 25;
-    const playerY = DOM.wrapper.clientHeight - 90;
-    
-    const numBeams = 12;
-    for (let i = 0; i < numBeams; i++) {
-        const angle = (i / numBeams) * 360;
-        const laser = document.createElement('div');
-        laser.className = 'laser-beam';
-        laser.style.left = playerCenterX + 'px';
-        laser.style.bottom = '90px';
-        laser.style.transform = `rotate(${angle}deg)`;
-        DOM.wrapper.appendChild(laser);
-        setTimeout(() => laser.remove(), 300);
-    }
-    
+    const wr = DOM.wrapper.getBoundingClientRect();
+    const px = state.playerX + 25, py = DOM.wrapper.clientHeight - 90;
+    const inCone = (x, y, pad = 0) => y < py + 20 && Math.abs(x - px) <= VORTEX_BASE + Math.max(0, py - y) * VORTEX_SPREAD + pad;
+
+    const cone = document.createElement('div');
+    cone.className = 'vortex-cone';
+    cone.style.cssText = `left:${px}px;bottom:90px;height:${py}px;width:${2 * (VORTEX_BASE + py * VORTEX_SPREAD)}px;`;
+    DOM.wrapper.appendChild(cone);
+    setTimeout(() => cone.remove(), 380);
+
+    // boss: counts as hit if the cone touches its body
+    const bs = state.boss;
+    if (bs && !bs.enter && !bs.dying && inCone(bs.x + bs.w / 2, bs.y + bs.h, bs.w / 2)) window.__damageBoss?.(0.06);
+
     let killCount = 0;
-    
-    // Kill enemies and GIVE POINTS
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const en = state.enemies[i];
-        const points = getEnemyPoints(en.type);
-        addScore(points);
-        const eRect = en.el.getBoundingClientRect();
-        createExplosion(eRect.left + 25, eRect.top + 25, getEnemyColor(en.type));
+        const r = en.el.getBoundingClientRect();
+        if (!inCone(r.left - wr.left + r.width / 2, r.top - wr.top + r.height / 2, r.width / 2)) continue;
+        addScore(getEnemyPoints(en.type));
+        createExplosion(r.left + r.width / 2, r.top + r.height / 2, getEnemyColor(en.type));
         en.el.remove();
         state.enemies.splice(i, 1);
+        en.def?.die?.(en);
         killCount++;
     }
-    
-    // Kill asteroids (no points for asteroids)
     for (let i = state.asteroids.length - 1; i >= 0; i--) {
         const ast = state.asteroids[i];
-        const aRect = ast.el.getBoundingClientRect();
-        createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+        const r = ast.el.getBoundingClientRect();
+        if (!inCone(r.left - wr.left + r.width / 2, r.top - wr.top + r.height / 2, r.width / 2)) continue;
+        createExplosion(r.left + 25, r.top + 25, 'var(--stone)');
         ast.el.remove();
         state.asteroids.splice(i, 1);
         killCount++;
     }
-    
-    // Destroy enemy bullets
     for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
         const eb = state.enemyBullets[i];
-        createExplosion(eb.x, eb.y, '#ff0000');
+        if (eb.ricochet || !inCone(eb.x, eb.y)) continue;
+        createExplosion(wr.left + eb.x, wr.top + eb.y, '#ff0000');
         eb.el.remove();
         state.enemyBullets.splice(i, 1);
     }
-    
-    DOM.scoreEl.innerText = state.score; // Update score display
-    
-    if (killCount > 0) {
-        showFloatingMessage(tf('msgVortex', { n: killCount }), playerCenterX - 80, playerY - 50, 'var(--primary)');
+    DOM.scoreEl.innerText = state.score;
+    if (killCount > 0) showFloatingMessage(tf('msgVortex', { n: killCount }), px - 80, py - 50, 'var(--primary)');
+}
+
+// Joker, boss fights only: four jester servants appear beside the ship and shoot the boss
+// for 10 seconds. (Outside boss fights the ability still turns the enemies against each other.)
+const SERVANT_ART = '<svg viewBox="0 0 40 40" style="width:100%;height:100%;overflow:visible"><path d="M8 14 L3 3 L12 9 L20 2 L28 9 L37 3 L32 14Z" fill="#ffb703" stroke="#05070f" stroke-width="1.6" stroke-linejoin="round"/><circle cx="20" cy="22" r="13" fill="#ff3b2e" stroke="#05070f" stroke-width="2"/><path d="M11 20 L18 23 L12 27Z M29 20 L22 23 L28 27Z" fill="#ffe45c" stroke="#05070f" stroke-width="1.4"/><path d="M13 30 Q20 35 27 30" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="3" cy="3" r="2.2" fill="#2fe6ff"/><circle cx="37" cy="3" r="2.2" fill="#2fe6ff"/></svg>';
+let servants = [], servantLoop = 0;
+function servantTick() {
+    servantLoop = 0;
+    if (!state.active || !servants.length) { servants.forEach(v => v.el.remove()); servants = []; return; }
+    if (!state.paused) {
+        const now = Date.now(), px = state.playerX + 25;
+        servants = servants.filter(v => {
+            if (now > v.until || !state.boss) { createExplosion(v.x + DOM.wrapper.getBoundingClientRect().left, DOM.wrapper.clientHeight - 130, '#ffb703'); v.el.remove(); return false; }
+            v.x += (px + v.off - v.x) * 0.12;
+            v.el.style.transform = `translate(${v.x - 18}px, ${Math.sin(now / 260 + v.off) * 5}px)`;
+            if (now - v.last > 520) {
+                v.last = now;
+                const b = document.createElement('div');
+                b.className = 'bullet';
+                b.style.left = (v.x - 2) + 'px'; b.style.bottom = '120px';
+                b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
+                b.style.boxShadow = '0 0 14px #ff4500';
+                DOM.wrapper.appendChild(b);
+                state.bullets.push({ el: b, y: 120, damage: Math.max(1, state.currentSkinStats.bulletDamage * 0.7) });
+            }
+            return true;
+        });
     }
-    
-    console.log(`✅ [VORTEX] Killed: ${killCount}, Score: ${state.score}`);
+    servantLoop = requestAnimationFrame(servantTick);
+}
+function summonServants() {
+    servants.forEach(v => v.el.remove()); servants = [];
+    const px = state.playerX + 25;
+    [-80, -40, 40, 80].forEach((off) => {
+        const el = document.createElement('div');
+        el.className = 'joker-servant';
+        el.innerHTML = SERVANT_ART;
+        DOM.wrapper.appendChild(el);
+        servants.push({ el, off, x: px + off * 2, last: Date.now() + Math.random() * 300, until: Date.now() + 10000 });
+    });
+    if (!servantLoop) servantLoop = requestAnimationFrame(servantTick);
+    showFloatingMessage(t('msgServants'), px - 70, DOM.wrapper.clientHeight - 150, '#ffb703');
 }
 
 export function useJokerChaos() {
     window.__damageBoss?.(0.04);
+    if (state.boss) { summonServants(); return; }
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
@@ -679,7 +766,7 @@ export function handleSpawning(now) {
             el.style.top = '-60px';
             el.innerHTML = `
                 <div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>
-                <svg viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round"><path d="M8 52 Q10 12 50 10 Q90 12 92 52 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M12 52 L88 52 L84 62 L16 62 Z" fill="#7a4a30" stroke="#3d2010" stroke-width="3"/><path d="M14 62 L86 62 L82 70 L18 70 Z" fill="#ffd21a" stroke="#8a6a00" stroke-width="3"/><path d="M12 70 L88 70 L80 90 L20 90 Z" fill="#f0a030" stroke="#8a4a00" stroke-width="3.6"/><path d="M24 26 L42 32 L28 38 Z" fill="#111"/><path d="M76 26 L58 32 L72 38 Z" fill="#111"/><circle cx="36" cy="22" r="2.4" fill="#ffe600"/><circle cx="62" cy="20" r="2.4" fill="#ffe600"/><circle cx="50" cy="42" r="2.4" fill="#ffe600"/></svg>`;
+                ${ART.burger}`;
             DOM.wrapper.appendChild(el);
             state.burgers.push({
                 el: el, 
@@ -693,7 +780,7 @@ export function handleSpawning(now) {
             el.className = 'asteroid';
             el.style.left = posX + 'px'; 
             el.style.top = '-60px';
-            el.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><path d="M18 32 L38 8 L72 18 L92 48 L76 88 L30 92 L8 60 Z" fill="#8f98ad" stroke="#3c4252" stroke-width="3.6"/><path d="M32 30 L44 38 L34 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M64 30 L52 38 L62 44 Z" fill="#111" stroke="#111" stroke-width="1.5"/><path d="M40 62 L46 66 L52 62 L58 66" fill="none" stroke="#3c4252" stroke-width="2.6"/><circle cx="22" cy="56" r="2.6" fill="#ffe600"/><circle cx="76" cy="62" r="2.6" fill="#ffe600"/><circle cx="50" cy="80" r="2.6" fill="#ffe600"/><circle cx="70" cy="30" r="2.6" fill="#ffe600"/></svg>`;
+            el.innerHTML = `${ART.asteroid}`;
             DOM.wrapper.appendChild(el);
             state.asteroids.push({ 
                 el: el, 
@@ -707,6 +794,8 @@ export function handleSpawning(now) {
             // this prevents the runaway lag spiral in advanced stages.
             const enemyCap = deviceMode.isMobile ? 35 : 70;
             if (state.enemies.length >= enemyCap) { state.lastSpawn = now; return; }
+            // from level 30, new enemy kinds join the waves (js/enemy-types.js)
+            if (maybeSpawnKind(posX, now)) { state.lastSpawn = now; return; }
 
             // levels 1-20: enemy types unlock more slowly, and enemies have fewer HP
             const lvl = state.level <= 20 ? Math.max(1, Math.round(state.level * 0.6)) : state.level;
@@ -722,7 +811,7 @@ export function handleSpawning(now) {
             else if (roll < redWeight + orangeWeight + greenWeight)     type = 'green';
             else                                                         type = 'blue';
 
-            const scaleEnemyHP = (hp) => Math.ceil(hp * (state.level <= 20 ? 0.9 : 1.5));
+            const scaleEnemyHP = (hp) => Math.ceil(hp * (state.level <= 20 ? 0.9 : 1.5) * enemyHpScale(state.level));
             const enemyStats = {
                 red:    { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 1), colorCode: '#ff0000', fireRate: 1000, speedMod: 1.0 },
                 orange: { hp: scaleEnemyHP(Math.floor(Math.random() * 3) + 3), colorCode: '#ff9900', fireRate: 600,  speedMod: 1.0 },
@@ -735,7 +824,7 @@ export function handleSpawning(now) {
             el.className = `enemy-ship ${type}`;
             el.style.left = posX + 'px';
             el.style.top = '-60px';
-            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div><svg viewBox="0 0 100 100" style="width:100%; height:100%;" stroke-linejoin="round" stroke-linecap="round"><g fill="${({red:'#ff3b3b',orange:'#ffa31a',green:'#25d96b',blue:'#3d9bff'})[type]}" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="3.6"><path d="M14 10 L40 6 L50 28 L60 6 L86 10 L78 42 L60 62 L51 94 L44 62 L24 42 Z"/></g><path d="M31.0 29.0 L47.0 33.0 L34.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M37.0 33.0 L42.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M69.0 29.0 L53.0 33.0 L66.0 39.0 Z" fill="#111" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/><path d="M63.0 33.0 L58.0 33.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="48" r="2.3" fill="#ffe600"/><circle cx="44" cy="60" r="2.3" fill="#ffe600"/><circle cx="56" cy="66" r="2.3" fill="#ffe600"/><circle cx="24" cy="20" r="2.3" fill="#ffe600"/><circle cx="76" cy="22" r="2.3" fill="#ffe600"/><circle cx="50" cy="80" r="2.3" fill="#ffe600"/><path d="M42 50 L46 54 L50 50 L54 54 L58 50" fill="none" stroke="${({red:'#7a0a0a',orange:'#8a4a00',green:'#0d6a30',blue:'#14418a'})[type]}" stroke-width="2.2"/></svg>`;
+            el.innerHTML = `<div class="hp-bar-container"><div class="hp-bar-fill enemy-hp-fill"></div></div>${enemyArt(type)}`;
             DOM.wrapper.appendChild(el);
 
             // Check if chaos mode is active

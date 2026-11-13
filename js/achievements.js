@@ -9,6 +9,54 @@ import { syncAchievements } from './firestore-sync.js';
 const ACHIEVEMENTS_KEY = 'achievements_v1';
 
 const ACHIEVEMENT_STRINGS = {
+    boss_first: {
+        he: { name: 'ציד ראשון', desc: 'הבס בוס' },
+        en: { name: 'First Hunt', desc: 'Defeat a boss' },
+        ar: { name: 'الصيد الأول', desc: 'اهزم زعيمًا' },
+        ru: { name: 'Первая охота', desc: 'Победи босса' },
+        fr: { name: 'Première chasse', desc: 'Vaincs un boss' },
+        es: { name: 'Primera caza', desc: 'Vence a un jefe' },
+    },
+    boss_5: {
+        he: { name: 'ציד בוסים', desc: 'הבס 5 בוסים במשחק אחד' },
+        en: { name: 'Boss Hunter', desc: 'Defeat 5 bosses in one run' },
+        ar: { name: 'صياد الزعماء', desc: 'اهزم 5 زعماء في جولة واحدة' },
+        ru: { name: 'Охотник на боссов', desc: 'Победи 5 боссов за один забег' },
+        fr: { name: 'Chasseur de boss', desc: 'Vaincs 5 boss en une partie' },
+        es: { name: 'Cazador de jefes', desc: 'Vence a 5 jefes en una partida' },
+    },
+    boss_10: {
+        he: { name: 'קוטל ענקים', desc: 'הבס 10 בוסים במשחק אחד' },
+        en: { name: 'Giant Slayer', desc: 'Defeat 10 bosses in one run' },
+        ar: { name: 'قاتل العمالقة', desc: 'اهزم 10 زعماء في جولة واحدة' },
+        ru: { name: 'Убийца гигантов', desc: 'Победи 10 боссов за один забег' },
+        fr: { name: 'Tueur de géants', desc: 'Vaincs 10 boss en une partie' },
+        es: { name: 'Matagigantes', desc: 'Vence a 10 jefes en una partida' },
+    },
+    boss_dreadnought: {
+        he: { name: 'מטביע הצי', desc: 'הבס את הדרדנוט ברמה 100' },
+        en: { name: 'Fleet Breaker', desc: 'Defeat the Dreadnought at level 100' },
+        ar: { name: 'محطّم الأسطول', desc: 'اهزم المدرّعة في المستوى 100' },
+        ru: { name: 'Гроза флота', desc: 'Победи Дредноут на 100 уровне' },
+        fr: { name: 'Briseur de flotte', desc: 'Vaincs le Cuirassé au niveau 100' },
+        es: { name: 'Rompeflotas', desc: 'Vence al Acorazado en el nivel 100' },
+    },
+    boss_hydra: {
+        he: { name: 'שלושה ראשים פחות', desc: 'הבס את ההידרה ברמה 250' },
+        en: { name: 'Three Heads Down', desc: 'Defeat the Hydra at level 250' },
+        ar: { name: 'ثلاثة رؤوس أقل', desc: 'اهزم الهيدرا في المستوى 250' },
+        ru: { name: 'Минус три головы', desc: 'Победи Гидру на 250 уровне' },
+        fr: { name: 'Trois têtes en moins', desc: 'Vaincs l’Hydre au niveau 250' },
+        es: { name: 'Tres cabezas menos', desc: 'Vence a la Hidra en el nivel 250' },
+    },
+    boss_emperor: {
+        he: { name: 'סוף המסע', desc: 'הבס את קיסר הריק ברמה 1000' },
+        en: { name: 'Journey’s End', desc: 'Defeat the Void Emperor at level 1000' },
+        ar: { name: 'نهاية الرحلة', desc: 'اهزم إمبراطور الفراغ في المستوى 1000' },
+        ru: { name: 'Конец пути', desc: 'Победи Императора Пустоты на 1000 уровне' },
+        fr: { name: 'La fin du voyage', desc: 'Vaincs l’Empereur du Vide au niveau 1000' },
+        es: { name: 'Fin del viaje', desc: 'Vence al Emperador del Vacío en el nivel 1000' },
+    },
     score_1k: {
         he: { name: 'כוכב עולה', desc: 'הגע ל-1,000 נקודות' },
         en: { name: 'Rising Star', desc: 'Reach 1,000 points' },
@@ -134,6 +182,14 @@ export const ACHIEVEMENTS = [
     { key: 'games_100',  icon: '💎', check: (e, stats) => stats.totalGames >= 100 },
 
     // Survival
+
+    // Bosses
+    { key: 'boss_first',       icon: '👑', check: e => (e.settings?.bossesKilled || 0) >= 1 },
+    { key: 'boss_5',           icon: '⚔️', check: e => (e.settings?.bossesKilled || 0) >= 5 },
+    { key: 'boss_10',          icon: '🗡️', check: e => (e.settings?.bossesKilled || 0) >= 10 },
+    { key: 'boss_dreadnought', icon: '🚢', check: e => (e.settings?.bossLog || []).includes('dreadnought') },
+    { key: 'boss_hydra',       icon: '🐉', check: e => (e.settings?.bossLog || []).includes('hydra') },
+    { key: 'boss_emperor',     icon: '🌌', check: e => (e.settings?.bossLog || []).includes('emperor') },
 
     // Coins
     { key: 'coins_1k',   icon: '💰', check: (e, stats) => stats.totalCoins >= 1000 },

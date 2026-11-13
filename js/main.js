@@ -1,14 +1,24 @@
 import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
-import { updatePlayerPos, movePlayer, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
+import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
-import { updateBoss, resetBoss, hideBoss } from './boss.js';
+import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
+initScene();
+initIcons();
+// Ship cards in the menu show the same art as the game.
+document.querySelectorAll('.skin-option').forEach(o => { const pv = o.querySelector('.skin-preview'); if (pv && SKINS[o.dataset.skin]) pv.innerHTML = SKINS[o.dataset.skin].svg; });
+window.__updateSkinOptions = () => updateSkinOptions();
 window.__resetBoss = resetBoss;
+// Boss fights are part of the run's record: the replay timeline and the analytics log.
+window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
 window.__hideBoss = hideBoss;
+import { initScene } from './scene.js';
+import { initIcons, icon } from './icons.js';
+import { KINDS, spawnKind } from './enemy-types.js';
 import { t, tf, applyLang, toggleLang, currentLang, LANGUAGES } from './i18n.js';
 import {
     startAnalyticsSession, trackLevelUp, trackPauseStart,
@@ -1197,12 +1207,26 @@ function _renderLbContent() {
     window.__lbReplayByStart = _lbReplayByStart;
     window.__lbReplayByScore = _lbReplayByScore;
 
-    const sortedRaw = [..._rawLeaderboard].sort((a, b) => (b.level - a.level) || (b.score - a.score));
+    // Damaged entries (no score / level) are skipped so one bad row can never break the table.
+    const sortedRaw = _rawLeaderboard
+        .filter(e => e && Number.isFinite(Number(e.score)) && Number.isFinite(Number(e.level)))
+        .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)));
+    // A player is the account, not the name: show the NEWEST name used by that account on
+    // every one of its rows, so renaming never splits someone into two players.
+    const newest = new Map();
+    const stampOf = (e) => e.clientTimestamp || (e.timestamp?.seconds ? e.timestamp.seconds * 1000 : 0);
+    for (const e of sortedRaw) {
+        if (!e.userId) continue;
+        const cur = newest.get(e.userId);
+        if (!cur || stampOf(e) > stampOf(cur)) newest.set(e.userId, e);
+    }
+    for (const e of sortedRaw) if (e.userId && newest.get(e.userId)?.userName) e.userName = newest.get(e.userId).userName;
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
-    // Keep only best entry per player (already sorted best-first)
+    // Keep only the best entry per player (already sorted best-first). Players are told
+    // apart by account, not by display name: two players may share a name.
     const seen = new Set();
     const deduped = filtered.filter(e => {
-        const key = (e.userName || 'Anonymous').toLowerCase();
+        const key = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -1233,7 +1257,7 @@ function _renderLbContent() {
             ? ` <span style="font-size:0.72rem;opacity:0.55;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduDisplay = entry.settings?.eduEnabled
             ? ` <span style="font-size:0.72rem;opacity:0.55;">📚</span>` : '';
-        const bossDisplay = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossDisplay = bossBadge(entry.settings);
         const inputDisplay = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button class="lb-settings-btn" onclick="showEntrySettings(${index})" title="${t('esTitle')}">⚙️</button>`
@@ -1252,7 +1276,7 @@ function _renderLbContent() {
                 <div class="lb-player-name" style="font-size:0.9rem;font-weight:bold;color:var(--primary);margin-bottom:3px;">
                     👤 ${userName}${isDevUser(entry.userId)?devBadge():''}${coinsDisplay}${upgradesDisplay}${deviceDisplay}${eduDisplay}${bossDisplay}${inputDisplay}
                 </div>
-                <div class="lb-score">${entry.score.toLocaleString()}</div>
+                <div class="lb-score">${Number(entry.score).toLocaleString()}</div>
                 <div class="lb-details">${t('levelWord')} ${entry.level} ${skinName} • ${entry.date}</div>
             </div>
             ${replayBtn}${settingsBtn}
@@ -1270,6 +1294,13 @@ function inputTag(methods) {
     if (methods.includes('gamepad')) icons.push('🎮');
     if (!icons.length) return '';
     return ` <span style="font-size:0.72rem;opacity:0.7;">${icons.join('')}</span>`;
+}
+
+// 👑 + how many bosses fell in that run (older entries only know "at least one").
+function bossBadge(settings) {
+    const n = settings?.bossesKilled || (settings?.bossKilled ? 1 : 0);
+    if (!n) return '';
+    return ` <span class="boss-badge" title="${t('bossCountTitle')}">👑${n > 1 ? '×' + n : ''}</span>`;
 }
 
 // ===== DEVELOPER BADGE =====
@@ -1302,7 +1333,7 @@ function checkSpeedrunMilestones() {
     let hitAny = false;
     for (const goal of allGoals) {
         if (state.speedrunHits[goal.key] != null) continue;
-        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossDone ? 1 : 0) : state.level;
+        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossesBeaten || 0) : state.level;
         if (val >= goal.target) {
             const elapsed = Date.now() - state.startTime;
             state.speedrunHits[goal.key] = elapsed;
@@ -1397,7 +1428,8 @@ function _mergeSkinEntries(arrays) {
         (a.level || 0) > (b.level || 0) ||
         ((a.level || 0) === (b.level || 0) && (a.score || 0) > (b.score || 0));
     for (const e of arrays.flat()) {
-        const uid = e.userId || e.userName || '';
+        if (!e || !Number.isFinite(Number(e.score)) || !Number.isFinite(Number(e.level))) continue;
+        const uid = e.userId || `name:${(e.userName || 'Anonymous').toLowerCase()}`;
         const cur = byUser.get(uid);
         if (!cur || isBetter(e, cur)) byUser.set(uid, e);
     }
@@ -1470,6 +1502,52 @@ async function displayLeaderboard(categoryOrSkinSel) {
     _renderLbContent();
 }
 
+// ===== SCORE SAVE STATUS =====
+// Tells the player what happened to the result of the game that just ended:
+// new record, record kept, saved on this device only (guest), or failed (and queued).
+function showScoreSaveStatus(result) {
+    let el = document.getElementById('score-save-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'score-save-status';
+        document.getElementById('sub-title')?.insertAdjacentElement('afterend', el);
+    }
+    let kind = 'info', text = '';
+    if (!result) { el.style.display = 'none'; return; }
+    if (result.pending) { kind = 'pending'; text = t('saveStSaving'); }
+    else if (result.ok && result.overall === 'saved') { kind = 'record'; text = t('saveStRecord'); }
+    else if (result.ok && result.skin === 'saved') { kind = 'record'; text = t('saveStSkinRecord'); }
+    else if (result.ok) { kind = 'ok'; text = t('saveStKept'); }
+    else if (result.reason === 'guest') { kind = 'guest'; text = t('saveStGuest'); }
+    else { kind = 'fail'; text = t(result.queued ? 'saveStFailQueued' : 'saveStFail'); }
+    el.className = `save-status save-status-${kind}`;
+    el.textContent = text;
+    el.style.display = '';
+}
+window.__showScoreSaveStatus = showScoreSaveStatus;
+window.__onPendingSavesFlushed = (count) => {
+    showToast(tf('saveStFlushed', { n: count }), 'ok');
+    const el = document.getElementById('score-save-status');
+    if (el && el.classList.contains('save-status-fail')) showScoreSaveStatus({ ok: true });
+    window.__refreshLeaderboard?.();
+};
+
+// Small transient message at the bottom of the screen.
+function showToast(text, kind = 'info') {
+    let box = document.getElementById('toast-box');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'toast-box';
+        document.body.appendChild(box);
+    }
+    const el = document.createElement('div');
+    el.className = `toast toast-${kind}`;
+    el.textContent = text;
+    box.appendChild(el);
+    setTimeout(() => { el.classList.add('toast-out'); setTimeout(() => el.remove(), 400); }, 4200);
+}
+window.__showToast = showToast;
+
 // Export to window for HTML onclick
 console.log('🔗 [EXPORT] Exporting functions to window object...');
 window.showLeaderboard = showLeaderboard;
@@ -1495,7 +1573,7 @@ function updateSkinOptions() {
         
         console.log(`🎨 [SKINS] Processing skin ${index}: ${skinKey} (unlock level: ${unlockLevel}, max level: ${maxLevel})`);
         
-        if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
+        if (unlockLevel > 0 && !option.dataset.unlockBoss && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
             console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             // Silent catch-up only: this runs on every page load (possibly before the saved
             // skins finished loading), so it must never show the "new ship" celebration.
@@ -1584,22 +1662,22 @@ async function initGame() {
     if (currentSkinKey === 'vortex') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '⚡';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abVortex');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'phoenix') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🔥';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abPhoenix');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'joker') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🃏';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abJoker');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else if (currentSkinKey === 'dragon') {
         abilityBtn.style.display = 'flex';
         abilityBtn.classList.remove('cooldown');
-        abilityBtn.querySelector('.ability-icon').innerText = '🐉';
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abDragon');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
@@ -1649,7 +1727,7 @@ function handleLevelUp() {
         let unlocked = false;
         Object.keys(SKINS).forEach(skinKey => {
             const skin = SKINS[skinKey];
-            if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
+            if (skin.unlockLevel === state.level && !skin.unlockBoss && !isSkinUnlocked(skinKey)) {
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
                     celebrateSkinUnlock({ svg: skin.svg, name: skin.name, color: skin.color });
@@ -1694,9 +1772,20 @@ function handleLevelUp() {
 
 // ===== MAIN UPDATE LOOP =====
 
-function update() {
+// The game logic runs at a fixed 60 steps per second whatever the screen's refresh rate
+// (on a 120 Hz phone the old loop simply ran the whole game twice as fast).
+let _loopLast = 0, _loopAcc = 0;
+function update(ts) {
     if(!state.active) return;
     if(state.paused) return; // loop restarts from togglePause
+    const stamp = typeof ts === 'number' ? ts : performance.now();
+    let dt = _loopLast ? stamp - _loopLast : 16.7;
+    _loopLast = stamp;
+    if (dt > 100 || dt < 0) dt = 16.7;
+    _loopAcc += dt;
+    if (_loopAcc < 14.6) { requestAnimationFrame(update); return; }
+    _loopAcc = Math.max(0, _loopAcc - 16.667);
+    if (_loopAcc > 16.667) _loopAcc = 0;
     const now = Date.now();
 
     if (!state.boss) { handleLevelUp(); handleSpawning(now); }
@@ -1704,6 +1793,7 @@ function update() {
     rechargeAmmo(now);
     updateAbilityCooldown(now);
     updateArrowMovement();
+    tickPlayerControl();
     checkSpeedrunMilestones();
     trackScoreUpdate(state.score);
     replayRecordPos(now);
@@ -1970,12 +2060,10 @@ function updateArrowMovement() {
     if (keyBindings.controlType === 'arrows') {
         const speed = 8;
         if (arrowKeysPressed.left) {
-            state.playerX = Math.max(0, state.playerX - speed);
-            updatePlayerPos();
+            stepPlayer(-speed);
         }
         if (arrowKeysPressed.right) {
-            state.playerX = Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed);
-            updatePlayerPos();
+            stepPlayer(speed);
         }
     }
     
@@ -2095,8 +2183,7 @@ function pollGamepad() {
                 // (L3/R3) switches to full/normal speed.
                 const maxSpeed = (held(GP_BTN.L3) || held(GP_BTN.R3)) ? 9 : 4.5;
                 const speed = maxSpeed * axisX;
-                state.playerX = Math.max(0, Math.min(DOM.wrapper.clientWidth - 50, state.playerX + speed));
-                updatePlayerPos();
+                stepPlayer(speed);
                 // Keep Phoenix-feather targeting aimed forward from the ship
                 state.lastMouseX = state.playerX + 25;
                 state.lastMouseY = DOM.wrapper.clientHeight - 80;
@@ -2368,6 +2455,7 @@ window.setLvl = function(lvlNum) {
 
     // Mark as debug game so score won't be saved to the leaderboard
     state.isDebugGame = true;
+    state.bossIndex = firstEncounterFrom(level);
 
     console.log(`✅ [DEBUG] Level set to ${level}`);
     console.log(`📊 [DEBUG] Score set to: ${state.score}`);
@@ -2410,6 +2498,7 @@ function applyPendingStartLevel() {
     state.score = state.lastLevelScore;
     { const df = difficultyForLevel(level); state.speedMult = df.mult; state.spawnRate = df.spawn; }
     state.isDebugGame = true;   // never saved to leaderboards / history / speedruns
+    state.bossIndex = firstEncounterFrom(level);
     saveMaxLevel(level);
 }
 
@@ -2424,6 +2513,7 @@ window.spawn = function(type) {
         return false;
     }
 
+    if (KINDS[String(type)]) return !!spawnKind(String(type), Math.random() * (DOM.wrapper.clientWidth - 60), -60);
     const validTypes = ['burger', 'asteroid', 'enemy', 'elite', 'orange', 'red', 'green', 'blue'];
     const lowerType = String(type).toLowerCase();
 
@@ -3652,7 +3742,7 @@ function renderHistoryList() {
         const showDevice = _histFilters.device === 'all';
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? `<span style="font-size:0.68rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
-        const bossTagH = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossTagH = bossBadge(entry.settings);
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
@@ -3707,7 +3797,7 @@ function renderBestsList(skinKey) {
         const deviceTag = (showDevice && entry.settings?.isMobile != null)
             ? ` <span style="font-size:0.7rem;opacity:0.5;">${entry.settings.isMobile ? '📱' : '🖥️'}</span>` : '';
         const eduTag = entry.settings?.eduEnabled ? ` <span style="font-size:0.7rem;opacity:0.55;">📚</span>` : '';
-        const bossTag = entry.settings?.bossKilled ? ` <span style="font-size:0.8rem;" title="${t('bossBadgeTitle')}">👑</span>` : '';
+        const bossTag = bossBadge(entry.settings);
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showBestsEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:3px 6px;font-size:0.72rem;cursor:pointer;color:rgba(255,255,255,0.5);" title="הגדרות">⚙️</button>` : '';

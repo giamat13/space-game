@@ -16,7 +16,10 @@ export const LANGUAGES = [
     { code: 'es', name: 'Español',  flag: '🇪🇸', dir: 'ltr' },
 ];
 
+import { BOSS_STRINGS } from './i18n-bosses.js';
+
 const STRINGS = {
+    ...BOSS_STRINGS,
     // ---- HUD ----
     score:            { he: 'ניקוד: ',   en: 'Score: ',    ar: 'النتيجة: ', ru: 'Счёт: ',    fr: 'Score : ',   es: 'Puntos: ' },
     hp:               { he: 'HP: ',      en: 'HP: ',       ar: 'الصحة: ',   ru: 'HP: ',      fr: 'PV : ',      es: 'VP: ' },
@@ -62,6 +65,14 @@ const STRINGS = {
     // ---- Leaderboard ----
     lbOverall:        { he: '🏆 כללי', en: '🏆 Overall', ar: '🏆 الكل', ru: '🏆 Все', fr: '🏆 Général', es: '🏆 General' },
     lbBack:           { he: 'חזרה', en: 'Back', ar: 'رجوع', ru: 'Назад', fr: 'Retour', es: 'Volver' },
+    saveStSaving:     { he: '☁️ שומר את התוצאה…', en: '☁️ Saving your result…', ar: '☁️ جارٍ حفظ النتيجة…', ru: '☁️ Сохраняем результат…', fr: '☁️ Enregistrement du résultat…', es: '☁️ Guardando tu resultado…' },
+    saveStRecord:     { he: '🏆 שיא חדש! נשמר בטבלת השיאים', en: '🏆 New record! Saved to the leaderboard', ar: '🏆 رقم قياسي جديد! تم الحفظ في لوحة الصدارة', ru: '🏆 Новый рекорд! Сохранён в таблице лидеров', fr: '🏆 Nouveau record ! Enregistré au classement', es: '🏆 ¡Nuevo récord! Guardado en la clasificación' },
+    saveStSkinRecord: { he: '🏆 שיא חדש לחללית הזו! נשמר בטבלה', en: '🏆 New record for this ship! Saved', ar: '🏆 رقم قياسي جديد لهذه السفينة! تم الحفظ', ru: '🏆 Новый рекорд для этого корабля! Сохранён', fr: '🏆 Nouveau record pour ce vaisseau ! Enregistré', es: '🏆 ¡Nuevo récord con esta nave! Guardado' },
+    saveStKept:       { he: '✅ התוצאה נשמרה. השיא שלך בטבלה עדיין גבוה יותר', en: '✅ Result saved. Your leaderboard record is still higher', ar: '✅ تم حفظ النتيجة. رقمك القياسي ما زال أعلى', ru: '✅ Результат сохранён. Ваш рекорд в таблице всё ещё выше', fr: '✅ Résultat enregistré. Votre record reste plus élevé', es: '✅ Resultado guardado. Tu récord sigue siendo más alto' },
+    saveStGuest:      { he: '💾 נשמר רק במכשיר הזה. התחבר כדי להופיע בטבלת השיאים', en: '💾 Saved on this device only. Sign in to appear on the leaderboard', ar: '💾 حُفظ على هذا الجهاز فقط. سجّل الدخول لتظهر في لوحة الصدارة', ru: '💾 Сохранено только на этом устройстве. Войдите, чтобы попасть в таблицу', fr: '💾 Enregistré sur cet appareil uniquement. Connectez-vous pour apparaître au classement', es: '💾 Guardado solo en este dispositivo. Inicia sesión para aparecer en la clasificación' },
+    saveStFailQueued: { he: '⚠️ לא הצלחנו לשמור בטבלה. התוצאה שמורה במכשיר ותישלח אוטומטית', en: '⚠️ Could not reach the leaderboard. Your result is kept on this device and will be sent automatically', ar: '⚠️ تعذّر الحفظ في لوحة الصدارة. النتيجة محفوظة على الجهاز وستُرسل تلقائيًا', ru: '⚠️ Не удалось сохранить в таблицу. Результат сохранён на устройстве и отправится автоматически', fr: '⚠️ Classement injoignable. Le résultat est gardé sur cet appareil et sera envoyé automatiquement', es: '⚠️ No se pudo guardar en la clasificación. El resultado queda en este dispositivo y se enviará automáticamente' },
+    saveStFail:       { he: '⚠️ התוצאה לא נשמרה בטבלת השיאים', en: '⚠️ Your result was not saved to the leaderboard', ar: '⚠️ لم تُحفظ النتيجة في لوحة الصدارة', ru: '⚠️ Результат не сохранён в таблице лидеров', fr: '⚠️ Le résultat n\'a pas été enregistré au classement', es: '⚠️ El resultado no se guardó en la clasificación' },
+    saveStFlushed:    { he: '☁️ {n} תוצאות שחיכו נשמרו בטבלת השיאים', en: '☁️ {n} waiting result(s) saved to the leaderboard', ar: '☁️ تم حفظ {n} نتيجة منتظرة في لوحة الصدارة', ru: '☁️ Отложенных результатов сохранено: {n}', fr: '☁️ {n} résultat(s) en attente enregistré(s) au classement', es: '☁️ {n} resultado(s) pendiente(s) guardado(s) en la clasificación' },
     lbEmpty:          { he: 'אין עדיין שיאים 🎯...', en: 'No scores yet 🎯...', ar: 'لا نتائج بعد 🎯...', ru: 'Рекордов нет 🎯...', fr: 'Aucun score 🎯...', es: 'Sin puntuaciones 🎯...' },
 
     // ---- Settings general ----
@@ -474,6 +485,7 @@ export function applyLang(lang) {
         }
     });
 
+    document.querySelectorAll('[data-lock-boss]').forEach(el => { el.textContent = '🔒 ' + t('bn_' + el.dataset.lockBoss); });
     document.querySelectorAll('[data-lock-n]').forEach(el => {
         el.textContent = tf('lockLvl', { n: el.dataset.lockN });
     });

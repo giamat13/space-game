@@ -66,12 +66,14 @@ export function celebrateSkinUnlock({ svg, name, color = '#ffd166' }) {
             <div class="fx-reveal-name">${name}</div>
         </div>`;
     host.appendChild(box);
+    // a boss waiting for this ship reveal (js/bosses.js) starts only after it ends
+    window.__celebrateUntil = Date.now() + 3900;
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
     setTimeout(() => { confettiBurst(cx, cy, { count: 70, spread: 420 }); shockwave(cx, cy, color, 520); }, 350);
     setTimeout(() => { confettiBurst(cx - 120, cy + 40, { count: 30 }); confettiBurst(cx + 120, cy + 40, { count: 30 }); shockwave(cx, cy, '#fff', 380); }, 900);
     setTimeout(() => box.classList.add('out'), 3300);
     setTimeout(() => box.remove(), 3900);
-    box.addEventListener('click', () => box.remove());
+    box.addEventListener('click', () => { box.remove(); window.__celebrateUntil = 0; });
 }
 
 // Level-up banner + flash over the playfield.
