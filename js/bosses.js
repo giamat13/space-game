@@ -659,6 +659,7 @@ export function updateBoss(now) {
     K.H = DOM.wrapper.clientHeight;
     if (!state.boss) {
         if (state.bossIndex == null) state.bossIndex = firstEncounterFrom(state.level);
+        if (Date.now() < (window.__celebrateUntil || 0)) return;     // let a new-ship reveal (e.g. the Joker at level 10) finish first
         if (state.level >= bossLevel(state.bossIndex)) { WR = DOM.wrapper.getBoundingClientRect(); spawn(encounter(state.bossIndex)); }
         return;
     }
