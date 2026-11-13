@@ -11,6 +11,7 @@ initScene();
 initIcons();
 // Ship cards in the menu show the same art as the game.
 document.querySelectorAll('.skin-option').forEach(o => { const pv = o.querySelector('.skin-preview'); if (pv && SKINS[o.dataset.skin]) pv.innerHTML = SKINS[o.dataset.skin].svg; });
+window.__updateSkinOptions = () => updateSkinOptions();
 window.__resetBoss = resetBoss;
 // Boss fights are part of the run's record: the replay timeline and the analytics log.
 window.__onBossEvent = (type, info) => { try { window.__replayRecordEvent?.('boss', { type, ...info }); trackAbilityUsed?.(`boss_${type}:${info.id}`, state.level, state.playerHP); } catch (_) {} };
@@ -1562,7 +1563,7 @@ function updateSkinOptions() {
         
         console.log(`🎨 [SKINS] Processing skin ${index}: ${skinKey} (unlock level: ${unlockLevel}, max level: ${maxLevel})`);
         
-        if (unlockLevel > 0 && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
+        if (unlockLevel > 0 && !option.dataset.unlockBoss && maxLevel >= unlockLevel && !isSkinUnlocked(skinKey)) {
             console.log(`🔓 [SKINS] Auto-unlocking ${skinKey}`);
             // Silent catch-up only: this runs on every page load (possibly before the saved
             // skins finished loading), so it must never show the "new ship" celebration.
@@ -1716,7 +1717,7 @@ function handleLevelUp() {
         let unlocked = false;
         Object.keys(SKINS).forEach(skinKey => {
             const skin = SKINS[skinKey];
-            if (skin.unlockLevel === state.level && !isSkinUnlocked(skinKey)) {
+            if (skin.unlockLevel === state.level && !skin.unlockBoss && !isSkinUnlocked(skinKey)) {
                 if (unlockSkin(skinKey)) {
                     unlocked = true;
                     celebrateSkinUnlock({ svg: skin.svg, name: skin.name, color: skin.color });

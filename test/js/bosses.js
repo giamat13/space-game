@@ -10,10 +10,10 @@
 //   • Boss shots go through state.enemyBullets, so the normal bullet movement, player-damage
 //     and dragon-ricochet code handles them unchanged.
 //   • Fairness: every attack is either a slow visible projectile or has a warn phase.
-import { DOM, state, addScore, addCoins } from './data.js';
+import { DOM, state, addScore, addCoins, SKINS, isSkinUnlocked, unlockSkin } from './data.js';
 import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateAmmoUI, pushPlayer } from './systems.js';
 import { t, tf } from './i18n.js';
-import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy } from './fx.js';
+import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy, celebrateSkinUnlock } from './fx.js';
 import { ROSTER, MILESTONES, MUTATIONS } from './boss-roster.js';
 
 const TICK = 1000 / 60;
@@ -561,6 +561,16 @@ function finishDeath(b) {
     showFloatingMessage(tf('bossReward', { score: bonusScore, coins: bonusCoins }), K.W / 2 - 90, K.H / 2, '#ffd700');
     setTimeout(() => showFloatingMessage(tf('bossPlating', { n: plating }), K.W / 2 - 80, K.H / 2 + 34, 'var(--health)'), 500);
     if (first) setTimeout(() => showFloatingMessage(t('bossFirstKill'), K.W / 2 - 80, K.H / 2 - 34, '#ffe27a'), 250);
+
+    // Some bosses leave a ship behind (Twin Fangs → Dragon). Debug runs (startLvl) never unlock.
+    if (def.unlocksSkin && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && unlockSkin(def.unlocksSkin)) {
+        const sk = SKINS[def.unlocksSkin];
+        window.__updateSkinOptions?.();
+        setTimeout(() => {
+            celebrateSkinUnlock({ svg: sk.svg, name: sk.name, color: sk.color });
+            showFloatingMessage(t('bossUnlockedShip'), K.W / 2 - 110, K.H / 2 + 60, '#ffd700');
+        }, 3200);
+    }
 
     const result = { id: def.id, level: enc.level, tier: enc.tier, milestone: !!enc.milestone, ms: Math.round(b.t), first };
     removeBossDom(b);

@@ -485,6 +485,7 @@ export function applyLang(lang) {
         }
     });
 
+    document.querySelectorAll('[data-lock-boss]').forEach(el => { el.textContent = '🔒 ' + t('bn_' + el.dataset.lockBoss); });
     document.querySelectorAll('[data-lock-n]').forEach(el => {
         el.textContent = tf('lockLvl', { n: el.dataset.lockN });
     });

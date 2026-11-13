@@ -282,7 +282,7 @@ export const ROSTER = [
     },
     // 2 — two hulls, one light: only the glowing twin can be hurt, and the light keeps moving.
     {
-        id: 'twins', color: '#ff4d9a', size: 250, h: 112, gap: 1500, hitbox: 0.02, art: ART.twins,
+        id: 'twins', unlocksSkin: 'dragon', color: '#ff4d9a', size: 250, h: 112, gap: 1500, hitbox: 0.02, art: ART.twins,
         phases: [['cross', 'swap', 'cross', 'snipe'], ['cross', 'swap', 'pincer', 'swap', 'snipe'], ['pincer', 'swap', 'cross', 'swap', 'storm']],
         setup(b) { b.s.lit = 0; b.el.dataset.lit = '0'; },
         move(b, K) { b.tx = K.W / 2 - b.w / 2 + Math.sin(b.t / 1900) * (K.W / 2 - b.w / 2 - 6); b.ty = REST; },

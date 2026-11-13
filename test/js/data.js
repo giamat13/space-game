@@ -111,7 +111,8 @@ export const SKINS = {
     dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
-        unlockLevel: 25,
+        unlockLevel: 25,        // still used for the starting level of a run
+        unlockBoss: 'twins',    // but the ship itself is won by defeating this boss (js/bosses.js)
         get name() { return t('skinDragon'); },
         fireRate: 2.2,
         bulletSpeed: 1.8,

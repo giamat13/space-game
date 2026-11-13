@@ -132,6 +132,7 @@ export const BOSS_STRINGS = {
     kShieldDown: L('המגן נשבר!', 'SHIELD DOWN!', 'انكسر الدرع!', 'ЩИТ СЛОМАН!', 'BOUCLIER BRISÉ !', '¡ESCUDO ROTO!'),
     kDrained: L('-3 תחמושת', '-3 AMMO', '-3 ذخيرة', '-3 ПАТРОНА', '-3 MUNITIONS', '-3 MUNICIÓN'),
     msgServants: L('המשרתים מגיעים!', 'THE SERVANTS ARRIVE!', 'الخدم يصلون!', 'СЛУГИ ПРИБЫЛИ!', 'LES SERVITEURS ARRIVENT !', '¡LLEGAN LOS SIRVIENTES!'),
+    bossUnlockedShip: L('הבוס הוריש לך חללית חדשה!', 'THE BOSS LEFT YOU A NEW SHIP!', 'ترك لك الزعيم سفينة جديدة!', 'БОСС ОСТАВИЛ ВАМ НОВЫЙ КОРАБЛЬ!', 'LE BOSS VOUS LAISSE UN NOUVEAU VAISSEAU !', '¡EL JEFE TE DEJA UNA NAVE NUEVA!'),
     goalBosses: L('{n} בוסים', '{n} bosses', '{n} زعماء', 'Боссов: {n}', '{n} boss', '{n} jefes'),
     bossCountTitle: L('בוסים שהובסו במשחק הזה', 'Bosses defeated in this run', 'الزعماء المهزومون في هذه الجولة', 'Боссов побеждено за забег', 'Boss vaincus dans cette partie', 'Jefes vencidos en esta partida'),
 };
