@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"מגיני החלל" / "Space Defender" — a single-page, vanilla-JavaScript browser arcade game. The player controls a ship at the bottom of the screen, shoots descending enemies/asteroids/burgers, levels up, unlocks skins, earns coins, and competes on cloud leaderboards. The UI is **Hebrew-first and RTL** (`<html lang="he" dir="rtl">`), with full i18n for 6 languages.
+"מגיני החלל" / "Space Game" — a single-page, vanilla-JavaScript browser arcade game. The player controls a ship at the bottom of the screen, shoots descending enemies/asteroids/burgers, levels up, unlocks skins, earns coins, and competes on cloud leaderboards. The UI is **Hebrew-first and RTL** (`<html lang="he" dir="rtl">`), with full i18n for 6 languages.
 
 ## Running, building, testing
 

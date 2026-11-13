@@ -30,7 +30,7 @@ const STRINGS = {
     gamepadDisconnected: { he: '🎮 שלט נותק', en: '🎮 Controller disconnected', ar: '🎮 تم فصل وحدة التحكم', ru: '🎮 Геймпад отключён', fr: '🎮 Manette déconnectée', es: '🎮 Mando desconectado' },
 
     // ---- Main menu ----
-    gameTitle:        { he: 'מגיני החלל', en: 'Space Defender', ar: 'حارس الفضاء', ru: 'Защитник Космоса', fr: 'Défenseur de l\'Espace', es: 'Defensor del Espacio' },
+    gameTitle:        { he: 'מגיני החלל', en: 'Space Game', ar: 'حارس الفضاء', ru: 'Защитник Космоса', fr: 'Défenseur de l\'Espace', es: 'Defensor del Espacio' },
     subTitle:         { he: 'בחר ספינה וצא למשימה', en: 'Choose a ship and start your mission', ar: 'اختر سفينة وابدأ مهمتك', ru: 'Выберите корабль и начните миссию', fr: 'Choisissez un vaisseau et commencez votre mission', es: 'Elige una nave y comienza tu misión' },
     startBtn:         { he: 'צא למשימה', en: 'Start Mission', ar: 'ابدأ المهمة', ru: 'Начать миссию', fr: 'Démarrer la mission', es: 'Iniciar misión' },
     loginBtn:         { he: '🔐 התחבר',  en: '🔐 Login',   ar: '🔐 تسجيل الدخول', ru: '🔐 Войти', fr: '🔐 Connexion', es: '🔐 Iniciar sesión' },
