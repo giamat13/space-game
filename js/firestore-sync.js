@@ -282,7 +282,12 @@ export async function flushPendingSaves() {
         for (const item of mine) {
             try {
                 if (item.kind === 'speedrun') await writeSpeedrun(user, item.goalKey, item.entry);
-                else await writeScore(user, item.entry);
+                else if (item.kind === 'skins') {
+                    await setDoc(doc(db, 'users', user.uid), {
+                        unlockedSkins: arrayUnion(...normalizeSkins([...DEFAULT_SKINS, ...item.skins])),
+                        lastUpdated: serverTimestamp()
+                    }, { merge: true });
+                } else await writeScore(user, item.entry);
                 done++;
                 writePending(readPending().filter(p => p.id !== item.id));
             } catch (e) {
@@ -390,6 +395,7 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
     } catch (error) {
         console.error('❌ [CLOUD] Error saving score:', error);
         queuePending({ id: newPendingId(), kind: 'score', uid: user.uid, entry });
+        window.__onCloudSaveDelayed?.(error.code === 'resource-exhausted' ? 'quota' : 'error');
         return { ok: false, reason: 'error', queued: true, code: error.code || null };
     }
 }
@@ -526,6 +532,11 @@ export async function unlockSkinInCloud(skinKey) {
         return true;
     } catch (error) {
         console.error('❌ [CLOUD] Error unlocking skin:', error);
+        // The ship stays unlocked on this device (cookie). Keep it queued and upload it as
+        // soon as the cloud accepts writes again; tell the player why it is not in the cloud yet.
+        queuePending({ id: newPendingId(), kind: 'skins', uid: user.uid, skins: [skinKey] });
+        const quota = error.code === 'resource-exhausted';
+        window.__onCloudSaveDelayed?.(quota ? 'quota' : 'error');
         return false;
     }
 }
@@ -1188,6 +1199,8 @@ export function initFirestoreSync() {
 // Results that could not be uploaded are retried as soon as the connection is back.
 if (typeof window !== 'undefined') {
     window.addEventListener('online', () => { flushPendingSaves().catch(() => {}); });
+    // Retry queued uploads every 2 minutes (e.g. after the daily write quota resets)
+    setInterval(() => { flushPendingSaves().catch(() => {}); }, 120000);
 }
 
 // ===== EXPORTS =====

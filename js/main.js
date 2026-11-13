@@ -1531,6 +1531,11 @@ window.__onPendingSavesFlushed = (count) => {
     window.__refreshLeaderboard?.();
 };
 
+// A cloud write was refused (quota) or failed: the data is safe on this device and queued.
+window.__onCloudSaveDelayed = (reason) => {
+    showToast(t(reason === 'quota' ? 'cloudQuotaMsg' : 'cloudDelayedMsg'), 'warn');
+};
+
 // Small transient message at the bottom of the screen.
 function showToast(text, kind = 'info') {
     let box = document.getElementById('toast-box');
