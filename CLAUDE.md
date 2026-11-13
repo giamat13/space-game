@@ -78,6 +78,7 @@ The project wiki is a separate git repo: `https://github.com/giamat13/space-game
 - Clone the wiki repo into the scratchpad directory (never inside this project), edit the relevant page(s), commit, and push to the wiki's default branch.
 - If a change fits no existing page, create a new page and link it from `Home`.
 - Keep numbers, key names, and level thresholds in the wiki identical to the code.
+- Write all wiki content in all 6 game languages: he, en, ar, ru, fr, es. Each page has one section per language, in that order, with Hebrew first. Keep headings, numbers, and key names the same in every language.
 - In the final message for the task, list the wiki pages that were changed.
 
 ## Copyright note
