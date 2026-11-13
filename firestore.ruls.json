@@ -46,16 +46,19 @@ service cloud.firestore {
 
     // Every run is stored on its own and never changed or deleted. Filtered leaderboard
     // views (language, device, upgrades…) pick each player's best matching run from here.
+    // Runs are never edited, but their owner may delete them (account deletion).
     match /runs/{skin}/entries/{runId} {
       allow read: if true;
       allow create: if writesOwnEntry();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /speedrunRuns/{goalKey}/entries/{runId} {
       allow read: if true;
       allow create: if writesOwnEntry();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /userStats/{userId} {
@@ -89,7 +92,8 @@ service cloud.firestore {
     match /game_sessions/{docId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /coinTransfers/{transferId} {
@@ -112,12 +116,14 @@ service cloud.firestore {
     match /gameSessions/{sessionId} {
       allow create: if true;
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'anonymous');
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
 
       match /logs/{logId} {
         allow create: if true;
         allow read: if isSignedIn() && get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.userId == request.auth.uid;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isSignedIn() && get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.userId == request.auth.uid;
       }
     }
 

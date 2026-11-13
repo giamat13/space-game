@@ -4,10 +4,11 @@
 // Profile images come directly from Google (photoURL) - not from Firebase Storage
 
 import { t } from './i18n.js';
+import { releaseLocalProgress } from './account-data.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { 
-    getAuth, 
-    signInWithPopup, 
+import {
+    getAuth,
+    signInWithPopup,
     GoogleAuthProvider,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -16,7 +17,10 @@ import {
     linkWithCredential,
     EmailAuthProvider,
     updateProfile,
-    fetchSignInMethodsForEmail
+    fetchSignInMethodsForEmail,
+    deleteUser,
+    reauthenticateWithPopup,
+    reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -198,19 +202,63 @@ export async function linkGoogleAccount() {
 // ===== SIGN OUT =====
 export async function logout() {
     console.log('🚪 [LOGOUT] Signing out...');
-    
+
     try {
         await signOut(auth);
+        // Progress kept on this device belongs to the account just signed out
+        releaseLocalProgress();
         console.log('✅ [LOGOUT] Successfully signed out');
         showMessage(t('authLogoutOk'), 'info');
-        
-        // Return to main menu
+
+        // Reload so no in-memory state from the previous account survives
         setTimeout(() => {
-            showMainMenu();
+            window.location.reload();
         }, 800);
     } catch (error) {
         console.error('❌ [LOGOUT] Error during sign out:', error);
         showMessage(t('authLogoutErr'), 'error');
+    }
+}
+
+// ===== DELETE ACCOUNT AND ALL DATA =====
+export async function deleteAccountAndData() {
+    const user = auth.currentUser;
+    if (!user) {
+        showMessage(t('authNeedLogin'), 'warning');
+        return false;
+    }
+    if (!confirm(t('deleteAccountConfirm'))) return false;
+
+    // Deleting an account needs a fresh sign-in
+    try {
+        if (user.providerData.some(p => p.providerId === 'google.com')) {
+            await reauthenticateWithPopup(user, googleProvider);
+        } else {
+            const password = prompt(t('deleteAccountPassword'));
+            if (!password) return false;
+            await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+        }
+    } catch (error) {
+        console.error('❌ [DELETE] Re-authentication failed:', error);
+        handleAuthError(error);
+        return false;
+    }
+
+    try {
+        const { deleteCloudDataForUser } = await import('./firestore-sync.js');
+        const { failed } = await deleteCloudDataForUser(user.uid);
+        await deleteUser(user);
+        releaseLocalProgress();
+        console.log(`✅ [DELETE] Account deleted (${failed} cloud deletes failed)`);
+        showMessage(t(failed ? 'deleteAccountPartial' : 'deleteAccountOk'), failed ? 'warning' : 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        return true;
+    } catch (error) {
+        console.error('❌ [DELETE] Error deleting account:', error);
+        showMessage(t('deleteAccountErr'), 'error');
+        return false;
     }
 }
 
@@ -378,6 +426,7 @@ window.signInWithEmail = () => {
 };
 
 window.logout = logout;
+window.deleteAccountAndData = deleteAccountAndData;
 window.linkGoogleAccount = linkGoogleAccount;
 window.toggleLoginMenu = () => {
     console.log('🔐 [UI] Toggle login menu, authenticated:', isAuthenticated);

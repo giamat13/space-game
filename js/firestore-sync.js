@@ -21,6 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+import { claimLocalProgress } from './account-data.js';
 
 // ===== USE EXISTING FIREBASE APP =====
 // We use the existing Firebase app initialized in auth.js
@@ -1095,21 +1096,87 @@ async function migrateLocalHistoryToCloud(user) {
     }
 }
 
+// ===== DELETE ALL CLOUD DATA OF ONE ACCOUNT =====
+// Removes every document this account owns. The rules decide what a client may delete;
+// anything refused is counted in `failed` and does not stop the rest.
+export async function deleteCloudDataForUser(uid) {
+    if (!db) initializeFirestoreSync();
+    // data.js imports this file, so it is loaded here to avoid a circular import
+    const { SKINS, SPEEDRUN_GOALS, getCustomSpeedrunGoals } = await import('./data.js');
+    let failed = 0;
+
+    const removeDoc = async (ref) => {
+        try { await deleteDoc(ref); }
+        catch (e) { failed++; console.warn('⚠️ [DELETE] Could not delete', ref.path, e.code || e); }
+    };
+    const removeMatching = async (colRef) => {
+        try {
+            const snap = await getDocs(query(colRef, where('userId', '==', uid)));
+            for (const d of snap.docs) await removeDoc(d.ref);
+        } catch (e) { failed++; console.warn('⚠️ [DELETE] Could not list', colRef.path, e.code || e); }
+    };
+
+    // Documents named after the account
+    await removeDoc(doc(db, 'users', uid));
+    await removeDoc(doc(db, 'userStats', uid));
+    await removeDoc(doc(db, 'moneyLeaderboard', uid));
+    await removeDoc(doc(db, 'leaderboard', uid));
+    await removeDoc(doc(db, 'leaderboard', uid + '_alt'));
+
+    // Per-skin score and run tables
+    for (const skin of Object.keys(SKINS)) {
+        await removeDoc(doc(db, `scores/${skin}/entries/${uid}`));
+        await removeMatching(collection(db, 'scores', skin, 'entries'));
+        await removeMatching(collection(db, 'runs', skin, 'entries'));
+    }
+
+    // Speedrun tables, built-in and custom goals
+    const goalKeys = [...SPEEDRUN_GOALS, ...getCustomSpeedrunGoals()].map(g => g.key);
+    for (const key of goalKeys) {
+        await removeDoc(doc(db, `speedrun/${key}/entries/${uid}`));
+        await removeMatching(collection(db, 'speedrunRuns', key, 'entries'));
+    }
+
+    // Game sessions and analytics
+    await removeMatching(collection(db, 'game_sessions'));
+    try {
+        const sessions = await getDocs(query(collection(db, 'gameSessions'), where('userId', '==', uid)));
+        for (const s of sessions.docs) {
+            try {
+                const logs = await getDocs(collection(db, 'gameSessions', s.id, 'logs'));
+                for (const l of logs.docs) await removeDoc(l.ref);
+            } catch (e) { failed++; console.warn('⚠️ [DELETE] Could not list session logs', e.code || e); }
+            await removeDoc(s.ref);
+        }
+    } catch (e) { failed++; console.warn('⚠️ [DELETE] Could not list game sessions', e.code || e); }
+    try {
+        const analytics = await getDocs(collection(db, 'userAnalytics', uid, 'sessions'));
+        for (const a of analytics.docs) await removeDoc(a.ref);
+    } catch (e) { failed++; console.warn('⚠️ [DELETE] Could not list analytics', e.code || e); }
+
+    return { failed };
+}
+
 // ===== AUTO-SYNC ON AUTH CHANGE =====
 export function initFirestoreSync() {
     console.log('🔄 [FIRESTORE] Initializing sync system...');
-    
+
     // Initialize Firestore connection first
     const initialized = initializeFirestoreSync();
-    
+
     if (!initialized || !auth) {
         console.error('❌ [FIRESTORE] Failed to initialize - auth not available');
         return;
     }
-    
+
     // Then set up auth listener
     auth.onAuthStateChanged(async (user) => {
         if (user) {
+            // Progress from another account on this device must not reach this one
+            if (claimLocalProgress(user.uid)) {
+                window.location.reload();
+                return;
+            }
             console.log('✅ [FIRESTORE] User logged in, syncing data...');
             await syncAllData();
             flushPendingSaves().catch(() => {});
