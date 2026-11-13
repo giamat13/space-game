@@ -1211,6 +1211,16 @@ function _renderLbContent() {
     const sortedRaw = _rawLeaderboard
         .filter(e => e && Number.isFinite(Number(e.score)) && Number.isFinite(Number(e.level)))
         .sort((a, b) => ((b.level || 0) - (a.level || 0)) || ((b.score || 0) - (a.score || 0)));
+    // A player is the account, not the name: show the NEWEST name used by that account on
+    // every one of its rows, so renaming never splits someone into two players.
+    const newest = new Map();
+    const stampOf = (e) => e.clientTimestamp || (e.timestamp?.seconds ? e.timestamp.seconds * 1000 : 0);
+    for (const e of sortedRaw) {
+        if (!e.userId) continue;
+        const cur = newest.get(e.userId);
+        if (!cur || stampOf(e) > stampOf(cur)) newest.set(e.userId, e);
+    }
+    for (const e of sortedRaw) if (e.userId && newest.get(e.userId)?.userName) e.userName = newest.get(e.userId).userName;
     const filtered = applyEntryFilters(sortedRaw, _lbFilters);
     // Keep only the best entry per player (already sorted best-first). Players are told
     // apart by account, not by display name: two players may share a name.

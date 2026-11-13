@@ -15,6 +15,7 @@ import {
     getDocs,
     addDoc,
     deleteDoc,
+    updateDoc,
     runTransaction,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
@@ -370,6 +371,23 @@ export async function saveScoreToCloud(skinKey, score, level, userName, settings
         queuePending({ id: newPendingId(), kind: 'score', uid: user.uid, entry });
         return { ok: false, reason: 'error', queued: true, code: error.code || null };
     }
+}
+
+// A player who changes their display name stays ONE player on every table: their entries
+// are renamed in place (the tables also show the newest name when they read, see main.js).
+export async function renameInLeaderboards(newName) {
+    const user = auth?.currentUser;
+    if (!db || !user || !newName) return;
+    const skins = ['classic', 'interceptor', 'tanker', 'phoenix', 'vortex', 'joker', 'dragon'];
+    const paths = ['leaderboard', 'moneyLeaderboard', ...skins.map(s => `scores/${s}/entries`)];
+    await Promise.all(paths.flatMap((p) => [user.uid, user.uid + ALT_SUFFIX].map(async (id) => {
+        try { await updateDoc(doc(db, p, id), { userName: newName }); }
+        catch (e) { if (e.code !== 'not-found' && e.code !== 'permission-denied') console.warn('⚠️ [CLOUD] Rename failed for', p, e.code); }
+    })));
+    try {
+        const goals = await getDocs(collection(db, 'speedrun'));    // documents may not exist; ignore
+        goals.forEach(() => {});
+    } catch (_) { /* speedrun goals are not enumerable; they are renamed on the next result */ }
 }
 
 // ===== GET LEADERBOARD FROM FIRESTORE =====

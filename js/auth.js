@@ -226,6 +226,7 @@ export async function updateDisplayName(newName) {
     try {
         await updateProfile(auth.currentUser, { displayName: newName });
         currentUser.displayName = newName;
+        import('./firestore-sync.js').then(m => m.renameInLeaderboards(newName)).catch(() => {});
         console.log('✅ [PROFILE] Display name updated successfully');
         showMessage(t('authNameUpdated'), 'success');
         return true;
