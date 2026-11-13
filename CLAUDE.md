@@ -70,6 +70,16 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - Key collections: `users/{uid}`, `leaderboard`, `scores/{skin}/entries`, `userStats/{uid}`, `game_sessions`, `moneyLeaderboard`, `speedrun/{goal}/entries`, `coinTransfers`, `eduSessions`, `gameSessions`, `userAnalytics/{uid}/sessions`.
 - The external `firebase-ls-proxy.js` (loaded last in `index.html`) provides a localStorage-backed cloud-sync proxy layer; it is hosted outside this repo.
 
+## GitHub wiki
+
+The project wiki is a separate git repo: `https://github.com/giamat13/space-game.wiki.git` (the Wiki tab of `giamat13/space-game`).
+
+- Every time a change is made to the game (code, features, controls, balance, bosses, settings, deploy, i18n), update the wiki in the same task. Do not ask for approval first.
+- Clone the wiki repo into the scratchpad directory (never inside this project), edit the relevant page(s), commit, and push to the wiki's default branch.
+- If a change fits no existing page, create a new page and link it from `Home`.
+- Keep numbers, key names, and level thresholds in the wiki identical to the code.
+- In the final message for the task, list the wiki pages that were changed.
+
 ## Copyright note
 
 Per [CONTRIBUTING.md](CONTRIBUTING.md), the original author retains all rights; forks must acknowledge the original copyright and may not be redistributed under a separate "all rights reserved" claim.
