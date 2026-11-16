@@ -21,18 +21,91 @@ function getCookie(name) {
 
 // ===== HISTORY (chronological, localStorage) =====
 
+// ===== REPLAYS =====
+// Each replay is kept under its own key (gameReplay_v1_<timestamp>), not inside the history list.
+// localStorage is wrapped by the external WARP proxy, which copies every key into ONE cloud
+// document (max 1 MB) and swallows storage errors. A history list holding many replays grew past
+// that limit, stopped saving, and new replays vanished after a reload. Now every replay is thinned
+// to fit MAX_REPLAY_CHARS, and the newest replays are kept within REPLAY_BUDGET_CHARS in total.
+const REPLAY_PREFIX = 'gameReplay_v1_';
+const MAX_REPLAY_CHARS = 900000;
+const REPLAY_BUDGET_CHARS = 3500000;
+
+// Drop every other snapshot frame (event frames stay) until the replay fits.
+function fitReplay(log) {
+    let json = JSON.stringify(log);
+    let frames = log.slice(1);
+    while (json.length > MAX_REPLAY_CHARS && frames.filter(f => !f.ev).length > 2) {
+        let keep = true;
+        frames = frames.filter(f => { if (f.ev) return true; keep = !keep; return !keep; });
+        json = JSON.stringify([log[0], ...frames]);
+    }
+    return json.length > MAX_REPLAY_CHARS ? null : json;
+}
+
+function readReplay(key) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+
+// replayLog is read only when a replay is opened, so listing the history stays cheap.
+function attachReplay(entry) {
+    if (!entry || !entry.replayKey || entry.replayLog) return entry;
+    let cached;
+    Object.defineProperty(entry, 'replayLog', {
+        enumerable: false, configurable: true,
+        get() { if (cached === undefined) cached = readReplay(entry.replayKey); return cached; }
+    });
+    return entry;
+}
+
+export function hasReplay(entry) {
+    return !!(entry && (entry.replayKey || entry.replayLog));
+}
+
 export function loadGameHistory() {
     try {
         const item = localStorage.getItem(HISTORY_KEY);
-        if (item) return JSON.parse(item);
+        if (item) return JSON.parse(item).map(attachReplay);
     } catch(e) {}
     return [];
 }
 
 function saveGameHistory(history) {
+    const list = history.slice(0, MAX_HISTORY).map(e => {
+        if (!e) return e;
+        const own = Object.getOwnPropertyDescriptor(e, 'replayLog');
+        const inline = own && 'value' in own ? own.value : undefined;   // not the lazy getter
+        const { replayLog, ...rest } = { ...e, replayLog: undefined };
+        if (inline && !rest.replayKey) {
+            const json = fitReplay(inline);
+            if (json) {
+                const key = REPLAY_PREFIX + (rest.timestamp || Date.now());
+                try { localStorage.setItem(key, json); rest.replayKey = key; } catch { rest.replayDropped = true; }
+            } else rest.replayDropped = true;
+        }
+        return rest;
+    });
+
+    // Newest replays first, until the budget is used up; older ones are removed.
+    let used = 0;
+    const keep = new Set();
+    for (const e of list) {
+        if (!e?.replayKey) continue;
+        const v = (() => { try { return localStorage.getItem(e.replayKey); } catch { return null; } })();
+        if (v && used + v.length <= REPLAY_BUDGET_CHARS) { used += v.length; keep.add(e.replayKey); }
+        else { delete e.replayKey; e.replayDropped = true; }
+    }
     try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
-    } catch(e) {}
+        const stale = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(REPLAY_PREFIX) && !keep.has(k)) stale.push(k);
+        }
+        stale.forEach(k => localStorage.removeItem(k));
+    } catch { /* storage unavailable */ }
+
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+    catch (e) { console.warn('⚠️ [HISTORY] Could not save game history:', e); }
 }
 
 export function addGameToHistory(entry) {

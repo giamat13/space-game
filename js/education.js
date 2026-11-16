@@ -421,18 +421,24 @@ const FALLBACK_BANK = {
 };
 
 // ============================================================================
-//  SHARED SESSION (Firestore) — remote unlock & "who is locked" dashboard
+//  SHARED SESSION (Realtime Database) — remote unlock & "who is locked" dashboard
 // ----------------------------------------------------------------------------
 //  There are no teacher/student roles: anyone who knows the password (i.e.
 //  whoever created it and is therefore NOT locked) can manage the session —
 //  open it for everyone, see who is connected and locked, and open it for
-//  individuals. Locked devices simply report their status and listen for an
-//  unlock signal. All of this is best-effort: if Firestore is unavailable the
+//  individuals. Locked devices simply report their status and check for an
+//  unlock signal. All of this is best-effort: if the database is unavailable the
 //  local lock and the 45-minute auto-unlock still work.
+//
+//  Layout: edu/{sessionId} = { subject, grade, createdAt, managerName, unlockAll,
+//                              participants: { {clientId}: { name, locked, lastSeen, forceUnlock } } }
+//  Plain REST calls with light polling: no open connection per student, so a whole
+//  class never runs into the database's connection limit.
 // ============================================================================
 
-const COLL_SESSIONS = 'eduSessions';
-const PARTICIPANTS = 'participants';
+const SESSIONS = 'edu';
+const STUDENT_POLL_MS = 15000;   // a locked device checks for "unlock" every 15 s
+const MANAGER_POLL_MS = 5000;    // the manager's list refreshes every 5 s
 
 // Stable per-device id + a human-readable name for the dashboard.
 function getClientId() {
@@ -455,79 +461,59 @@ function getClientName() {
     return t('guestName') + ' ' + getClientId().slice(2, 6);
 }
 
-// Lazily resolve the Firestore handle + SDK helpers. Returns null until the
-// Firebase app/Firestore are ready (or if anything goes wrong).
-async function fsBits() {
+// Database call; returns null when anything goes wrong (sessions are best-effort).
+async function eduRest(path, opts = {}) {
     try {
-        const sync = await import('./firestore-sync.js');
-        if (!sync.db) return null;
-        const fs = await import('https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js');
-        return { db: sync.db, ...fs };
+        const { cloudRest } = await import('./cloud-sync.js');
+        return await cloudRest(`${SESSIONS}/${path}`, { authed: false, ...opts });
     } catch (e) {
-        console.warn('⚠️ [EDU] Firestore session unavailable', e);
+        console.warn('⚠️ [EDU] Session call failed', path, e.code || e);
         return null;
     }
 }
+const NOW = { '.sv': 'timestamp' };
 
 // Register/refresh this device as a participant of the current session.
 export async function joinSession(locked) {
     if (!eduConfig.sessionId) return;
-    const b = await fsBits();
-    if (!b) return;
-    try {
-        const { db, doc, setDoc, serverTimestamp } = b;
-        await setDoc(
-            doc(db, COLL_SESSIONS, eduConfig.sessionId, PARTICIPANTS, getClientId()),
-            { name: getClientName(), locked: !!locked, lastSeen: serverTimestamp() },
-            { merge: true }
-        );
-    } catch (e) {
-        console.warn('⚠️ [EDU] joinSession failed', e);
-    }
+    await eduRest(`${eduConfig.sessionId}/participants/${getClientId()}`, {
+        method: 'PATCH', body: { name: getClientName(), locked: !!locked, lastSeen: NOW }
+    });
 }
 
 // Mark this device as no longer locked (after a local/remote/timer unlock).
 async function markParticipantUnlocked() {
     const sessionId = eduConfig.sessionId || hashPassword(eduConfig.password || '');
     if (!sessionId) return;
-    const b = await fsBits();
-    if (!b) return;
-    try {
-        const { db, doc, setDoc, serverTimestamp } = b;
-        await setDoc(
-            doc(db, COLL_SESSIONS, sessionId, PARTICIPANTS, getClientId()),
-            { locked: false, lastSeen: serverTimestamp() },
-            { merge: true }
-        );
-    } catch (e) { /* best effort */ }
+    await eduRest(`${sessionId}/participants/${getClientId()}`, {
+        method: 'PATCH', body: { locked: false, lastSeen: NOW }
+    });
 }
 
-// Listen for a remote unlock signal (whole session OR just this device).
-// Calls onUnlock() once when an unlock arrives. Returns an unsubscribe fn.
+// Watch for a remote unlock signal (whole session OR just this device).
+// Calls onUnlock() once when an unlock arrives. Returns a stop fn.
 export async function listenForUnlock(onUnlock) {
     if (!eduConfig.sessionId) return () => {};
-    const b = await fsBits();
-    if (!b) return () => {};
-    const { db, doc, onSnapshot } = b;
-    const sessionRef = doc(db, COLL_SESSIONS, eduConfig.sessionId);
-    const meRef = doc(db, COLL_SESSIONS, eduConfig.sessionId, PARTICIPANTS, getClientId());
-
-    let done = false;
+    const sid = eduConfig.sessionId, me = getClientId();
+    let done = false, timer = null;
     const trip = () => {
         if (done) return;
         done = true;
+        clearInterval(timer);
         forceUnlockLocal();
         if (onUnlock) onUnlock();
     };
-
-    const unsubSession = onSnapshot(sessionRef, snap => {
-        if (snap.exists() && snap.data().unlockAll === true) trip();
-    }, () => {});
-    const unsubMe = onSnapshot(meRef, snap => {
-        if (snap.exists() && snap.data().forceUnlock === true) trip();
-    }, () => {});
-
-    return () => { unsubSession(); unsubMe(); };
+    const check = async () => {
+        if (done || document.visibilityState === 'hidden') return;
+        const [all, mine] = await Promise.all([
+            eduRest(`${sid}/unlockAll`),
+            eduRest(`${sid}/participants/${me}/forceUnlock`)
+        ]);
+        if (all === true || mine === true) trip();
+    };
+    check();
+    timer = setInterval(check, STUDENT_POLL_MS);
+    return () => { done = true; clearInterval(timer); };
 }
 
 // ----- Manager side (whoever created the password) -----
@@ -548,71 +534,49 @@ export function becomeManager(password) {
     return true;
 }
 
-// Make sure the session document exists and mark THIS device as the manager.
+// Make sure the session exists and mark THIS device as the manager.
 export async function startManaging() {
     if (!eduConfig.sessionId) return;
     eduConfig.managed = true;
     saveEduConfig();
-    const b = await fsBits();
-    if (!b) return;
-    try {
-        const { db, doc, setDoc, serverTimestamp } = b;
-        await setDoc(doc(db, COLL_SESSIONS, eduConfig.sessionId), {
-            subject: eduConfig.subject,
-            grade: eduConfig.grade,
-            createdAt: eduConfig.createdAt || Date.now(),
-            managerName: getClientName(),
-            unlockAll: false,
-            lastUpdated: serverTimestamp()
-        }, { merge: true });
-    } catch (e) {
-        console.warn('⚠️ [EDU] startManaging failed', e);
-    }
+    await eduRest(eduConfig.sessionId, { method: 'PATCH', body: {
+        subject: eduConfig.subject,
+        grade: eduConfig.grade,
+        createdAt: eduConfig.createdAt || Date.now(),
+        managerName: getClientName(),
+        unlockAll: false,
+        lastUpdated: NOW
+    } });
 }
 
 // Live list of participants for the dashboard. cb receives an array of
-// { id, name, locked, lastSeen }. Returns an unsubscribe fn.
+// { id, name, locked, lastSeen }. Returns a stop fn.
 export async function listenParticipants(cb) {
     if (!eduConfig.sessionId) return () => {};
-    const b = await fsBits();
-    if (!b) return () => {};
-    const { db, collection, onSnapshot } = b;
-    const ref = collection(db, COLL_SESSIONS, eduConfig.sessionId, PARTICIPANTS);
-    return onSnapshot(ref, snap => {
-        const list = [];
-        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-        cb(list);
-    }, () => cb([]));
+    const sid = eduConfig.sessionId;
+    let stopped = false, last = '';
+    const load = async () => {
+        if (stopped || document.visibilityState === 'hidden') return;
+        const data = await eduRest(`${sid}/participants`);
+        const list = Object.entries(data || {}).map(([id, v]) => ({ id, ...v }));
+        const sig = JSON.stringify(list);
+        if (sig !== last) { last = sig; cb(list); }
+    };
+    load();
+    const timer = setInterval(load, MANAGER_POLL_MS);
+    return () => { stopped = true; clearInterval(timer); };
 }
 
 // Open the session for EVERYONE.
 export async function unlockAllParticipants() {
     if (!eduConfig.sessionId) return false;
-    const b = await fsBits();
-    if (!b) return false;
-    try {
-        const { db, doc, setDoc, serverTimestamp } = b;
-        await setDoc(doc(db, COLL_SESSIONS, eduConfig.sessionId),
-            { unlockAll: true, lastUpdated: serverTimestamp() }, { merge: true });
-        return true;
-    } catch (e) {
-        console.warn('⚠️ [EDU] unlockAll failed', e);
-        return false;
-    }
+    return (await eduRest(eduConfig.sessionId, { method: 'PATCH', body: { unlockAll: true, lastUpdated: NOW } })) !== null;
 }
 
 // Open the session for a single participant.
 export async function unlockOneParticipant(clientId) {
     if (!eduConfig.sessionId || !clientId) return false;
-    const b = await fsBits();
-    if (!b) return false;
-    try {
-        const { db, doc, setDoc, serverTimestamp } = b;
-        await setDoc(doc(db, COLL_SESSIONS, eduConfig.sessionId, PARTICIPANTS, clientId),
-            { forceUnlock: true, lastUpdated: serverTimestamp() }, { merge: true });
-        return true;
-    } catch (e) {
-        console.warn('⚠️ [EDU] unlockOne failed', e);
-        return false;
-    }
+    return (await eduRest(`${eduConfig.sessionId}/participants/${clientId}`, {
+        method: 'PATCH', body: { forceUnlock: true, lastUpdated: NOW }
+    })) !== null;
 }

@@ -1,36 +1,22 @@
-// ===== GAME ANALYTICS & FULL EVENT LOGGING =====
-// Saves massive data per game + complete log of all events
-// Firebase structure:
-//   gameSessions/{sessionId}          – game summary
-//   gameSessions/{sessionId}/logs     – all chronological events
+// ===== GAME ANALYTICS =====
+// Counts what happens in a game and saves ONE summary per game to the cloud
+// (analytics/{uid}/{sessionId}, see cloud-sync.js).
+// The old version also uploaded every single event (each shot!) as its own Firestore
+// document, ~2,300 writes per game, which used up the daily free quota after a few games.
+// The event log now stays in memory only (the counters below are built from the same calls).
 
-import {
-    getFirestore,
-    doc,
-    setDoc,
-    addDoc,
-    collection,
-    serverTimestamp,
-    writeBatch
-} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
-// ===== INIT =====
-let db, auth;
-
-function ensureDb() {
-    if (db) return true;
-    try {
-        const app = getApp();
-        db = getFirestore(app);
-        auth = getAuth(app);
-        return true;
-    } catch (e) {
-        console.error('❌ [ANALYTICS] Firebase not available:', e);
-        return false;
-    }
+let auth;
+function ensureAuth() {
+    if (auth) return true;
+    try { auth = getAuth(getApp()); return true; }
+    catch (e) { console.error('❌ [ANALYTICS] Firebase not available:', e); return false; }
 }
+
+// Kept small: only the newest events are held, they are not uploaded.
+const MAX_LOG_EVENTS = 2000;
 
 // ===== SESSION STATE =====
 // All these variables are reset in startAnalyticsSession()
@@ -73,6 +59,7 @@ function logEvent(type, data = {}) {
     if (!sessionId) return;
     const t = sessionStartTime ? Date.now() - sessionStartTime : 0;
     eventLog.push({ t, type, ...data });
+    if (eventLog.length > MAX_LOG_EVENTS) eventLog.shift();
 }
 
 // ===== PUBLIC API =====
@@ -312,7 +299,7 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         console.warn('⚠️ [ANALYTICS] No active session to save');
         return false;
     }
-    if (!ensureDb()) return false;
+    if (!ensureAuth()) return false;
 
     const userId = auth?.currentUser?.uid || 'anonymous';
     const now = Date.now();
@@ -407,48 +394,14 @@ export async function saveAnalyticsToCloud(finalState, settings = {}) {
         settings,
         device: deviceInfo,
 
-        // Firebase
-        savedAt: serverTimestamp(),
         logCount: eventLog.length
     };
 
     try {
-        // 1. Save the game summary
-        const sessionRef = doc(db, 'gameSessions', sessionId);
-        await setDoc(sessionRef, sessionSummary);
-        console.log(`✅ [ANALYTICS] Session summary saved: ${sessionId}`);
-
-        // 2. Save full log in batches (Firestore limits 500 operations per batch)
-        const logsRef = collection(db, 'gameSessions', sessionId, 'logs');
-        const BATCH_SIZE = 400;
-        for (let i = 0; i < eventLog.length; i += BATCH_SIZE) {
-            const batch = writeBatch(db);
-            const chunk = eventLog.slice(i, i + BATCH_SIZE);
-            chunk.forEach((event, idx) => {
-                const logDocRef = doc(logsRef, `log_${String(i + idx).padStart(6, '0')}`);
-                batch.set(logDocRef, event);
-            });
-            await batch.commit();
-        }
-        console.log(`✅ [ANALYTICS] ${eventLog.length} log events saved`);
-
-        // 3. Update fast index by user (for future queries)
-        if (userId !== 'anonymous') {
-            const userAnalyticsRef = doc(db, 'userAnalytics', userId, 'sessions', sessionId);
-            await setDoc(userAnalyticsRef, {
-                sessionId,
-                finalScore: finalState.score,
-                finalLevel: finalState.level,
-                skin: skinKey,
-                gameDurationMs,
-                accuracy,
-                totalEnemiesKilled,
-                deathCause: deathCause || 'unknown',
-                savedAt: serverTimestamp()
-            });
-        }
-
-        console.log(`📊 [ANALYTICS] Full save complete for session: ${sessionId}`);
+        // One small write, queued on this device until the server takes it.
+        const { saveAnalyticsSummary } = await import('./cloud-sync.js');
+        saveAnalyticsSummary(sessionId, sessionSummary);
+        console.log(`📊 [ANALYTICS] Summary queued for session: ${sessionId}`);
         sessionId = null; // Clear so it doesn't save again
         return true;
     } catch (err) {

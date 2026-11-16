@@ -4,7 +4,7 @@ import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
 import { initAuth, currentUser, isAuthenticated } from './auth.js';
-import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './firestore-sync.js';
+import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './cloud-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
 import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
@@ -891,7 +891,7 @@ function _renderSendCoinsUI(container, coins) {
     wrap.appendChild(emailLabel);
 
     const emailInput = document.createElement('input');
-    emailInput.type = 'email';
+    emailInput.type = 'text';
     emailInput.placeholder = t('sendEmailPlaceholder');
     emailInput.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #444;background:#1a1a2e;color:#fff;font-size:0.9rem;width:100%;box-sizing:border-box;';
     wrap.appendChild(emailInput);
@@ -945,7 +945,7 @@ function _renderSendCoinsUI(container, coins) {
         statusEl.style.color = '#aaa';
         statusEl.textContent = '⏳';
 
-        if (!toEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+        if (!toEmail || (toEmail.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail))) {
             statusEl.style.color = '#ff6b6b'; statusEl.textContent = t('sendErrEmail'); return;
         }
         if (!amount || amount <= 0) {
@@ -972,6 +972,7 @@ function _renderSendCoinsUI(container, coins) {
                 not_logged_in: 'sendNotLoggedIn',
                 not_connected: 'sendErrNotConnected',
                 server_error: 'sendErrServer',
+                no_user: 'sendErrNoUser',
             };
             statusEl.textContent = t(errMap[result.error] || 'sendErrServer');
         }
@@ -1195,9 +1196,9 @@ function _renderLbContent() {
     const _lbReplayByStart = new Map(); // startTime → index in array
     const _lbReplayByScore = new Map(); // score → index (first match wins)
     try {
-        const hist = JSON.parse(localStorage.getItem('gameHistory_v2') || '[]');
+        const hist = loadGameHistory();
         for (const h of hist) {
-            if (!h.replayLog) continue;
+            if (!hasReplay(h)) continue;
             const idx = _lbHistReplays.push(h) - 1;
             const st = h.settings?.startTime ?? h.timestamp;
             if (st) _lbReplayByStart.set(st, idx);
@@ -1417,7 +1418,7 @@ async function displaySpeedrunLeaderboard(goalKey) {
     content.innerHTML = `<div class="lb-empty">${t('loading')}</div>`;
 
     try {
-        const { getSpeedrunLeaderboardFromCloud } = await import('./firestore-sync.js');
+        const { getSpeedrunLeaderboardFromCloud } = await import('./cloud-sync.js');
         const cloud = await getSpeedrunLeaderboardFromCloud(goalKey);
         if (loadToken !== _leaderboardLoadToken) return;
         _rawSpeedrunEntries = (cloud && cloud.length > 0) ? cloud : getSpeedrunLeaderboard(goalKey);
@@ -1467,7 +1468,7 @@ async function displayLeaderboard(categoryOrSkinSel) {
         : (categoryOrSkinSel && categoryOrSkinSel !== 'overall' ? [categoryOrSkinSel] : []);
 
     try {
-        const { getLeaderboardFromCloud } = await import('./firestore-sync.js');
+        const { getLeaderboardFromCloud } = await import('./cloud-sync.js');
         if (skinSel.length === 0) {
             // Overall
             const cloud = await getLeaderboardFromCloud('overall');
@@ -1514,6 +1515,7 @@ function showScoreSaveStatus(result) {
     let kind = 'info', text = '';
     if (!result) { el.style.display = 'none'; return; }
     if (result.pending) { kind = 'pending'; text = t('saveStSaving'); }
+    else if (result.ok && result.world) { kind = 'record'; text = `🌍 ${t('wrTitle')}`; showWorldRecord(result.record); }
     else if (result.ok && result.overall === 'saved') { kind = 'record'; text = t('saveStRecord'); }
     else if (result.ok && result.skin === 'saved') { kind = 'record'; text = t('saveStSkinRecord'); }
     else if (result.ok) { kind = 'ok'; text = t('saveStKept'); }
@@ -1530,6 +1532,50 @@ window.__onPendingSavesFlushed = (count) => {
     if (el && el.classList.contains('save-status-fail')) showScoreSaveStatus({ ok: true });
     window.__refreshLeaderboard?.();
 };
+
+// ===== WORLD RECORD ANIMATION =====
+// Plays when a saved run is first place of a whole table: the overall table, or the
+// table of the ship it was played with. Click / tap or any key closes it.
+function showWorldRecord(rec) {
+    if (!rec || document.getElementById('wr-overlay')) return;
+    const skin = SKINS[rec.skin];
+    const scope = rec.scope === 'overall' ? t('wrOverall') : tf('wrSkin', { ship: skin?.name || rec.skin });
+    const beaten = rec.beaten?.userName ? tf('wrBeat', { name: rec.beaten.userName }) : '';
+    const el = document.createElement('div');
+    el.id = 'wr-overlay';
+    el.className = `wr-overlay wr-${rec.scope}`;
+    el.style.setProperty('--wr-color', skin?.color || '#ffd700');
+    const confetti = Array.from({ length: 46 }, (_, i) => {
+        const x = Math.random() * 100, d = 2.2 + Math.random() * 2.4, delay = Math.random() * 1.2;
+        const hue = [45, 50, 190, 320, 120][i % 5];
+        return `<i style="left:${x}%;animation-duration:${d}s;animation-delay:${delay}s;background:hsl(${hue} 95% 60%);transform:rotate(${Math.random() * 360}deg)"></i>`;
+    }).join('');
+    el.innerHTML = `
+        <div class="wr-rays"></div>
+        <div class="wr-confetti">${confetti}</div>
+        <div class="wr-card">
+            ${skin ? `<div class="wr-ship">${skin.svg}</div>` : '<div class="wr-globe">🌍</div>'}
+            <div class="wr-title" data-text="${t('wrTitle')}">${t('wrTitle')}</div>
+            <div class="wr-scope">${scope}</div>
+            <div class="wr-stats">${tf('wrStats', { level: rec.level, score: Number(rec.score || 0).toLocaleString() })}</div>
+            ${beaten ? `<div class="wr-beaten">${beaten}</div>` : ''}
+        </div>`;
+    const close = () => {
+        el.classList.add('wr-out');
+        setTimeout(() => el.remove(), 450);
+        window.removeEventListener('keydown', close);
+    };
+    el.addEventListener('click', close);
+    setTimeout(() => window.addEventListener('keydown', close), 600);
+    setTimeout(close, 7000);
+    document.body.appendChild(el);
+    try { if (typeof playSound === 'function') playSound('levelup'); } catch (_) {}
+}
+window.__showWorldRecord = showWorldRecord;
+// A record that was waiting on this device reached the server later
+window.__onWorldRecord = (result) => showWorldRecord(result?.record);
+// Another player owns this account's name: ask for a new one
+window.__onNameTaken = () => showToast(t('nameTakenSignIn'), 'warn');
 
 // A cloud write was refused (quota) or failed: the data is safe on this device and queued.
 window.__onCloudSaveDelayed = (reason) => {
@@ -3072,7 +3118,7 @@ function clearDevConsole() {
 
 // ===== PERSONAL HISTORY & PERSONAL LEADERBOARD =====
 
-import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration } from './game-history.js';
+import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration, hasReplay } from './game-history.js';
 import { getAchievementProgress } from './achievements.js';
 
 // ===== REPLAY — records what the game DRAWS, so the viewer looks exactly like the game =====
@@ -3093,8 +3139,21 @@ let _rStrs = [];
 let _rStrIdx = new Map();
 let _rDefs = {};
 let _rSkew = 0;                 // time spent paused / in a hidden tab, cut out of the timeline
-const REPLAY_INTERVAL  = 200;   // ms between snapshots
-const REPLAY_MAX_FRAMES = 1800; // 6 min @ 200ms
+const REPLAY_INTERVAL  = 200;   // ms between snapshots at the start of a game
+const REPLAY_MAX_FRAMES = 1800; // when full, every other snapshot is dropped and the interval doubles,
+                                // so a long game keeps its whole timeline (just with fewer frames)
+let _rInterval = REPLAY_INTERVAL;
+
+// Halve the number of snapshot frames (event frames are kept) and double the interval.
+function _replayThin() {
+    let keep = true;
+    _replayFrames = _replayFrames.filter(f => {
+        if (f.ev) return true;
+        keep = !keep;
+        return !keep;
+    });
+    _rInterval *= 2;
+}
 
 // Stamp a stable id on a live game object (object references persist across frames).
 function _rid(obj) { return obj._rid || (obj._rid = _ridCounter++); }
@@ -3146,12 +3205,12 @@ function _rSnap(objs, ent, H, hpPct) {
 
 function replayRecordPos(now) {
     if (!state.active || state.isDebugGame) return;
-    if (now - _replayLastFrameTime < REPLAY_INTERVAL) return;
+    if (now - _replayLastFrameTime < _rInterval) return;
     // A long gap between snapshots means the game was paused (or the tab hidden): cut it out.
     const gap = now - _replayLastFrameTime;
-    if (_replayLastFrameTime && gap > 1000) _rSkew += gap - REPLAY_INTERVAL;
+    if (_replayLastFrameTime && gap > Math.max(1000, _rInterval * 3)) _rSkew += gap - _rInterval;
     _replayLastFrameTime = now;
-    if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
+    if (_replayFrames.length >= REPLAY_MAX_FRAMES) _replayThin();
 
     const W = DOM.wrapper.clientWidth  || 500;
     const H = DOM.wrapper.clientHeight || 700;
@@ -3187,7 +3246,7 @@ function replayRecordPos(now) {
 // Record a discrete event (levelup marker, ability activation) for the viewer to flash.
 function replayRecordEvent(type, extra) {
     if (!state.active || state.isDebugGame) return;
-    if (_replayFrames.length >= REPLAY_MAX_FRAMES) return;
+    if (_replayFrames.length >= REPLAY_MAX_FRAMES) _replayThin();
     _replayFrames.push({ t: Date.now() - (state.startTime || Date.now()) - _rSkew, ev: type, ...extra });
 }
 window.__replayRecordEvent = replayRecordEvent;
@@ -3195,6 +3254,7 @@ window.__replayRecordEvent = replayRecordEvent;
 function replayReset() {
     _replayFrames = [];
     _replayLastFrameTime = 0;
+    _rInterval = REPLAY_INTERVAL;
     _ridCounter = 1;
     _rStrs = [];
     _rStrIdx = new Map();
@@ -3749,7 +3809,7 @@ function renderHistoryList() {
         const inputTagHtml = inputTag(entry.settings?.inputMethods);
         const settingsBtn = entry.settings
             ? `<button onclick="showEntrySettings(${i})" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(255,255,255,0.5);min-width:24px;" title="הגדרות">⚙️</button>` : '';
-        const replayBtn = entry.replayLog
+        const replayBtn = hasReplay(entry)
             ? `<button onclick="openReplay(window.__histEntries[${i}])" style="background:none;border:1px solid rgba(0,242,255,0.4);border-radius:4px;padding:2px 5px;font-size:0.7rem;cursor:pointer;color:rgba(0,242,255,0.7);min-width:24px;" title="צפה בReplays">▶</button>` : '';
         return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.07);text-align:right;${isBest ? 'background:rgba(0,242,255,0.07);' : ''}">
             <div style="font-size:1.1rem;min-width:24px">${medal || (i+1)}</div>
@@ -3848,30 +3908,15 @@ function refreshPersonalBest() {
 
     import('./auth.js').then(({ currentUser }) => {
         if (!currentUser) return;
-        import('./firestore-sync.js').then(async ({ db }) => {
-            if (!db) return;
-            const { getFirestore, doc, getDoc, collection, query, where, orderBy, limit, getDocs } =
-                await import('https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js');
-            try {
-                // Fetch best from game_sessions (covers all games including custom settings)
-                const snap = await getDocs(query(
-                    collection(db, 'game_sessions'),
-                    where('userId', '==', currentUser.uid),
-                    orderBy('level', 'desc'),
-                    limit(100)
-                ));
-                let cloudBest = null;
-                snap.forEach(d => {
-                    const e = d.data();
-                    if (!cloudBest ||
-                        (e.level || 0) > (cloudBest.level || 0) ||
-                        ((e.level || 0) === (cloudBest.level || 0) && (e.score || 0) > (cloudBest.score || 0))) {
-                        cloudBest = e;
-                    }
-                });
-                if (cloudBest) _applyPersonalBest(cloudBest);
-            } catch (e) { /* cloud unavailable, local best stays */ }
-        });
+        // One small read per session (kept in memory after that)
+        import('./cloud-sync.js').then(async ({ getUserPersonalBest }) => {
+            const cloudBest = await getUserPersonalBest();
+            const local = getPersonalBest();
+            if (cloudBest && (!local || (cloudBest.level || 0) > (local.level || 0) ||
+                ((cloudBest.level || 0) === (local.level || 0) && (cloudBest.score || 0) > (local.score || 0)))) {
+                _applyPersonalBest(cloudBest);
+            }
+        }).catch(() => { /* cloud unavailable, local best stays */ });
     });
 }
 

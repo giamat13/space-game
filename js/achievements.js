@@ -4,7 +4,7 @@
 
 import { currentLang } from './i18n.js';
 import { sparkleAt } from './fx.js';
-import { syncAchievements } from './firestore-sync.js';
+import { syncAchievements } from './cloud-sync.js';
 
 const ACHIEVEMENTS_KEY = 'achievements_v1';
 

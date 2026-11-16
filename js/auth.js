@@ -131,12 +131,22 @@ export async function signUpWithEmail(email, password, displayName) {
             }
         }
 
+        // Names are unique: check before the account is created
+        const cloud = await import('./cloud-sync.js');
+        if (displayName) {
+            let status;
+            try { status = await cloud.checkName(displayName); } catch { status = 'error'; }
+            if (status === 'taken') { showMessage(t('nameTaken'), 'error'); return null; }
+            if (status === 'error') { showMessage(t('nameCheckErr'), 'error'); return null; }
+        }
+
         // Create new account
         const result = await createUserWithEmailAndPassword(auth, email, password);
         console.log('✅ [SIGNUP] Successfully created account:', email);
 
         // Update display name
         if (displayName) {
+            await cloud.claimName(displayName);
             await updateProfile(result.user, { displayName });
             console.log('✅ [SIGNUP] Updated display name to:', displayName);
         }
@@ -245,7 +255,7 @@ export async function deleteAccountAndData() {
     }
 
     try {
-        const { deleteCloudDataForUser } = await import('./firestore-sync.js');
+        const { deleteCloudDataForUser } = await import('./cloud-sync.js');
         const { failed } = await deleteCloudDataForUser(user.uid);
         await deleteUser(user);
         releaseLocalProgress();
@@ -272,9 +282,14 @@ export async function updateDisplayName(newName) {
     }
 
     try {
+        // Names are unique: the new one must be free (or already this account's).
+        const cloud = await import('./cloud-sync.js');
+        const claim = await cloud.claimName(newName, auth.currentUser.displayName);
+        if (claim === 'taken') { showMessage(t('nameTaken'), 'error'); return false; }
+        if (claim === 'error') { showMessage(t('nameCheckErr'), 'error'); return false; }
         await updateProfile(auth.currentUser, { displayName: newName });
         currentUser.displayName = newName;
-        import('./firestore-sync.js').then(m => m.renameInLeaderboards(newName)).catch(() => {});
+        cloud.renameInLeaderboards(newName).catch(() => {});
         console.log('✅ [PROFILE] Display name updated successfully');
         showMessage(t('authNameUpdated'), 'success');
         return true;

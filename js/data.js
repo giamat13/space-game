@@ -38,7 +38,7 @@ import {
     syncCustomSpeedrunGoals,
     sendCoinsToFriend,
     claimPendingTransfers
-} from './firestore-sync.js';
+} from './cloud-sync.js';
 
 export { sendCoinsToFriend, claimPendingTransfers };
 

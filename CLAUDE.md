@@ -31,7 +31,7 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - **[js/systems.js](js/systems.js)** — Per-action game mechanics: player movement, shooting, damage/heal, ammo, enemy AI shooting, particles/explosions, ingredient spawning, enemy spawning (`handleSpawning`), and the special abilities (`useVortexLaser`, `usePhoenixFeathers`, `useJokerChaos`, `useDragonFire`).
 - **[js/updates.js](js/updates.js)** — Per-frame entity updates and collision passes: `updateBullets`, `updateEnemyBullets`, `updateBurgers`, `updateIngredients`, `updateAsteroids`, `updateEnemies`, `updateLightnings`.
 - **[js/auth.js](js/auth.js)** — Firebase Auth (Google popup + email/password + account linking). Holds the `firebaseConfig` and initializes the Firebase app. Exports `currentUser` / `isAuthenticated`. **No Firebase Storage is used** — profile photos come straight from Google `photoURL` to stay on the free tier.
-- **[js/firestore-sync.js](js/firestore-sync.js)** — All Firestore reads/writes: leaderboards, cloud save/sync of skins, coins, upgrades, achievements, settings, speedrun results, peer-to-peer coin transfers, and a one-time migration of local `gameHistory` to the cloud. Reuses the app/auth from `js/auth.js` via `getApp()`/`getAuth()`.
+- **[js/cloud-sync.js](js/cloud-sync.js)** — All cloud reads/writes (Realtime Database over REST): leaderboards, world records, cloud save/sync of skins, coins, upgrades, achievements, settings, speedrun results, unique usernames, coin transfers by username/email, analytics summaries, account deletion, and the offline outbox. Reuses the auth from `js/auth.js` via `getAuth()`.
 - **[js/education.js](js/education.js)** — "Education mode": gates gameplay events (e.g. death/level-up) behind quiz questions from [data/questions.json](data/questions.json). Supports a remote teacher→student lock/unlock session model with a 45-min auto-unlock (`LOCK_DURATION_MS`). See the `edu-session-model` memory for design intent.
 - **[js/i18n.js](js/i18n.js)** — Translation tables and `t()`, `applyLang()`, `toggleLang()`. 6 languages (he/en/ar/ru/fr/es), with RTL/LTR direction switching. Fires a `langchange` event that `js/main.js` listens to for re-rendering.
 - **[js/bosses.js](js/bosses.js)** — Boss engine: schedule (`bossLevel`: level 10, then every 25; milestone bosses at 100/250/500/750/1000), the attack/telegraph toolkit `K`, hit detection, phases, HUD, death and rewards. Boss time is its own clock that only advances on game ticks, so pausing pauses telegraphs.
@@ -40,8 +40,8 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - **[js/enemy-types.js](js/enemy-types.js)** — 14 enemy kinds that join the waves from level 30 to 850 (wasp, splitter, warden, sniper, diver, medic, layer, phase, carrier, orbiter, leech, juggernaut, swarm, wraith), each with its own movement/shooting/defence hooks, plus ELITE variants from level 500. The classic red/orange/green/blue enemies are unchanged. `spawn('<kind>')` in the console spawns one.
 - **[js/icons.js](js/icons.js)** — SVG icon set. Emoji characters in UI text are swapped for SVGs at render time by a MutationObserver (so source strings and i18n may keep using emoji as keys). To add an icon, draw it in `G` and list its emoji in `MAP`; `console.log` emoji and `title=""` attributes are not replaced.
 - **[css/theme.css](css/theme.css)** — The "Neon Forge" theme, loaded last; it re-skins everything in `css/styles.css`.
-- **[js/analytics.js](js/analytics.js)** — Fine-grained gameplay telemetry (shots, hits, damage, kills, abilities, deaths) batched into a per-session record written to the `game_sessions` Firestore collection.
-- **[js/achievements.js](js/achievements.js)** — Achievement definitions, unlock checks, and toast UI; syncs unlocked set via `js/firestore-sync.js`.
+- **[js/analytics.js](js/analytics.js)** — Fine-grained gameplay telemetry (shots, hits, damage, kills, abilities, deaths) kept in memory (capped at 2000 events); only one summary per game is written, to `analytics/{uid}/{sid}`.
+- **[js/achievements.js](js/achievements.js)** — Achievement definitions, unlock checks, and toast UI; syncs unlocked set via `js/cloud-sync.js`.
 - **[js/game-history.js](js/game-history.js)** — Local (localStorage) per-game history, personal bests, and aggregate stats.
 - **[js/updates.js / js/systems.js / js/data.js]** form the gameplay core; the rest are platform/meta features.
 
@@ -54,7 +54,8 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - **Fixed timestep:** `update()` runs the logic at 60 steps/second whatever the display refresh rate.
 - **Difficulty:** `difficultyForLevel` (speed/spawn, levels off after level 30) and `dangerForLevel` / `enemyHpScale` (damage and enemy HP keep growing). Level 1000 is meant to be possible only in theory with the current ships.
 - **Ship control modifiers:** bosses bend the controls through `state.ctrl` (offset / walls / lag) in `js/systems.js`; all movement goes through `movePlayer`, `stepPlayer`, `pushPlayer`.
-- **Leaderboards:** one document per player per table, written by `upsertBestEntry` in `js/firestore-sync.js`; records are ordered by level, then score (`isBetterRun`). Failed saves are queued in localStorage and retried.
+- **Leaderboards:** one entry per player per table (`lb/{table}/{uid}`), written by `saveScoreToCloud` in `js/cloud-sync.js`; records are ordered by level, then score (`isBetterRun`). Failed saves stay in the outbox and are retried.
+- **Replays:** recorded every 200 ms; after 1800 frames every other frame is dropped and the interval doubles, so long games keep their whole timeline.
 - **Testing bosses:** `startLvl(n)` in the console starts the next game at level n as a debug game (never saved).
 
 ### Cross-module conventions
@@ -64,11 +65,15 @@ js/auth.js   →  js/main.js  (imports the other modules)  →  firebase-ls-prox
 - **Performance:** the loop caches `getBoundingClientRect()` once per frame (`state.playerRect`, bullet rects) so collision passes don't each force a layout reflow. Preserve this ordering when adding entity updates.
 - **i18n:** user-facing strings use `data-i18n="key"` attributes in HTML and `t('key')` in JS. Add new keys to all language tables in `js/i18n.js`.
 
-### Firebase / Firestore
+### Firebase (Realtime Database)
 
-- Config lives in [js/auth.js](js/auth.js) (project `space-game-ii`). Security rules are in [firestore.ruls.json](firestore.ruls.json) (note: not auto-deployed from here).
-- Key collections: `users/{uid}`, `leaderboard`, `scores/{skin}/entries`, `userStats/{uid}`, `game_sessions`, `moneyLeaderboard`, `speedrun/{goal}/entries`, `coinTransfers`, `eduSessions`, `gameSessions`, `userAnalytics/{uid}/sessions`.
-- The external `firebase-ls-proxy.js` (loaded last in `index.html`) provides a localStorage-backed cloud-sync proxy layer; it is hosted outside this repo.
+- Config lives in [js/auth.js](js/auth.js) (project `space-game-ii`). Since 2026-11-16 all game data lives in the **Realtime Database** (`https://space-game-ii-default-rtdb.europe-west1.firebasedatabase.app`), reached over **REST** (`fetch` + the user's ID token, no SDK sockets, so the 100-connection limit is never hit). Rules: [database.rules.json](database.rules.json) (registered in `firebase.json`).
+- Firestore was emptied of writes because the free quota ran out (analytics wrote one document per shot). It is a **read-only archive**: [firestore.ruls.json](firestore.ruls.json) only allows reads (a one-time profile merge, `users/{uid}.fsChecked`) and owner deletes (account deletion), via [js/legacy-firestore.js](js/legacy-firestore.js).
+- RTDB tree: `users/{uid}` (profile, skins, coins, upgrades, `hpLevels`, achievements, settings, `name`), `lb/{table}/{uid}` (best run per player; tables `overall` + one per skin), `runs/{table}/{runId}` (every run, for filtered views), `top/{table}` (world record, rules allow only better runs), `money/{uid}`, `speedrun/{goal}/{uid}`, `speedrunRuns/{goal}/{runId}`, `names/{nameKey}` → uid (unique usernames, first claim wins), `emails/{email with , for .}` → uid, `transfers/{uid}` + `transfersByEmail/{email}` (coin transfers by username or email), `analytics/{uid}/{sid}` (one summary per game, no per-event logs), `edu/{sid}` (education sessions, polled).
+- **Writes are queued:** every write goes into the `cloudOutbox_v2` localStorage outbox, merged into one multi-path PATCH, and retried on `online`, every 2 minutes, and when the tab is shown. Nothing is lost when offline or refused; the outbox survives sign-out (items carry the uid).
+- Leaderboard reads are cached 60 s. A world record (`saveScoreToCloud` → `world: true`) shows the `showWorldRecord` overlay in `js/main.js`.
+- The ship formerly called `dragon` is `baby_dragon` everywhere (cloud migrated; `renameLocalDragon` in `js/cloud-sync.js` fixes old local copies once). `dragon` is reserved for a future ship.
+- The external `firebase-ls-proxy.js` (loaded last in `index.html`, hosted outside this repo) replaces `localStorage` with a cache that is copied to ANOTHER Firebase project (one Firestore document per key, max 1 MB) and swallows storage errors. Keep every localStorage value well under 1 MB: replays are stored one per key (`gameReplay_v1_<timestamp>`, ≤ 900 KB, newest within 3.5 MB total) by [js/game-history.js](js/game-history.js).
 
 ## GitHub wiki
 

@@ -1,0 +1,118 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "lb": {
+      ".read": true,
+      "$table": {
+        ".indexOn": ["level"],
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "!newData.exists() || newData.child('userId').val() === $uid"
+        }
+      }
+    },
+
+    "runs": {
+      ".read": true,
+      "$table": {
+        ".indexOn": ["level", "userId"],
+        "$runId": {
+          ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid) && (!newData.exists() || newData.child('userId').val() === auth.uid)"
+        }
+      }
+    },
+
+    "top": {
+      ".read": true,
+      "$table": {
+        ".write": "auth != null && (!data.exists() || (!newData.exists() && data.child('uid').val() === auth.uid) || (newData.child('uid').val() === auth.uid && (newData.child('level').val() > data.child('level').val() || (newData.child('level').val() === data.child('level').val() && newData.child('score').val() > data.child('score').val()))))",
+        ".validate": "!newData.exists() || (newData.child('level').isNumber() && newData.child('score').isNumber())"
+      }
+    },
+
+    "money": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "speedrun": {
+      ".read": true,
+      "$goal": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "!newData.exists() || newData.child('userId').val() === $uid"
+        }
+      }
+    },
+
+    "speedrunRuns": {
+      ".read": true,
+      "$goal": {
+        ".indexOn": ["time", "userId"],
+        "$runId": {
+          ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid) && (!newData.exists() || newData.child('userId').val() === auth.uid)"
+        }
+      }
+    },
+
+    "names": {
+      ".read": true,
+      "$name": {
+        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || (data.val() === auth.uid && (!newData.exists() || newData.val() === auth.uid)))"
+      }
+    },
+
+    "emails": {
+      "$email": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $email && (!newData.exists() || newData.val() === auth.uid)"
+      }
+    },
+
+    "transfers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && ((!data.exists() && newData.child('fromUid').val() === auth.uid && newData.child('amount').isNumber() && newData.child('amount').val() > 0) || (auth.uid === $uid && !newData.exists()))"
+        }
+      }
+    },
+
+    "transfersByEmail": {
+      "$email": {
+        ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $email",
+        "$id": {
+          ".write": "auth != null && ((!data.exists() && newData.child('fromUid').val() === auth.uid && newData.child('amount').isNumber() && newData.child('amount').val() > 0) || (!newData.exists() && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $email))"
+        }
+      }
+    },
+
+    "analytics": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !newData.exists()",
+        "$sid": {
+          ".write": "!data.exists() && ($uid === 'anonymous' || (auth != null && auth.uid === $uid))"
+        }
+      }
+    },
+
+    "edu": {
+      "$sid": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

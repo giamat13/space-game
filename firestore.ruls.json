@@ -1,4 +1,6 @@
 rules_version = '2';
+// ARCHIVE: all game data moved to the Realtime Database (database.rules.json) on 2026-11-16.
+// Firestore only allows reads (one-time profile merge) and owner deletes (account deletion).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -27,20 +29,20 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     match /leaderboard/{entryId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
-      allow update: if ownsEntry(entryId) && writesOwnEntry();
+      allow create: if false;
+      allow update: if false;
       allow delete: if ownsEntry(entryId);
     }
 
     match /scores/{skin}/entries/{entryId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
-      allow update: if ownsEntry(entryId) && writesOwnEntry();
+      allow create: if false;
+      allow update: if false;
       allow delete: if ownsEntry(entryId);
     }
 
@@ -49,49 +51,49 @@ service cloud.firestore {
     // Runs are never edited, but their owner may delete them (account deletion).
     match /runs/{skin}/entries/{runId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
+      allow create: if false;
       allow update: if false;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /speedrunRuns/{goalKey}/entries/{runId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
+      allow create: if false;
       allow update: if false;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /userStats/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     match /moneyLeaderboard/{userId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
-      allow update: if ownsEntry(userId) && writesOwnEntry();
+      allow create: if false;
+      allow update: if false;
       allow delete: if ownsEntry(userId);
     }
 
     // Education sessions: shared classroom state. Anonymous students use these
     // documents, so keep the existing access behavior for deployed clients.
     match /eduSessions/{sessionId} {
-      allow read, write: if true;
+      allow read: if true;
       match /participants/{clientId} {
-        allow read, write: if true;
+        allow read: if true;
       }
     }
 
     match /speedrun/{goalKey}/entries/{userId} {
       allow read: if true;
-      allow create: if writesOwnEntry();
-      allow update: if ownsEntry(userId) && writesOwnEntry();
+      allow create: if false;
+      allow update: if false;
       allow delete: if ownsEntry(userId);
     }
 
     match /game_sessions/{docId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if false;
       allow update: if false;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
@@ -100,27 +102,19 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
         (resource.data.fromUid == request.auth.uid ||
          resource.data.toEmail == request.auth.token.email);
-      allow create: if isSignedIn() &&
-        request.resource.data.fromUid == request.auth.uid &&
-        request.resource.data.claimed == false &&
-        request.resource.data.amount is number &&
-        request.resource.data.amount > 0;
-      allow update: if isSignedIn() &&
-        resource.data.toEmail == request.auth.token.email &&
-        resource.data.claimed == false &&
-        request.resource.data.claimed == true &&
-        request.resource.data.amount == resource.data.amount;
+      allow create: if false;
+      allow update: if false;
       allow delete: if false;
     }
 
     match /gameSessions/{sessionId} {
-      allow create: if true;
+      allow create: if false;
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'anonymous');
       allow update: if false;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
 
       match /logs/{logId} {
-        allow create: if true;
+        allow create: if false;
         allow read: if isSignedIn() && get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.userId == request.auth.uid;
         allow update: if false;
         allow delete: if isSignedIn() && get(/databases/$(database)/documents/gameSessions/$(sessionId)).data.userId == request.auth.uid;
@@ -128,7 +122,7 @@ service cloud.firestore {
     }
 
     match /userAnalytics/{userId}/sessions/{sessionId} {
-      allow read, write: if isOwner(userId);
+      allow read, delete: if isOwner(userId);
     }
 
     match /{document=**} {

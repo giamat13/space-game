@@ -13,8 +13,10 @@ const PROGRESS_COOKIES = [
 const PROGRESS_COOKIE_PREFIXES = ['leaderboard_'];
 
 // localStorage keys that hold per-player progress.
-const PROGRESS_KEYS = ['achievements_v1', 'gameHistory', 'gameHistory_v2', 'bossTrophies_v1', 'pendingCloudSaves_v1'];
-const PROGRESS_KEY_PREFIXES = ['sr_lb_'];
+// The cloud outbox (cloudOutbox_v2) is NOT listed: its items carry the account id and are
+// uploaded the next time that account signs in, so signing out never loses a waiting save.
+const PROGRESS_KEYS = ['achievements_v1', 'gameHistory', 'gameHistory_v2', 'bossTrophies_v1'];
+const PROGRESS_KEY_PREFIXES = ['sr_lb_', 'gameReplay_v1_'];
 
 function cookieNames() {
     return document.cookie.split(';').map(c => c.split('=')[0].trim()).filter(Boolean);

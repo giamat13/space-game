@@ -137,3 +137,40 @@ button:active { transform: translateY(1px) scale(0.97); }
     background: linear-gradient(0deg, #fff, rgba(47, 230, 255, 0.85) 25%, rgba(200, 92, 255, 0.35) 75%, transparent); filter: drop-shadow(0 0 18px #2fe6ff); animation: coneOut 0.38s ease-out forwards; transform-origin: 50% 100%; }
 @keyframes coneOut { from { opacity: 1; scale: 1 0.6; } to { opacity: 0; scale: 1.08 1; } }
 .joker-servant { position: absolute; left: 0; bottom: 96px; width: 36px; height: 36px; z-index: 55; pointer-events: none; filter: drop-shadow(0 0 8px #ff3b2e); animation: enemyIn 0.35s ease-out; }
+
+/* ===== World record animation (main.js showWorldRecord) ===== */
+.wr-overlay { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 45%, rgba(40, 28, 0, 0.82), rgba(0, 0, 0, 0.92)); overflow: hidden; cursor: pointer;
+  animation: wr-fade-in 0.35s ease-out; }
+.wr-overlay.wr-out { animation: wr-fade-out 0.45s ease-in forwards; }
+.wr-rays { position: absolute; width: 220vmax; height: 220vmax; left: 50%; top: 45%; margin: -110vmax 0 0 -110vmax;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 215, 0, 0.16) 0deg 7deg, transparent 7deg 18deg);
+  animation: wr-spin 14s linear infinite; mask-image: radial-gradient(circle, #000 0, transparent 60%); -webkit-mask-image: radial-gradient(circle, #000 0, transparent 60%); }
+.wr-confetti { position: absolute; inset: 0; pointer-events: none; }
+.wr-confetti i { position: absolute; top: -4vh; width: 9px; height: 15px; border-radius: 2px; opacity: 0.95;
+  animation-name: wr-fall; animation-timing-function: cubic-bezier(.3,.6,.6,1); animation-iteration-count: infinite; }
+.wr-card { position: relative; text-align: center; padding: 22px 28px; max-width: min(92vw, 560px);
+  animation: wr-pop 0.75s cubic-bezier(.2, 1.6, .4, 1) both; }
+.wr-ship, .wr-globe { width: 120px; height: 120px; margin: 0 auto 8px; font-size: 92px; line-height: 120px;
+  filter: drop-shadow(0 0 18px var(--wr-color)); animation: wr-rise 1s cubic-bezier(.2, 1.4, .4, 1) both, wr-bob 2.4s ease-in-out 1s infinite; }
+.wr-ship svg { width: 100%; height: 100%; }
+.wr-title { position: relative; font-size: clamp(2.2rem, 9vw, 4.6rem); font-weight: 900; letter-spacing: 0.04em; line-height: 1.05;
+  background: linear-gradient(100deg, #fff6c2 0%, #ffd700 30%, #ff9d00 50%, #ffd700 70%, #fff6c2 100%); background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: wr-shine 2.2s linear infinite;
+  filter: drop-shadow(0 0 22px rgba(255, 200, 0, 0.65)); }
+.wr-scope { margin-top: 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); font-weight: 700; color: var(--wr-color);
+  text-shadow: 0 0 12px var(--wr-color); animation: wr-up 0.6s 0.45s ease-out both; }
+.wr-stats { margin-top: 6px; font-size: 1.05rem; color: #fff; opacity: 0.9; animation: wr-up 0.6s 0.65s ease-out both; }
+.wr-beaten { margin-top: 10px; font-size: 0.95rem; color: #ffd27a; animation: wr-up 0.6s 0.85s ease-out both; }
+@keyframes wr-fade-in { from { opacity: 0; } }
+@keyframes wr-fade-out { to { opacity: 0; transform: scale(1.06); } }
+@keyframes wr-spin { to { transform: rotate(360deg); } }
+@keyframes wr-pop { from { transform: scale(0.2) rotate(-6deg); opacity: 0; } }
+@keyframes wr-rise { from { transform: translateY(70px) scale(0.4); opacity: 0; } }
+@keyframes wr-bob { 50% { transform: translateY(-8px); } }
+@keyframes wr-shine { to { background-position: -250% 0; } }
+@keyframes wr-up { from { transform: translateY(14px); opacity: 0; } }
+@keyframes wr-fall { to { transform: translateY(112vh) rotate(720deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .wr-rays, .wr-confetti i, .wr-ship, .wr-globe, .wr-title { animation: none !important; }
+}
