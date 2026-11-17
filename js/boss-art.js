@@ -44,6 +44,23 @@ export const ART = {
             `<g transform="translate(4 2)">${fang('b-l')}</g><g transform="translate(150 2)">${fang('b-r')}</g>`;
     }),
 
+    // early boss (level 3) — a firebird; wins you the Phoenix ship
+    phoenix: () => svg('pxb', [200, 180], ['#ffe0b0', '#ff7a2e', '#7a2606', '#ffd24a'], (a) =>
+        mir(200, p('M96 66 L52 26 L8 40 L28 62 L4 84 L32 100 L18 126 L64 116 L96 122 Z', a.H) + shine('M92 64 L54 30 L20 42 L90 72 Z') +
+            shade('M20 118 L96 122 L96 100 L40 108 Z', 0.3) + seam('M34 64 L92 88 M22 98 L90 104') + glow('M14 48 L36 60 M10 82 L30 90', a.e, 2.2)) +
+        p('M84 124 L100 176 L116 124 L106 118 L100 146 L94 118 Z', a.H) + shine('M90 126 L100 160 L100 126 Z', 0.3) +
+        p('M100 20 L128 50 L124 104 L100 140 L76 104 L72 50 Z', a.H) + shine('M100 24 L122 50 L78 50 Z') + shade('M74 98 L126 98 L100 138 Z', 0.3) +
+        p('M100 20 L90 4 L100 12 L110 0 L108 22 Z', a.e) + p('M92 54 L100 78 L108 54 Z', '#ffd24a') +
+        mir(200, eye(a, 'M82 44 L98 52 L84 58 Z')) + `<rect class="b-vent" x="90" y="92" width="20" height="8" rx="3" fill="${a.e}" ${a.F}/>` + lamp(a, 100, 112, 7)),
+
+    // early boss (level 5) — a spinning maelstrom; wins you the Vortex ship
+    vortex: () => svg('vxb', [200, 200], ['#e2ccff', '#9b59f0', '#3a1580', '#d7b3ff'], (a) =>
+        `<ellipse class="b-spin" cx="100" cy="100" rx="94" ry="28" fill="none" stroke="${a.e}" stroke-width="4" opacity=".85" ${a.F}/>` +
+        p('M100 12 L150 32 L184 80 L178 138 L142 178 L100 190 L58 178 L22 138 L16 80 L50 32 Z', a.H) +
+        shine('M100 16 L146 34 L158 60 L42 60 L54 34 Z') + shade('M24 126 L176 126 L142 176 L100 188 L58 176 Z', 0.34) +
+        glow('M100 44 A56 56 0 1 1 52 84', a.e, 3, 'b-spin') + glow('M100 70 A30 30 0 1 1 78 100', a.e, 3, 'b-spin') +
+        mir(200, eye(a, 'M46 70 L84 82 L52 98 Z') + bolt(34, 128, 3)) + p('M72 108 L128 108 L116 150 L84 150 Z', '#0a0d18') + lamp(a, 100, 126, 11)),
+
     cubeking: () => svg('ck', [200, 200], ['#d9a4ff', '#8a2be2', '#2e0a66', '#ffd21a'], (a) =>
         mir(200, p('M26 72 L8 24 L54 46 Z', a.H) + p('M36 150 L12 190 L58 172 Z', a.H) + shine('M24 60 L14 32 L44 46 Z', 0.3)) +
         p('M32 56 L100 30 L168 56 L184 120 L164 176 L100 190 L36 176 L16 120 Z', a.H) + shine('M38 60 L100 36 L162 60 L150 74 L50 74 Z') +

@@ -6,6 +6,8 @@ const L = (he, en, ar, ru, fr, es) => ({ he, en, ar, ru, fr, es });
 export const BOSS_STRINGS = {
     // ---- names ----
     bn_warden: L('שומר הגרוטאות', 'Scrap Warden', 'حارس الخردة', 'Страж Свалки', 'Gardien de Ferraille', 'Guardián de Chatarra'),
+    bn_phoenix: L('עוף החול המאפיר', 'Ashen Phoenix', 'العنقاء الرمادية', 'Пепельный Феникс', 'Phénix de Cendre', 'Fénix de Ceniza'),
+    bn_vortex: L('מערבולת הזעם', 'Maelstrom', 'الدوامة الهائجة', 'Мальстрём', 'Maelström', 'Maelstrom'),
     bn_twins: L('ניבי התאומים', 'Twin Fangs', 'النابان التوأمان', 'Клыки-Близнецы', 'Crocs Jumeaux', 'Colmillos Gemelos'),
     bn_cubeking: L('מלך הקוביות', 'Cube King', 'ملك المكعبات', 'Король Кубов', 'Roi des Cubes', 'Rey de los Cubos'),
     bn_hive: L('מלכת הכוורת', 'Hive Queen', 'ملكة الخلية', 'Королева Улья', 'Reine de la Ruche', 'Reina de la Colmena'),
@@ -38,6 +40,8 @@ export const BOSS_STRINGS = {
 
     // ---- titles ----
     bt_warden: L('שומר הסף הישן', 'The old gatekeeper', 'حارس البوابة القديم', 'Старый привратник', 'Le vieux portier', 'El viejo portero'),
+    bt_phoenix: L('הלהבה שחוזרת תמיד', 'The flame that always returns', 'اللهب الذي يعود دائمًا', 'Пламя, что всегда возвращается', 'La flamme qui revient toujours', 'La llama que siempre regresa'),
+    bt_vortex: L('העין של הסערה', 'The eye of the storm', 'عين العاصفة', 'Глаз бури', 'L’œil de la tempête', 'El ojo de la tormenta'),
     bt_twins: L('שניים שנושכים כאחד', 'Two that bite as one', 'اثنان يعضّان كواحد', 'Двое кусают как один', 'Deux qui mordent comme un', 'Dos que muerden como uno'),
     bt_cubeking: L('שליט הזוויות', 'Lord of angles', 'سيد الزوايا', 'Владыка углов', 'Seigneur des angles', 'Señor de los ángulos'),
     bt_hive: L('אם הנחיל', 'Mother of the swarm', 'أم السرب', 'Мать роя', 'Mère de l’essaim', 'Madre del enjambre'),
@@ -70,6 +74,8 @@ export const BOSS_STRINGS = {
 
     // ---- hints ----
     bh_warden: L('השריון נפתח כשהוא מתחמם — אז תירה!', 'Its armor opens when it overheats — fire then!', 'درعه ينفتح عند السخونة — أطلق حينها!', 'Броня открывается при перегреве — стреляй!', 'Son armure s’ouvre en surchauffe — tire alors !', 'Su armadura se abre al sobrecalentarse: ¡dispara!'),
+    bh_phoenix: L('כשהוא מנשיר נוצות הוא חשוף — תירה!', 'It is exposed while it sheds its feathers — fire!', 'يصبح مكشوفًا عندما يُسقط ريشه — أطلق!', 'Пока он теряет перья, он уязвим — стреляй!', 'Il est exposé quand il perd ses plumes — tire !', 'Queda expuesto al mudar las plumas: ¡dispara!'),
+    bh_vortex: L('אחרי שהמשיכה נגמרת הוא חשוף', 'After the pull ends it is exposed', 'بعد انتهاء الجذب يصبح مكشوفًا', 'Когда притяжение кончается, он уязвим', 'Après l’attraction, il est exposé', 'Tras la atracción queda expuesto'),
     bh_twins: L('רק התאום הזוהר נפגע', 'Only the glowing twin can be hurt', 'التوأم المتوهج فقط يتضرر', 'Уязвим только светящийся близнец', 'Seul le jumeau lumineux est vulnérable', 'Solo el gemelo brillante recibe daño'),
     bh_cubeking: L('אחרי מגן או קרן — הוא חשוף', 'After a shield or a beam it is exposed', 'بعد الدرع أو الشعاع يصبح مكشوفًا', 'После щита или луча он уязвим', 'Après un bouclier ou un rayon, il est exposé', 'Tras el escudo o el rayo queda expuesto'),
     bh_hive: L('השמד את הרחפנים כדי להוריד את המגן', 'Destroy the drones to drop her shield', 'دمّر الطائرات لإسقاط درعها', 'Уничтожь дронов, чтобы снять щит', 'Détruis les drones pour briser son bouclier', 'Destruye los drones para quitarle el escudo'),

@@ -14,7 +14,7 @@ import { DOM, state, addScore, addCoins, SKINS, isSkinUnlocked, unlockSkin } fro
 import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateAmmoUI, pushPlayer } from './systems.js';
 import { t, tf } from './i18n.js';
 import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy, celebrateSkinUnlock } from './fx.js';
-import { ROSTER, MILESTONES, MUTATIONS } from './boss-roster.js';
+import { ROSTER, MILESTONES, MUTATIONS, EARLY } from './boss-roster.js';
 
 const TICK = 1000 / 60;
 const ARENA_HP = 600;        // boss hits are heavy: max HP is raised to at least this for the fight
@@ -26,9 +26,14 @@ const HITBOX = 14;           // half-width of the player's hit zone for beams / 
 const MILESTONE_LEVELS = [100, 250, 500, 750, 1000];
 
 // ---------- schedule ----------
-// Encounter n: level 10, then every 25 levels. Milestone bosses take the slots at
-// 100 / 250 / 500 / 750 / 1000, then every 250 levels forever.
-export const bossLevel = (n) => (n <= 0 ? 10 : n * 25);
+// Encounters: Phoenix boss (level 3) and Vortex boss (level 5) win their ships, Twin Fangs comes at
+// level 15, then one boss every 25 levels from level 50 (there is no boss at 10 or 25).
+// Milestone bosses take the slots at 100 / 250 / 500 / 750 / 1000, then every 250 levels forever.
+// `m` is the index in the original roster schedule (level 10, 25, 50, 75 …) that the roster rotation follows;
+// the old level-10 slot is gone and the slot-1 boss (Twin Fangs) moved from 25 to 15.
+const E = EARLY.length;
+const baseLevel = (m) => (m <= 0 ? 10 : m * 25);
+export const bossLevel = (n) => (n < E ? [3, 5][n] : (n - E + 1 === 1 ? 15 : (n - E + 1) * 25));
 const isMilestone = (level) => MILESTONE_LEVELS.includes(level) || (level > 1000 && level % 250 === 0);
 
 function pickMutations(seed, count, def) {
@@ -43,15 +48,17 @@ function pickMutations(seed, count, def) {
 
 export function encounter(n) {
     const level = bossLevel(n);
+    if (n < E) return { n, rank: 0, level, def: EARLY[n], tier: 1, milestone: false, d: 0, muts: [] };
+    const m = n - E + 1;     // rank in the original schedule: keeps rewards and difficulty exactly as before
     if (isMilestone(level)) {
         const mi = level <= 1000 ? MILESTONE_LEVELS.indexOf(level) : 4 + (level - 1000) / 250;
         const def = MILESTONES[mi % MILESTONES.length], tier = 1 + Math.floor(mi / MILESTONES.length);
-        return { n, level, def, tier, milestone: true, d: 1, muts: tier > 1 ? pickMutations(mi, Math.min(3, tier - 1), def) : [] };
+        return { n, rank: m, level, def, tier, milestone: true, d: 1, muts: tier > 1 ? pickMutations(mi, Math.min(3, tier - 1), def) : [] };
     }
-    let r = n;
-    for (let i = 0; i < n; i++) if (isMilestone(bossLevel(i))) r--;
+    let r = m;
+    for (let i = 0; i < m; i++) if (isMilestone(baseLevel(i))) r--;
     const def = ROSTER[r % ROSTER.length], tier = 1 + Math.floor(r / ROSTER.length);
-    return { n, level, def, tier, milestone: false, d: Math.min(1, r / (ROSTER.length - 1)), muts: tier > 1 ? pickMutations(r, Math.min(3, tier - 1), def) : [] };
+    return { n, rank: m, level, def, tier, milestone: false, d: Math.min(1, r / (ROSTER.length - 1)), muts: tier > 1 ? pickMutations(r, Math.min(3, tier - 1), def) : [] };
 }
 
 // First encounter that is still ahead of `level` (used when a run starts above level 1).
@@ -532,7 +539,7 @@ function finishDeath(b) {
     // ---- rewards: score, coins, a first-kill bounty, and armor plating for the rest of the run ----
     const mult = enc.milestone ? 3 : 1;
     const bonusScore = 5000 * mult;
-    let bonusCoins = (2000 + 400 * Math.min(enc.n, 60)) * mult;
+    let bonusCoins = (2000 + 400 * Math.min(enc.rank, 60)) * mult;
     const trophies = getBossTrophies();
     const first = !trophies[def.id];
     if (first) bonusCoins += 2500 * mult;
@@ -562,7 +569,7 @@ function finishDeath(b) {
     setTimeout(() => showFloatingMessage(tf('bossPlating', { n: plating }), K.W / 2 - 80, K.H / 2 + 34, 'var(--health)'), 500);
     if (first) setTimeout(() => showFloatingMessage(t('bossFirstKill'), K.W / 2 - 80, K.H / 2 - 34, '#ffe27a'), 250);
 
-    // Some bosses leave a ship behind (Twin Fangs → Dragon). Debug runs (startLvl) never unlock.
+    // Some bosses leave a ship behind (Ashen Phoenix → Phoenix, Maelstrom → Vortex). Debug runs (startLvl) never unlock.
     if (def.unlocksSkin && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && unlockSkin(def.unlocksSkin)) {
         const sk = SKINS[def.unlocksSkin];
         window.__updateSkinOptions?.();

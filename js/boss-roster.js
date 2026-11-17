@@ -266,6 +266,41 @@ export const MUTATIONS = {
     shards: (b, K) => { if (K.count(b, 'shard') < 2) shardRing(b, K, 4); return 300; },
 };
 
+// ---------- the two ship bosses: the only way to win the Phoenix (level 3) and the Vortex (level 5) ----------
+// They are not part of ROSTER's rotation: they appear once each at the start of a run's boss schedule
+// (see bossLevel in bosses.js) and never return ranked-up.
+export const EARLY = [
+    {
+        id: 'phoenix', unlocksSkin: 'phoenix', color: '#ff6b35', size: 170, h: 150, gap: 1750, hp: 0.85, art: ART.phoenix,
+        phases: [['feathers', 'feathers', 'molt'], ['feathers', 'fan', 'swoop', 'molt'], ['fan', 'ring', 'swoop', 'feathers', 'molt']],
+        cards: {
+            feathers(b, K) { K.fan(b, K.n(b, 3, 1), 36, 3.4, { k: 'ember' }); return 300; },
+            fan(b, K) { K.fan(b, 5, 54, 3.5, { k: 'ember' }); return 300; },
+            ring(b, K) { K.ring(b, K.n(b, 8, 2), 3.2, { k: 'ember' }); return 300; },
+            swoop(b, K) { return slam(b, K, { expose: 1600, dmg: 70 }); },
+            // it sheds its burning feathers: embers rain down while it is exposed
+            molt(b, K) {
+                b.el.classList.add('venting'); K.expose(b, 2300); K.calm(b, 2300);
+                K.rain(b, 5, 330, 3.0, { k: 'ember', dmg: 25 });
+                K.after(b, 2300, () => b.el.classList.remove('venting'));
+                return 2300;
+            }
+        }
+    },
+    {
+        id: 'vortex', unlocksSkin: 'vortex', color: '#9b59f0', size: 170, gap: 2200, hp: 0.65, art: ART.vortex, noMut: ['gravity'],
+        phases: [['fan', 'pull'], ['fan', 'pull', 'ring'], ['pull', 'spiral', 'fan', 'pull']],
+        tick: tickPull, cleanup: endWind,
+        cards: {
+            fan(b, K) { K.fan(b, K.n(b, 3, 1), 40, 3.0); return 300; },
+            ring(b, K) { K.ring(b, K.n(b, 6, 2), 2.8); return 300; },
+            spiral(b, K) { return K.spiral(b, 8 + 2 * b.phase, 24, 62, 3.0); },
+            // drags the ship toward the core and down its beam; afterwards it is exposed
+            pull(b, K) { pull(b, K, 2300, 1.1 + 0.2 * b.phase); K.say(b, 'bossPull', '#b985ff'); K.beam(b, { x: b.x + b.w / 2, track: 0, warn: 2000, dur: 600, w: 70, dmg: 100 }); K.after(b, 2300, () => K.expose(b, 2600)); return 2400; }
+        }
+    }
+];
+
 // ---------- the 25 ----------
 export const ROSTER = [
     // 1 — tutorial boss: its armor only opens when it overheats.
@@ -282,7 +317,7 @@ export const ROSTER = [
     },
     // 2 — two hulls, one light: only the glowing twin can be hurt, and the light keeps moving.
     {
-        id: 'twins', unlocksSkin: 'baby_dragon', color: '#ff4d9a', size: 250, h: 112, gap: 1500, hitbox: 0.02, art: ART.twins,
+        id: 'twins', color: '#ff4d9a', size: 250, h: 112, gap: 1500, hitbox: 0.02, art: ART.twins,
         phases: [['cross', 'swap', 'cross', 'snipe'], ['cross', 'swap', 'pincer', 'swap', 'snipe'], ['pincer', 'swap', 'cross', 'swap', 'storm']],
         setup(b) { b.s.lit = 0; b.el.dataset.lit = '0'; },
         move(b, K) { b.tx = K.W / 2 - b.w / 2 + Math.sin(b.t / 1900) * (K.W / 2 - b.w / 2 - 6); b.ty = REST; },

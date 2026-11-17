@@ -82,7 +82,8 @@ export const SKINS = {
     phoenix: {
         get svg() { return SHIPS.phoenix; },
         color: '#ff6b35',
-        unlockLevel: 3,
+        unlockLevel: 3,         // warm-up levels end here, but the ship itself is won by defeating
+        unlockBoss: 'phoenix',  // the Phoenix boss, who appears at level 3 (js/bosses.js)
         get name() { return t('skinPhoenix'); },
         fireRate: 1.3,
         bulletSpeed: 1.2,
@@ -92,7 +93,8 @@ export const SKINS = {
     vortex: {
         get svg() { return SHIPS.vortex; },
         color: '#9b59b6',
-        unlockLevel: 5,
+        unlockLevel: 5,         // warm-up levels end here, but the ship itself is won by defeating
+        unlockBoss: 'vortex',   // the Vortex boss, who appears at level 5 (js/bosses.js)
         get name() { return t('skinVortex'); },
         fireRate: 1.6,
         bulletSpeed: 1.4,
@@ -115,8 +117,7 @@ export const SKINS = {
     baby_dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
-        unlockLevel: 25,        // warm-up levels (50 points each) end here
-        unlockBoss: 'twins',    // but the ship itself is won by defeating this boss (js/bosses.js)
+        unlockLevel: 25,        // warm-up levels (50 points each) end here, and the ship unlocks at level 25
         get name() { return t('skinDragon'); },
         fireRate: 2.2,
         bulletSpeed: 1.8,
