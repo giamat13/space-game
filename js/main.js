@@ -1813,7 +1813,7 @@ console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 // ===== LEVEL UP SYSTEM =====
 
 function handleLevelUp() {
-    const isEarlyLevel = state.level < state.startingLevel;
+    const isEarlyLevel = state.level < state.unlockLevel;
     const threshold = isEarlyLevel ? 50 : 1000;
     if (state.score >= state.lastLevelScore + threshold) {
         state.lastLevelScore += threshold;

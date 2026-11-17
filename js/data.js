@@ -114,7 +114,7 @@ export const SKINS = {
     baby_dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
-        unlockLevel: 25,        // still used for the starting level of a run
+        unlockLevel: 25,        // warm-up levels (50 points each) end here
         unlockBoss: 'twins',    // but the ship itself is won by defeating this boss (js/bosses.js)
         get name() { return t('skinDragon'); },
         fireRate: 2.2,
@@ -879,8 +879,7 @@ export function resetState() {
     state.playerX = DOM.wrapper.clientWidth / 2 - 25;
 
     const skin = SKINS[currentSkinKey];
-    const ul = skin.unlockLevel || 0;
-    state.startingLevel = Math.max(1, ul - Math.ceil(ul / 3));
+    state.unlockLevel = skin.unlockLevel || 0;
     state.level = 1;
     const maxHP = (skin.maxHP || 200) + getHPBonus(currentSkinKey);
     state.playerHP = maxHP;
