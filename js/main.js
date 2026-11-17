@@ -970,7 +970,7 @@ function _makeCooldownCard(coins) {
     return card;
 }
 
-// Duration card for the ships whose ability has a duration (Joker, Baby Dragon)
+// Duration card for the ships whose ability has a duration (Joker, Baby Dragon, Ivory)
 function _makeDurationCard(ship, coins) {
     const level = getDurationLevel(ship);
     const nextCost = getDurationUpgradeCost(level);

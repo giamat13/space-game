@@ -3,8 +3,8 @@
 
 // Each level adds this many ms to the ability's base duration.
 export const DURATION_STEP_MS = 5000;
-// Ships whose special ability has a duration (Joker Chaos, Baby Dragon invincibility).
-export const DURATION_SHIPS = ['joker', 'dragon'];
+// Ships whose special ability has a duration (Joker Chaos, Baby Dragon invincibility, Ivory tooth).
+export const DURATION_SHIPS = ['joker', 'dragon', 'ivory'];
 export const DURATION_MAX_LEVEL = 3;
 // Coins for buying level n (index n - 1). Selling the top level refunds 75%.
 export const DURATION_LEVEL_COSTS = [15000, 30000, 50000];
@@ -36,26 +36,25 @@ export function stripLegacyDuration(keys) {
     return keys.filter(k => !isLegacyDurationKey(k));
 }
 
-// Turns any stored value (object, JSON string or undefined) into { joker, dragon } with clamped levels.
+// Turns any stored value (object, JSON string or undefined) into { joker, dragon, ivory } with clamped levels.
 export function normalizeDurationLevels(value) {
     let obj = value;
     if (typeof obj === 'string') {
         try { obj = JSON.parse(obj); } catch { obj = null; }
     }
     const src = obj && typeof obj === 'object' ? obj : {};
-    return {
-        joker: clampDurationLevel(src.joker),
-        dragon: clampDurationLevel(src.dragon)
-    };
+    const out = {};
+    for (const ship of DURATION_SHIPS) out[ship] = clampDurationLevel(src[ship]);
+    return out;
 }
 
 // Per ship, the highest level found in any of the sources (cloud, cookie, old keys).
 export function mergeDurationLevels(...sources) {
-    const out = { joker: 0, dragon: 0 };
+    const out = {};
+    for (const ship of DURATION_SHIPS) out[ship] = 0;
     for (const s of sources) {
         const n = normalizeDurationLevels(s);
-        out.joker = Math.max(out.joker, n.joker);
-        out.dragon = Math.max(out.dragon, n.dragon);
+        for (const ship of DURATION_SHIPS) out[ship] = Math.max(out[ship], n[ship]);
     }
     return out;
 }

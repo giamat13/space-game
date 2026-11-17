@@ -710,7 +710,7 @@ export function ivoryToothActive() {
     return state.ivoryAbility.hitsLeft > 0 && Date.now() < state.ivoryAbility.activeUntil;
 }
 export function useIvoryTooth() {
-    state.ivoryAbility.activeUntil = Date.now() + IVORY_TOOTH_MS;
+    state.ivoryAbility.activeUntil = Date.now() + abilityDurationMs('ivory', IVORY_TOOTH_MS);
     state.ivoryAbility.hitsLeft = IVORY_TOOTH_HITS;
     DOM.player.classList.add('ivory-tooth');
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');

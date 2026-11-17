@@ -807,7 +807,7 @@ async function doSignInSync() {
         hpLevels: merged.hpLevels,
         scoreLevel: merged.scoreLevel || null,
         cooldownLevel: merged.cooldownLevel || null,
-        durationLevels: (merged.durationLevels.joker || merged.durationLevels.dragon) ? merged.durationLevels : null,
+        durationLevels: Object.values(merged.durationLevels).some(v => v > 0) ? merged.durationLevels : null,
         achievements: Object.fromEntries(merged.achievements.map(a => [safeKey(a), true])),
         keyBindings: merged.keyBindings,
         gameRules: merged.gameRules,

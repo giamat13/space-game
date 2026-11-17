@@ -597,7 +597,7 @@ export function sellCooldownLevel() {
 }
 
 // Duration level per ship (Joker Chaos, Baby Dragon invincibility): one shop upgrade with levels.
-// Stored as { joker, dragon } in the 'durationLevels' cookie. Selling the top level refunds 75%.
+// Stored as { joker, dragon, ivory } in the 'durationLevels' cookie. Selling the top level refunds 75%.
 export function getDurationLevels() {
     const saved = getCookie('durationLevels');
     if (saved !== null && saved !== '') return normalizeDurationLevels(saved);
