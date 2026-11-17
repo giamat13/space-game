@@ -72,6 +72,9 @@ export const ART = {
         p('M52 134 Q100 184 148 134 Q100 156 52 134 Z', '#0a0d18') + p('M76 146 L84 158 L92 146 Z', '#fff', 'stroke="none"') + p('M108 146 L116 158 L124 146 Z', '#fff', 'stroke="none"') +
         lamp(a, 100, 118, 6)),
 
+    // early boss (level 25) — the Baby Dragon: the ship's own art, drawn as a boss (wins you the Baby Dragon ship)
+    baby_dragon: () => `<img class="boss-svg boss-dragon" src="assets/dragon.png" alt="" draggable="false"/>`,
+
     cubeking: () => svg('ck', [200, 200], ['#d9a4ff', '#8a2be2', '#2e0a66', '#ffd21a'], (a) =>
         mir(200, p('M26 72 L8 24 L54 46 Z', a.H) + p('M36 150 L12 190 L58 172 Z', a.H) + shine('M24 60 L14 32 L44 46 Z', 0.3)) +
         p('M32 56 L100 30 L168 56 L184 120 L164 176 L100 190 L36 176 L16 120 Z', a.H) + shine('M38 60 L100 36 L162 60 L150 74 L50 74 Z') +

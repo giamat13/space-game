@@ -37,6 +37,7 @@ export const BOSS_STRINGS = {
     bn_hydra: L('הידרה', 'Hydra', 'الهيدرا', 'Гидра', 'Hydre', 'Hidra'),
     bn_architect: L('האדריכל', 'The Architect', 'المعماري', 'Архитектор', 'L’Architecte', 'El Arquitecto'),
     bn_eclipse: L('ליקוי', 'Eclipse', 'الكسوف', 'Затмение', 'Éclipse', 'Eclipse'),
+    bn_baby_dragon: L('גור הדרקון', 'Dragon Whelp', 'جرو التنين', 'Детёныш дракона', 'Dragonneau', 'Dragoncillo'),
     bn_emperor: L('קיסר הריק', 'Void Emperor', 'إمبراطور الفراغ', 'Император Пустоты', 'Empereur du Vide', 'Emperador del Vacío'),
 
     // ---- titles ----
@@ -72,6 +73,7 @@ export const BOSS_STRINGS = {
     bt_hydra: L('אש, קרח ורעל', 'Fire, ice and venom', 'نار وجليد وسمّ', 'Огонь, лёд и яд', 'Feu, glace et venin', 'Fuego, hielo y veneno'),
     bt_architect: L('בונה את עצמו מחדש', 'It rebuilds itself', 'يعيد بناء نفسه', 'Перестраивает себя', 'Il se reconstruit', 'Se reconstruye a sí mismo'),
     bt_eclipse: L('יום ולילה בגוף אחד', 'Day and night in one', 'نهار وليل في جسد واحد', 'День и ночь в одном', 'Jour et nuit en un', 'Día y noche en uno'),
+    bt_baby_dragon: L('הגחלת שלא כבה', 'The ember that never dies out', 'الجمرة التي لا تنطفئ', 'Уголёк, что не гаснет', 'La braise qui ne s’éteint jamais', 'La brasa que nunca se apaga'),
     bt_emperor: L('סוף המסע', 'The end of the journey', 'نهاية الرحلة', 'Конец пути', 'La fin du voyage', 'El fin del viaje'),
 
     // ---- hints ----
@@ -107,6 +109,7 @@ export const BOSS_STRINGS = {
     bh_hydra: L('רק ראש ער נפגע', 'Only a head that is awake can be hurt', 'الرأس المستيقظ فقط يتضرر', 'Уязвима только бодрствующая голова', 'Seule une tête éveillée est vulnérable', 'Solo una cabeza despierta recibe daño'),
     bh_architect: L('הוא מחליף צורה — כל צורה נלחמת אחרת', 'It changes form — each form fights differently', 'يغيّر شكله — كل شكل يقاتل بطريقة مختلفة', 'Он меняет форму — каждая сражается иначе', 'Il change de forme — chacune se bat autrement', 'Cambia de forma: cada una pelea distinto'),
     bh_eclipse: L('ביום פגע בירח, בלילה פגע בשמש', 'By day hit the Moon, by night hit the Sun', 'نهارًا اضرب القمر وليلًا اضرب الشمس', 'Днём бей Луну, ночью — Солнце', 'Le jour frappe la Lune, la nuit le Soleil', 'De día golpea la Luna, de noche el Sol'),
+    bh_baby_dragon: L('הוא נושף אש בפרצים — בין הנשיפות הוא חשוף, תירה!', 'It breathes fire in bursts — exposed between breaths, fire!', 'ينفث النار على دفعات — يكون مكشوفًا بين الزفرات، أطلق!', 'Он дышит огнём залпами — между залпами он уязвим, стреляй!', 'Il crache le feu par salves — exposé entre les souffles, tire !', 'Escupe fuego a ráfagas: entre ráfagas queda expuesto, ¡dispara!'),
     bh_emperor: L('כל שלב הוא קרב אחר. השתמש בכל מה שלמדת', 'Every phase is a different fight. Use everything you learned', 'كل مرحلة معركة مختلفة. استخدم كل ما تعلمته', 'Каждая фаза — другой бой. Используй всё, чему научился', 'Chaque phase est un autre combat. Utilise tout ce que tu as appris', 'Cada fase es otra pelea. Usa todo lo aprendido'),
 
     // ---- fight messages ----

@@ -26,15 +26,18 @@ const HITBOX = 14;           // half-width of the player's hit zone for beams / 
 const MILESTONE_LEVELS = [100, 250, 500, 750, 1000];
 
 // ---------- schedule ----------
-// Encounters: Phoenix boss (level 3), Vortex boss (level 5) and Joker boss (level 10) win their ships,
-// Twin Fangs comes at level 15, then one boss every 25 levels from level 50 (there is no boss at 25).
+// Encounters, in order: Phoenix boss (level 3), Vortex boss (level 5) and Joker boss (level 10) win their ships,
+// Twin Fangs comes at level 15, the Baby Dragon boss at level 25 (it wins the Baby Dragon ship), then one roster
+// boss every 25 levels from level 50 (no roster boss at 25).
 // Milestone bosses take the slots at 100 / 250 / 500 / 750 / 1000, then every 250 levels forever.
-// `m` is the index in the original roster schedule (level 10, 25, 50, 75 …) that the roster rotation follows;
-// the old level-10 slot is gone and the slot-1 boss (Twin Fangs) moved from 25 to 15.
-const E = EARLY.length;
-const EARLY_LEVELS = [3, 5, 10];          // one level per entry of EARLY, in order
+// `m` is the index in the original roster schedule (level 10, 25, 50, 75 …) that the roster rotation follows, so the
+// roster is unchanged by the extra ship bosses: Twin Fangs is m = 1, the level-50 boss is m = 2, and so on.
+const SHIP_SLOT = [0, 1, 2, -1, 3];      // schedule slot -> index in EARLY (-1 = Twin Fangs, a roster boss)
+const SCHEDULE_HEAD = [3, 5, 10, 15, 25]; // levels of the first five slots, in order
+const HEAD = SCHEDULE_HEAD.length;
 const baseLevel = (m) => (m <= 0 ? 10 : m * 25);
-export const bossLevel = (n) => (n < E ? EARLY_LEVELS[n] : (n - E + 1 === 1 ? 15 : (n - E + 1) * 25));
+const rosterRank = (n) => (n === 3 ? 1 : n >= HEAD ? n - HEAD + 2 : 0);
+export const bossLevel = (n) => (n < HEAD ? SCHEDULE_HEAD[n] : rosterRank(n) * 25);
 
 // Score for beating a boss: grows with its level, with each ascension, and triples for milestone bosses.
 // (Phoenix 800, Vortex 1000, Joker 1500, Twin Fangs 2000, the level-50 boss 5500 …)
@@ -53,8 +56,8 @@ function pickMutations(seed, count, def) {
 
 export function encounter(n) {
     const level = bossLevel(n);
-    if (n < E) return { n, rank: 0, level, def: EARLY[n], tier: 1, milestone: false, d: 0, muts: [] };
-    const m = n - E + 1;     // rank in the original schedule: keeps rewards and difficulty exactly as before
+    if (n < HEAD && SHIP_SLOT[n] >= 0) return { n, rank: 0, level, def: EARLY[SHIP_SLOT[n]], tier: 1, milestone: false, d: 0, muts: [] };
+    const m = rosterRank(n); // rank in the original schedule: keeps rewards and difficulty exactly as before
     if (isMilestone(level)) {
         const mi = level <= 1000 ? MILESTONE_LEVELS.indexOf(level) : 4 + (level - 1000) / 250;
         const def = MILESTONES[mi % MILESTONES.length], tier = 1 + Math.floor(mi / MILESTONES.length);

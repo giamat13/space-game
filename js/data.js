@@ -118,7 +118,8 @@ export const SKINS = {
     baby_dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
-        unlockLevel: 25,        // warm-up levels (50 points each) end here, and the ship unlocks at level 25
+        unlockLevel: 25,        // the Baby Dragon boss appears at level 25 and wins the ship (js/bosses.js)
+        unlockBoss: 'baby_dragon',
         get name() { return t('skinDragon'); },
         fireRate: 2.2,
         bulletSpeed: 1.8,

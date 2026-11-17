@@ -319,6 +319,23 @@ export const EARLY = [
                 return 1100 + 2600 + 200;
             }
         }
+    },
+    {
+        // level 25: a fire-breathing copy of the Baby Dragon ship. Beating it wins you the Baby Dragon ship.
+        id: 'baby_dragon', unlocksSkin: 'baby_dragon', color: '#ffaa33', size: 165, gap: 1300, hp: 1.1, art: ART.baby_dragon,
+        phases: [['breath', 'wings', 'breath'], ['breath', 'fire', 'inferno', 'wings', 'dive'], ['fire', 'dive', 'embers', 'fire', 'inferno', 'wings', 'breath']],
+        cards: {
+            breath(b, K) { K.fan(b, K.n(b, 5, 1), 46, 3.6, { k: 'ember' }); return 300; },
+            wings(b, K) { K.ring(b, K.n(b, 8, 2), 3.1, { k: 'ember' }); return 300; },
+            // a stream of fire down a marked lane, then it is exposed for a short moment
+            fire(b, K) { const d = K.beam(b, { track: 0, warn: 1300, dur: 900, w: 64, dmg: 110 }); K.after(b, d, () => K.expose(b, 800)); return d; },
+            // dives at the ship, then is exposed
+            dive(b, K) { return slam(b, K, { expose: 1000, dmg: 80 }); },
+            // sheds burning scales: embers fall while it is exposed
+            embers(b, K) { b.el.classList.add('venting'); K.expose(b, 1200); K.calm(b, 1200); K.rain(b, 8, 260, 3.4, { k: 'ember', dmg: 25 }); K.after(b, 1200, () => b.el.classList.remove('venting')); return 1200; },
+            // like the ship's Dragon Inferno: shielded for a moment, then 32 flames fly out in every direction
+            inferno(b, K) { K.shield(b, true); K.after(b, 700, () => K.ring(b, 32, 3.0, { k: 'ember', dmg: 15 })); K.after(b, 2000, () => K.shield(b, false)); return 2200; }
+        }
     }
 ];
 

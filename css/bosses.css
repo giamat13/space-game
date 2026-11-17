@@ -11,6 +11,8 @@
 .boss-body { position: absolute; inset: 0; transform-origin: 50% 60%; transition: scale 0.4s; }
 .boss-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 16px color-mix(in srgb, var(--bc) 55%, transparent)); }
 .b-spin, .b-spin2, .b-ring, .b-hand1, .b-hand2 { transform-box: view-box; transform-origin: 50% 50%; }
+/* Baby Dragon boss: the ship's picture, warmer and a little larger-looking than the ship */
+.boss-dragon { object-fit: contain; filter: hue-rotate(-12deg) saturate(1.35) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 22px #ff5a1f); }
 .boss-aura { position: absolute; inset: -32%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bc) 42%, transparent) 0, transparent 66%); animation: bossAura 1.5s ease-in-out infinite alternate; }
 @keyframes bossAura { from { transform: scale(0.88); opacity: 0.35; } to { transform: scale(1.1); opacity: 0.75; } }
 .boss[data-phase="2"] .boss-aura { animation-duration: 0.95s; }
