@@ -215,7 +215,7 @@ const STRINGS = {
     skinPhoenix:          { he: 'פניקס', en: 'Phoenix', ar: 'العنقاء', ru: 'Феникс', fr: 'Phénix', es: 'Fénix' },
     skinVortex:           { he: 'וורטקס', en: 'Vortex', ar: 'الدوامة', ru: 'Вортекс', fr: 'Vortex', es: 'Vórtice' },
     skinJoker:            { he: "ג'וקר", en: 'Joker', ar: 'الجوكر', ru: 'Джокер', fr: 'Joker', es: 'Comodín' },
-    skinIvory:            { he: 'שנהב', en: 'Ivory', ar: 'العاج', ru: 'Слоновая кость', fr: 'Ivoire', es: 'Marfil' },
+    skinIvory:            { he: 'BABY DRAGON שנהב', en: 'BABY DRAGON Ivory', ar: 'BABY DRAGON العاج', ru: 'BABY DRAGON Слоновая кость', fr: 'BABY DRAGON Ivoire', es: 'BABY DRAGON Marfil' },
     skinDragon:           { he: 'דרגון תינוק', en: 'Baby Dragon', ar: 'التنين الصغير', ru: 'Малыш-дракон', fr: 'Bébé dragon', es: 'Dragón bebé' },
 
     // ---- Upgrade names & descriptions ----
