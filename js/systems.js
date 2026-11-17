@@ -637,9 +637,10 @@ function summonServants() {
     showFloatingMessage(t('msgServants'), px - 70, DOM.wrapper.clientHeight - 150, '#ffb703');
 }
 
+// Returns the time the ability's cooldown starts from: the end of the chaos (or now for a boss summon).
 export function useJokerChaos() {
     window.__damageBoss?.(0.04);
-    if (state.boss) { summonServants(); return; }
+    if (state.boss) { summonServants(); return Date.now(); }
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
@@ -697,6 +698,7 @@ export function useJokerChaos() {
     
     showFloatingMessage(tf('msgChaos', { n: pointsGained }), playerCenterX - 90, playerY - 50, '#00f2ff');
     console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic, +${pointsGained} points, Total: ${state.score}`);
+    return state.jokerAbility.endTime;
 }
 
 // Ivory, special ability: a tooth stands in front of the ship for 15 s. It takes the next 3 hits
@@ -720,6 +722,8 @@ export function breakIvoryTooth() {
     showFloatingMessage(t('msgToothBroke'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#ff9f6b');
 }
 
+// Returns the time the invincibility ends. The ability's cooldown starts from there,
+// so it can never run out while the invincibility is still on (no way to chain it and stay invincible).
 export function useDragonFire() {
     window.__damageBoss?.(0.05);
     console.log('🐉 [DRAGON] Activating DRAGON INFERNO!');
@@ -771,7 +775,8 @@ export function useDragonFire() {
     createExplosion(playerCenterX, playerY, '#ffffff');
 
     showFloatingMessage(t('msgDragon'), playerCenterX - 80, playerY - 50, '#ff6600');
-    console.log(`✅ [DRAGON] ${numFlames} flames launched + 10s invincibility`);
+    console.log(`✅ [DRAGON] ${numFlames} flames launched + invincibility`);
+    return state.dragonAbility.invincibleUntil;
 }
 
 // ===== SPAWNING SYSTEMS =====

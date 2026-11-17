@@ -1,5 +1,7 @@
-import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, getCooldownLevel, getCooldownUpgradeCost, buyCooldownLevel, sellCooldownLevel, getDurationLevel, getDurationUpgradeCost, buyDurationLevel, sellDurationLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { SCORE_MULTS } from './score-upgrade.js';
+import { COOLDOWN_MULTS } from './cooldown-upgrade.js';
+import { DURATION_STEP_MS, DURATION_SHIPS } from './duration-upgrade.js';
 import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, useIvoryTooth, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
@@ -921,6 +923,101 @@ function _makeScoreCard(coins) {
     return card;
 }
 
+function _makeCooldownCard(coins) {
+    const level = getCooldownLevel();
+    const nextCost = getCooldownUpgradeCost(level);
+    const canAfford = nextCost !== null && coins >= nextCost;
+    const maxLevel = nextCost === null;
+    const prevCost = level > 0 ? (getCooldownUpgradeCost(level - 1) ?? 0) : 0;
+    const cdRefund = Math.floor(prevCost * 0.75);
+    const mult = level > 0 ? COOLDOWN_MULTS[level - 1] : 1;
+
+    const card = document.createElement('div');
+    card.style.cssText = `padding:14px 16px;background:rgba(0,242,255,0.07);border:1px solid rgba(0,242,255,0.35);border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
+
+    const levelBar = Array.from({length: level}, () => '⚡').join('') || '☆';
+    card.innerHTML = `
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:0.95rem;font-weight:bold;color:#00f2ff;margin-bottom:4px;">
+                ${t('shopCooldownUpgrade')} — ${tf('levelN', { n: level })}${maxLevel ? ' ' + t('shopHPMax') : ''}
+            </div>
+            <div style="font-size:0.78rem;opacity:0.75;">${tf('shopCooldownDesc', { m: mult })}</div>
+            <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
+            ${!maxLevel ? `<div style="font-size:0.72rem;opacity:0.55;margin-top:3px;">${t('shopHPNextCost')} 💰${nextCost?.toLocaleString()}</div>` : ''}
+        </div>
+        <div class="cooldown-actions" style="display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;"></div>
+    `;
+
+    const actions = card.querySelector('.cooldown-actions');
+
+    if (!maxLevel) {
+        const buyBtn = document.createElement('button');
+        buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
+        buyBtn.disabled = !canAfford;
+        buyBtn.style.cssText = `background:${canAfford ? 'rgba(0,242,255,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#00f2ff' : '#555'};color:${canAfford ? '#00f2ff' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
+        buyBtn.onclick = () => { if (buyCooldownLevel()) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(buyBtn);
+    }
+
+    if (level > 0) {
+        const sellBtn = document.createElement('button');
+        sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${cdRefund})`;
+        sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+        sellBtn.onclick = () => { if (sellCooldownLevel() !== false) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(sellBtn);
+    }
+
+    return card;
+}
+
+// Duration card for the ships whose ability has a duration (Joker, Baby Dragon)
+function _makeDurationCard(ship, coins) {
+    const level = getDurationLevel(ship);
+    const nextCost = getDurationUpgradeCost(level);
+    const canAfford = nextCost !== null && coins >= nextCost;
+    const maxLevel = nextCost === null;
+    const prevCost = level > 0 ? (getDurationUpgradeCost(level - 1) ?? 0) : 0;
+    const durRefund = Math.floor(prevCost * 0.75);
+    const addedSec = (level * DURATION_STEP_MS) / 1000;
+
+    const card = document.createElement('div');
+    card.style.cssText = `padding:14px 16px;background:rgba(192,132,252,0.07);border:1px solid rgba(192,132,252,0.35);border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
+
+    const levelBar = Array.from({length: level}, () => '⏳').join('') || '🕒';
+    card.innerHTML = `
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:0.95rem;font-weight:bold;color:#c084fc;margin-bottom:4px;">
+                ${t('shopDurationUpgrade')} — ${tf('levelN', { n: level })}${maxLevel ? ' ' + t('shopHPMax') : ''}
+            </div>
+            <div style="font-size:0.78rem;opacity:0.75;">${tf('shopDurationDesc', { s: addedSec })}</div>
+            <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
+            ${!maxLevel ? `<div style="font-size:0.72rem;opacity:0.55;margin-top:3px;">${t('shopHPNextCost')} 💰${nextCost?.toLocaleString()}</div>` : ''}
+        </div>
+        <div class="duration-actions" style="display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;"></div>
+    `;
+
+    const actions = card.querySelector('.duration-actions');
+
+    if (!maxLevel) {
+        const buyBtn = document.createElement('button');
+        buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
+        buyBtn.disabled = !canAfford;
+        buyBtn.style.cssText = `background:${canAfford ? 'rgba(192,132,252,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#c084fc' : '#555'};color:${canAfford ? '#c084fc' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
+        buyBtn.onclick = () => { if (buyDurationLevel(ship)) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(buyBtn);
+    }
+
+    if (level > 0) {
+        const sellBtn = document.createElement('button');
+        sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${durRefund})`;
+        sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+        sellBtn.onclick = () => { if (sellDurationLevel(ship) !== false) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(sellBtn);
+    }
+
+    return card;
+}
+
 function _renderSendCoinsUI(container, coins) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:14px;';
@@ -1049,15 +1146,16 @@ function renderShopItems() {
         return;
     }
 
-    // The score boost lives on the 'global' tab; skin tabs show their HP card and skin upgrades
+    // The score boost and the cooldown upgrade live on the 'global' tab; skin tabs show their HP card and skin upgrades
     if (_currentShopTab === 'global') {
         container.appendChild(_makeScoreCard(coins));
+        container.appendChild(_makeCooldownCard(coins));
         return;
     }
     container.appendChild(_makeHPCard(_currentShopTab, coins));
+    if (DURATION_SHIPS.includes(_currentShopTab)) container.appendChild(_makeDurationCard(_currentShopTab, coins));
 
-    // 'all' upgrades (the cooldown ladder) show on every ship's tab
-    const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab || u.skin === 'all');
+    const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
     if (skinUpgrades.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'text-align:center;opacity:0.45;font-size:0.85rem;padding:12px;';
@@ -1986,7 +2084,8 @@ function updateAbilityCooldown(now) {
         }
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) {
-            const elapsed = now - state.jokerAbility.lastUsed;
+            // lastUsed is the end of the chaos, so the ring stays full until then
+            const elapsed = Math.max(0, now - state.jokerAbility.lastUsed);
             const remaining = state.jokerAbility.cooldown - elapsed;
 
             if (remaining <= 0) {
@@ -2026,7 +2125,8 @@ function updateAbilityCooldown(now) {
         }
 
         if (!state.dragonAbility.ready) {
-            const elapsed = now - state.dragonAbility.lastUsed;
+            // lastUsed is the end of the invincibility, so the ring stays full until then
+            const elapsed = Math.max(0, now - state.dragonAbility.lastUsed);
             const remaining = state.dragonAbility.cooldown - elapsed;
 
             if (remaining <= 0) {
@@ -2065,9 +2165,9 @@ function activateSpecialAbility() {
     } else if (currentSkinKey === 'joker') {
         if (!state.jokerAbility.ready) return;
 
-        useJokerChaos();
+        // The cooldown starts when the chaos ends, so it can never run out while chaos is still on
+        state.jokerAbility.lastUsed = useJokerChaos();
         state.jokerAbility.ready = false;
-        state.jokerAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('joker_chaos', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'joker' });
@@ -2083,9 +2183,9 @@ function activateSpecialAbility() {
     } else if (currentSkinKey === 'baby_dragon') {
         if (!state.dragonAbility.ready) return;
 
-        useDragonFire();
+        // The cooldown starts when the invincibility ends, so the two can never overlap
+        state.dragonAbility.lastUsed = useDragonFire();
         state.dragonAbility.ready = false;
-        state.dragonAbility.lastUsed = Date.now();
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('dragon_fire', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'baby_dragon' });

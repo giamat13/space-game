@@ -29,6 +29,8 @@ import {
     syncUpgrades,
     pushShopState,
     pushScoreLevel,
+    pushCooldownLevel,
+    pushDurationLevels,
     forceSetCoins,
     saveSpeedrunToCloud,
     getSpeedrunLeaderboardFromCloud,
@@ -46,6 +48,8 @@ export { sendCoinsToFriend, claimPendingTransfers };
 import { SHIPS } from './art.js';
 import { readLocalTable, writeLocalTable } from './local-tables.js';
 import { SCORE_MULTS, SCORE_LEVEL_COSTS, clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
+import { COOLDOWN_MULTS, COOLDOWN_LEVEL_COSTS, clampCooldownLevel, legacyCooldownLevel, stripLegacyCooldown } from './cooldown-upgrade.js';
+import { DURATION_STEP_MS, DURATION_LEVEL_COSTS, normalizeDurationLevels, legacyDurationLevels, stripLegacyDuration } from './duration-upgrade.js';
 
 // Skin Configuration
 export const SKINS = {
@@ -524,31 +528,6 @@ export const UPGRADES = {
         skin: 'phoenix',
         requires: 'phoenix_homing_feathers'
     },
-    // Cooldown ladder for every ship's special ability. The first step keeps its old key
-    // (vortex_cooldown_half) so purchases made before the change still count as ×2.
-    vortex_cooldown_half: {
-        key: 'vortex_cooldown_half',
-        nameKey: 'upgCooldownX2Name',
-        descKey: 'upgCooldownX2Desc',
-        cost: 20000,
-        skin: 'all'
-    },
-    cooldown_x3: {
-        key: 'cooldown_x3',
-        nameKey: 'upgCooldownX3Name',
-        descKey: 'upgCooldownX3Desc',
-        cost: 40000,
-        skin: 'all',
-        requires: 'vortex_cooldown_half'
-    },
-    cooldown_x4: {
-        key: 'cooldown_x4',
-        nameKey: 'upgCooldownX4Name',
-        descKey: 'upgCooldownX4Desc',
-        cost: 70000,
-        skin: 'all',
-        requires: 'cooldown_x3'
-    },
     joker_kill_coins: {
         key: 'joker_kill_coins',
         nameKey: 'upgJokerCoinsName',
@@ -556,30 +535,126 @@ export const UPGRADES = {
         cost: 50000,
         skin: 'joker'
     },
-    // Duration ladder: each level adds 5 s to the ability (Joker Chaos, Baby Dragon invincibility)
-    joker_duration_1: { key: 'joker_duration_1', nameKey: 'upgDur1Name', descKey: 'upgJokerDur1Desc', cost: 15000, skin: 'joker' },
-    joker_duration_2: { key: 'joker_duration_2', nameKey: 'upgDur2Name', descKey: 'upgJokerDur2Desc', cost: 30000, skin: 'joker', requires: 'joker_duration_1' },
-    joker_duration_3: { key: 'joker_duration_3', nameKey: 'upgDur3Name', descKey: 'upgJokerDur3Desc', cost: 50000, skin: 'joker', requires: 'joker_duration_2' },
-    dragon_duration_1: { key: 'dragon_duration_1', nameKey: 'upgDur1Name', descKey: 'upgDragonDur1Desc', cost: 15000, skin: 'baby_dragon' },
-    dragon_duration_2: { key: 'dragon_duration_2', nameKey: 'upgDur2Name', descKey: 'upgDragonDur2Desc', cost: 30000, skin: 'baby_dragon', requires: 'dragon_duration_1' },
-    dragon_duration_3: { key: 'dragon_duration_3', nameKey: 'upgDur3Name', descKey: 'upgDragonDur3Desc', cost: 50000, skin: 'baby_dragon', requires: 'dragon_duration_2' }
 };
 
 // ===== ABILITY COOLDOWN (all ships) =====
-// Base cooldowns in ms. The Cooldown ×2 / ×3 / ×4 upgrades divide every ship's cooldown.
+// Base cooldowns in ms. The Cooldown shop upgrade (General tab) divides every ship's cooldown.
 export const ABILITY_BASE_COOLDOWN = { special: 30000, phoenix: 15000, joker: 30000, dragon: 25000, ivory: 30000 };
-export function getCooldownMultiplier() {
-    if (isUpgradeActive('cooldown_x4')) return 4;
-    if (isUpgradeActive('cooldown_x3')) return 3;
-    if (isUpgradeActive('vortex_cooldown_half')) return 2;
-    return 1;
+
+// Cooldown level: one shop upgrade with levels, like the score boost.
+// Level n divides every ship's cooldown by COOLDOWN_MULTS[n - 1]. Selling the top level refunds 75%.
+export function getCooldownLevel() {
+    const saved = getCookie('cooldownLevel');
+    if (saved !== null && saved !== '') return clampCooldownLevel(saved);
+    // First read on this device: turn the old cooldown upgrades into a level.
+    const owned = getOwnedUpgrades();
+    const level = legacyCooldownLevel(owned);
+    if (level > 0) {
+        const disabled = stripLegacyCooldown(getDisabledUpgrades());
+        const newOwned = stripLegacyCooldown(owned);
+        setCookie('ownedUpgrades', JSON.stringify(newOwned));
+        setCookie('disabledUpgrades', JSON.stringify(disabled));
+        syncUpgrades(newOwned).catch(() => {});
+        pushShopState(getHPLevels(), disabled).catch(() => {});
+    }
+    setCookie('cooldownLevel', String(level));
+    if (level > 0) pushCooldownLevel(level).catch(() => {});
+    return level;
 }
 
-// Duration ladder: each owned level (prefix_duration_1..3) adds 5 s to the ability's base duration.
-export function abilityDurationMs(prefix, baseMs) {
-    let level = 0;
-    while (level < 3 && isUpgradeActive(`${prefix}_duration_${level + 1}`)) level++;
-    return baseMs + level * 5000;
+export function getCooldownMultiplier() {
+    const level = getCooldownLevel();
+    return level > 0 ? COOLDOWN_MULTS[level - 1] : 1;
+}
+
+export function getCooldownUpgradeCost(currentLevel) {
+    if (currentLevel >= COOLDOWN_LEVEL_COSTS.length) return null;
+    return COOLDOWN_LEVEL_COSTS[currentLevel];
+}
+
+function setCooldownLevel(level) {
+    setCookie('cooldownLevel', String(level));
+    pushCooldownLevel(level).catch(() => {});
+}
+
+export function buyCooldownLevel() {
+    const current = getCooldownLevel();
+    const cost = getCooldownUpgradeCost(current);
+    if (cost === null) return false;
+    if (getCoins() < cost) return false;
+    addCoins(-cost);
+    setCooldownLevel(current + 1);
+    return true;
+}
+
+export function sellCooldownLevel() {
+    const current = getCooldownLevel();
+    if (current <= 0) return false;
+    const refund = Math.floor(COOLDOWN_LEVEL_COSTS[current - 1] * 0.75);
+    addCoins(refund);
+    setCooldownLevel(current - 1);
+    return refund;
+}
+
+// Duration level per ship (Joker Chaos, Baby Dragon invincibility): one shop upgrade with levels.
+// Stored as { joker, dragon } in the 'durationLevels' cookie. Selling the top level refunds 75%.
+export function getDurationLevels() {
+    const saved = getCookie('durationLevels');
+    if (saved !== null && saved !== '') return normalizeDurationLevels(saved);
+    // First read on this device: turn the old duration upgrades (joker_duration_1 ... dragon_duration_3) into levels.
+    const owned = getOwnedUpgrades();
+    const levels = legacyDurationLevels(owned);
+    if (levels.joker > 0 || levels.dragon > 0) {
+        const disabled = stripLegacyDuration(getDisabledUpgrades());
+        const newOwned = stripLegacyDuration(owned);
+        setCookie('ownedUpgrades', JSON.stringify(newOwned));
+        setCookie('disabledUpgrades', JSON.stringify(disabled));
+        syncUpgrades(newOwned).catch(() => {});
+        pushShopState(getHPLevels(), disabled).catch(() => {});
+    }
+    setCookie('durationLevels', JSON.stringify(levels));
+    if (levels.joker > 0 || levels.dragon > 0) pushDurationLevels(levels).catch(() => {});
+    return levels;
+}
+
+export function getDurationLevel(ship) {
+    return getDurationLevels()[ship] || 0;
+}
+
+export function getDurationUpgradeCost(currentLevel) {
+    if (currentLevel >= DURATION_LEVEL_COSTS.length) return null;
+    return DURATION_LEVEL_COSTS[currentLevel];
+}
+
+function setDurationLevel(ship, level) {
+    const levels = getDurationLevels();
+    levels[ship] = level;
+    setCookie('durationLevels', JSON.stringify(levels));
+    pushDurationLevels(levels).catch(() => {});
+}
+
+export function buyDurationLevel(ship) {
+    const current = getDurationLevel(ship);
+    const cost = getDurationUpgradeCost(current);
+    if (cost === null) return false;
+    if (getCoins() < cost) return false;
+    addCoins(-cost);
+    setDurationLevel(ship, current + 1);
+    return true;
+}
+
+export function sellDurationLevel(ship) {
+    const current = getDurationLevel(ship);
+    if (current <= 0) return false;
+    const refund = Math.floor(DURATION_LEVEL_COSTS[current - 1] * 0.75);
+    addCoins(refund);
+    setDurationLevel(ship, current - 1);
+    return refund;
+}
+
+// Base duration plus DURATION_STEP_MS for every level the ship's upgrade has.
+export function abilityDurationMs(ship, baseMs) {
+    return baseMs + getDurationLevel(ship) * DURATION_STEP_MS;
 }
 
 // ===== HP UPGRADE SYSTEM =====

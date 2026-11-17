@@ -28,6 +28,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth
 import { claimLocalProgress } from './account-data.js';
 import { readLocalTable, localTableNames } from './local-tables.js';
 import { clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
+import { clampCooldownLevel, legacyCooldownLevel, stripLegacyCooldown } from './cooldown-upgrade.js';
+import { mergeDurationLevels, legacyDurationLevels, stripLegacyDuration } from './duration-upgrade.js';
 
 export const DB_URL = 'https://space-game-ii-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -681,6 +683,8 @@ export async function forceSetCoins(amount) { writeCoins(amount); }
 export async function syncCoins(localCoins) { writeCoins(localCoins); return localCoins; }
 export async function pushShopState(hpLevels, disabledUpgrades) { profileWrite({ hpLevels, disabledUpgrades }); }
 export async function pushScoreLevel(scoreLevel) { profileWrite({ scoreLevel }); }
+export async function pushCooldownLevel(cooldownLevel) { profileWrite({ cooldownLevel }); }
+export async function pushDurationLevels(durationLevels) { profileWrite({ durationLevels }); }
 export async function syncUpgrades(localUpgrades) { profileWrite({ ownedUpgrades: localUpgrades }); setCookie('ownedUpgrades', JSON.stringify(localUpgrades)); return localUpgrades; }
 export async function syncAchievements(list = []) {
     profileWrite(Object.fromEntries(list.map(a => [`achievements/${safeKey(a)}`, true])));
@@ -752,6 +756,7 @@ async function doSignInSync() {
     };
 
     // Old score upgrades (double_score ... score_x10) are folded into scoreLevel and removed from the list.
+    // Old cooldown upgrades (vortex_cooldown_half, cooldown_x3, cooldown_x4) are folded into cooldownLevel the same way.
     const ownedRaw = [...new Set([...asList(cloud.ownedUpgrades), ...local.ownedUpgrades])];
     const goalMap = new Map();
     [...asList(cloud.customSpeedrunGoals), ...local.customSpeedrunGoals].forEach(g => g?.key && goalMap.set(g.key, g));
@@ -759,9 +764,11 @@ async function doSignInSync() {
         skins: normalizeSkins([...DEFAULT_SKINS, ...asKeys(cloud.skins), ...asList(cloud.unlockedSkins), ...local.skins]),
         maxLevel: Math.max(Number(cloud.maxLevel) || 1, local.maxLevel),
         coins: Math.max(Number(cloud.coins) || 0, local.coins),
-        ownedUpgrades: stripLegacyScore(ownedRaw),
-        disabledUpgrades: stripLegacyScore(cloud.disabledUpgrades !== undefined ? asList(cloud.disabledUpgrades) : (local.disabledUpgrades || [])),
+        ownedUpgrades: stripLegacyDuration(stripLegacyCooldown(stripLegacyScore(ownedRaw))),
+        disabledUpgrades: stripLegacyDuration(stripLegacyCooldown(stripLegacyScore(cloud.disabledUpgrades !== undefined ? asList(cloud.disabledUpgrades) : (local.disabledUpgrades || [])))),
         scoreLevel: Math.max(clampScoreLevel(cloud.scoreLevel), clampScoreLevel(getCookie('scoreLevel')), legacyScoreLevel(ownedRaw)),
+        cooldownLevel: Math.max(clampCooldownLevel(cloud.cooldownLevel), clampCooldownLevel(getCookie('cooldownLevel')), legacyCooldownLevel(ownedRaw)),
+        durationLevels: mergeDurationLevels(cloud.durationLevels, getCookie('durationLevels'), legacyDurationLevels(ownedRaw)),
         hpLevels: renameDragonKey((cloud.hpLevels && typeof cloud.hpLevels === 'object') ? cloud.hpLevels : (local.hpLevels || {})),
         achievements: [...new Set([...asKeys(cloud.achievements), ...asList(cloud.achievementsList), ...local.achievements])],
         keyBindings: { ...(cloud.keyBindings || {}), ...local.keyBindings },
@@ -778,6 +785,8 @@ async function doSignInSync() {
     setCookie('disabledUpgrades', JSON.stringify(merged.disabledUpgrades));
     setCookie('hpLevels', JSON.stringify(merged.hpLevels));
     setCookie('scoreLevel', String(merged.scoreLevel));
+    setCookie('cooldownLevel', String(merged.cooldownLevel));
+    setCookie('durationLevels', JSON.stringify(merged.durationLevels));
     setCookie('keyBindings', JSON.stringify(merged.keyBindings));
     setCookie('gameRules', JSON.stringify(merged.gameRules));
     setCookie('deviceMode', JSON.stringify(merged.deviceMode));
@@ -797,6 +806,8 @@ async function doSignInSync() {
         disabledUpgrades: merged.disabledUpgrades,
         hpLevels: merged.hpLevels,
         scoreLevel: merged.scoreLevel || null,
+        cooldownLevel: merged.cooldownLevel || null,
+        durationLevels: (merged.durationLevels.joker || merged.durationLevels.dragon) ? merged.durationLevels : null,
         achievements: Object.fromEntries(merged.achievements.map(a => [safeKey(a), true])),
         keyBindings: merged.keyBindings,
         gameRules: merged.gameRules,
