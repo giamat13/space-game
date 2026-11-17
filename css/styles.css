@@ -290,6 +290,31 @@ body {
     z-index: 40;
 }
 
+/* Joker shot: a spinning gold-and-magenta playing card */
+.bullet.bullet-joker {
+    width: 11px;
+    height: 15px;
+    border-radius: 3px;
+    border: 1px solid #05070f;
+    background: linear-gradient(160deg, #fff6d0 0%, #fff6d0 18%, #ff2fb3 18%, #ff2fb3 55%, #ffd21a 55%, #ffd21a 100%);
+    box-shadow: 0 0 12px #ff2fb3, 0 0 6px #ffd21a;
+    animation: jokerCardSpin 0.5s linear infinite;
+}
+
+@keyframes jokerCardSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Ivory shot: a white tooth-shaped bolt with a pink tip */
+.bullet.bullet-ivory {
+    width: 7px;
+    height: 22px;
+    border-radius: 50% 50% 45% 45% / 30% 30% 70% 70%;
+    background: linear-gradient(to top, #c9b68a 0%, #fffdf4 45%, #ff9ad5 100%);
+    box-shadow: 0 0 12px #fff3c4, 0 0 6px #ff9ad5;
+}
+
 .phoenix-feather {
     position: absolute;
     width: 20px;

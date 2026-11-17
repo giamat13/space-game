@@ -365,7 +365,12 @@ export function shoot(rateMultiplier = 1) {
     b.style.left = (state.playerX + 23) + 'px';
     b.style.bottom = '80px';
     
-    if (state.currentSkinStats.bulletDamage >= 3.0) {
+    // Joker and Ivory have their own shot look (css/styles.css .bullet-joker / .bullet-ivory).
+    // Their CSS class must not be overridden by the fire styling below.
+    if (currentSkinKey === 'joker' || currentSkinKey === 'ivory') {
+        b.classList.add('bullet-' + currentSkinKey);
+        if (state.currentSkinStats.bulletDamage >= 3.0) b.dataset.isFire = 'true';
+    } else if (state.currentSkinStats.bulletDamage >= 3.0) {
         b.style.width = '8px';
         b.style.height = '25px';
         b.style.background = 'linear-gradient(to top, #ff4500, #ffa500, #ffff00)';
