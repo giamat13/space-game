@@ -631,6 +631,12 @@ export async function syncAchievements(list = []) {
     profileWrite(Object.fromEntries(list.map(a => [`achievements/${safeKey(a)}`, true])));
     return list;
 }
+// Game history: one row per game under users/{uid}/history/{timestamp}. Replays stay on the device.
+export async function saveHistoryEntryToCloud(entry) {
+    if (!entry || !entry.timestamp || entry.isDebug) return false;
+    const { historyRowForCloud } = await import('./game-history.js');
+    return profileWrite({ [`history/${entry.timestamp}`]: historyRowForCloud(entry) });
+}
 export async function syncKeyBindings(b = {}) { profileWrite({ keyBindings: b }); return b; }
 export async function syncGameRules(r = {}) { profileWrite({ gameRules: r }); return r; }
 export async function syncDeviceMode(d = {}) { profileWrite({ deviceMode: d }); return d; }
@@ -750,6 +756,20 @@ async function doSignInSync() {
         const empty = v == null || (typeof v === 'object' && !Object.keys(v).length);
         if (!same(cur, v) && !(empty && cur == null)) upd[`users/${uid}/${k}`] = v;
     }
+    // Game history: the cloud's games join this device's list, the device's games go up,
+    // and the cloud keeps the same newest games as the device.
+    try {
+        const { mergeCloudHistory, historyRowForCloud } = await import('./game-history.js');
+        const cloudHist = (cloud.history && typeof cloud.history === 'object') ? cloud.history : {};
+        const list = mergeCloudHistory(Object.values(cloudHist)).filter(e => e && e.timestamp && !e.isDebug);
+        const keep = new Set(list.map(e => String(e.timestamp)));
+        for (const e of list) {
+            if (!cloudHist[String(e.timestamp)]) upd[`users/${uid}/history/${e.timestamp}`] = historyRowForCloud(e);
+        }
+        for (const k of Object.keys(cloudHist)) if (!keep.has(k)) upd[`users/${uid}/history/${k}`] = null;
+        window.__onHistorySynced?.();
+    } catch (e) { console.warn('⚠️ [SYNC] History not merged:', e); }
+
     if (legacyChecked && !cloud.fsChecked) upd[`users/${uid}/fsChecked`] = true;
     // Friends can send coins to this account by e-mail.
     if (user.email && cloud.email !== user.email.toLowerCase()) upd[`emails/${emailKey(user.email)}`] = uid;

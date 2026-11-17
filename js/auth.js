@@ -33,6 +33,41 @@ const firebaseConfig = {
     measurementId: "G-KDX7TXWLFL"
 };
 
+// ===== KEEP THE SIGN-IN AWAY FROM THE WARP STORAGE PROXY =====
+// firebase-ls-proxy.js (loaded after this file) replaces window.localStorage with an in-memory
+// copy. Its copy starts empty (it reads window._realLS before setting it) and is synced to another
+// project, so Firebase could read its own sign-in keys as missing and sign the player out.
+// Here window._realLS returns the real storage from the start (so the proxy's copy starts full),
+// and once the proxy is in place, keys starting with "firebase:" always go to the real storage.
+(function guardAuthStorage() {
+    let real;
+    try { real = window.localStorage; } catch { return; }
+    if (!real || Object.getOwnPropertyDescriptor(window, '_realLS')) return;
+    let stored = real;
+    const own = (k) => typeof k === 'string' && k.startsWith('firebase:');
+    function wrapProxy() {
+        let proxy;
+        try { proxy = window.localStorage; } catch { return; }
+        if (!proxy || proxy === real || proxy.__authGuard) return;
+        const wrapped = {
+            __authGuard: true,
+            getItem: (k) => own(k) ? real.getItem(k) : proxy.getItem(k),
+            setItem: (k, v) => own(k) ? real.setItem(k, v) : proxy.setItem(k, v),
+            removeItem: (k) => own(k) ? real.removeItem(k) : proxy.removeItem(k),
+            clear: () => proxy.clear(),
+            key: (i) => proxy.key(i),
+            get length() { return proxy.length; }
+        };
+        Object.defineProperty(window, 'localStorage', { configurable: true, get: () => wrapped });
+    }
+    Object.defineProperty(window, '_realLS', {
+        configurable: true,
+        get: () => stored,
+        // The proxy sets _realLS and then, in the same task, replaces localStorage.
+        set(v) { stored = v || real; queueMicrotask(wrapProxy); }
+    });
+})();
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();

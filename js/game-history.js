@@ -112,7 +112,35 @@ export function addGameToHistory(entry) {
     const history = loadGameHistory();
     history.unshift(entry);
     saveGameHistory(history);
+    // The account keeps a copy in the cloud (without the replay, which stays on this device).
+    import('./cloud-sync.js').then(m => m.saveHistoryEntryToCloud?.(entry)).catch(() => {});
     return history;
+}
+
+// ===== CLOUD COPY =====
+// A history row as the cloud keeps it: everything except the replay fields.
+export function historyRowForCloud(entry) {
+    return Object.fromEntries(Object.entries(entry || {}).filter(([k]) => !k.startsWith('replay')));
+}
+
+// Adds the cloud's games that this device does not have yet (matched by timestamp) and
+// returns the merged list, newest first, limited to MAX_HISTORY.
+export function mergeCloudHistory(cloudEntries = []) {
+    const local = loadGameHistory();
+    const byTs = new Map();
+    const noTs = [];
+    for (const e of local) {
+        if (e && e.timestamp) byTs.set(String(e.timestamp), e); else if (e) noTs.push(e);
+    }
+    let added = 0;
+    for (const e of cloudEntries) {
+        if (e && e.timestamp && !byTs.has(String(e.timestamp))) { byTs.set(String(e.timestamp), e); added++; }
+    }
+    const list = [...byTs.values(), ...noTs]
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, MAX_HISTORY);
+    if (added) saveGameHistory(list);
+    return list;
 }
 
 // ===== PERSONAL BESTS — read from existing leaderboard cookies =====

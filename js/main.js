@@ -3975,6 +3975,10 @@ function refreshPersonalBest() {
 
 // Called from systems.js after a game ends
 window.__refreshPersonalBest = refreshPersonalBest;
+// Called after the sign-in sync merged the cloud's game history into this device's list
+window.__onHistorySynced = () => {
+    try { renderHistoryStats(); renderHistoryList(); } catch { /* history screen not built yet */ }
+};
 
 // Initialize on load
 refreshPersonalBest();
