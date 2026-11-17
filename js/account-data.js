@@ -16,7 +16,9 @@ const PROGRESS_COOKIE_PREFIXES = ['leaderboard_'];
 // The cloud outbox (cloudOutbox_v2) is NOT listed: its items carry the account id and are
 // uploaded the next time that account signs in, so signing out never loses a waiting save.
 const PROGRESS_KEYS = ['achievements_v1', 'gameHistory', 'gameHistory_v2', 'bossTrophies_v1'];
-const PROGRESS_KEY_PREFIXES = ['sr_lb_', 'gameReplay_v1_'];
+const PROGRESS_KEY_PREFIXES = ['sr_lb_', 'gameReplay_v1_', 'leaderboard_'];
+// Replays are kept in IndexedDB (see js/game-history.js).
+const REPLAY_DB = 'spaceGameReplays';
 
 function cookieNames() {
     return document.cookie.split(';').map(c => c.split('=')[0].trim()).filter(Boolean);
@@ -41,6 +43,8 @@ export function clearLocalProgress() {
         }
         keys.forEach(k => localStorage.removeItem(k));
     } catch (e) { console.warn('⚠️ [LOCAL] Could not clear storage:', e); }
+
+    try { indexedDB.deleteDatabase(REPLAY_DB); } catch { /* IndexedDB unavailable */ }
 }
 
 function getOwner() {

@@ -44,6 +44,7 @@ import {
 export { sendCoinsToFriend, claimPendingTransfers };
 
 import { SHIPS } from './art.js';
+import { readLocalTable, writeLocalTable } from './local-tables.js';
 import { SCORE_MULTS, SCORE_LEVEL_COSTS, clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 
 // Skin Configuration
@@ -227,7 +228,8 @@ export function saveSpeedrunResult(goalKey, entry) {
     }
     lb.sort((a, b) => a.time - b.time);
     lb = lb.slice(0, 10);
-    localStorage.setItem(`sr_lb_${goalKey}`, JSON.stringify(lb));
+    try { localStorage.setItem(`sr_lb_${goalKey}`, JSON.stringify(lb)); }
+    catch (e) { console.warn('⚠️ [SPEEDRUN] Local table not saved:', e); }
     return saveSpeedrunToCloud(goalKey, entry)
         .catch(() => ({ ok: false, reason: 'error', queued: false }));
 }
@@ -712,16 +714,7 @@ export function resetCoins() {
 
 // Leaderboard Management
 export function getLeaderboard(skinKey = 'overall') {
-    const cookieName = `leaderboard_${skinKey}`;
-    const saved = getCookie(cookieName);
-    if (saved) {
-        try {
-            return JSON.parse(saved);
-        } catch (e) {
-            return [];
-        }
-    }
-    return [];
+    return readLocalTable(skinKey);
 }
 
 export async function saveScore(skinKey, score, level, userName = null, settings = null) {
@@ -745,7 +738,7 @@ export async function saveScore(skinKey, score, level, userName = null, settings
     }
     skinLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     skinLeaderboard = skinLeaderboard.slice(0, 5);
-    setCookie(`leaderboard_${skinKey}`, JSON.stringify(skinLeaderboard));
+    writeLocalTable(skinKey, skinLeaderboard);
 
     let overallLeaderboard = getLeaderboard('overall');
     const overallEntry = {
@@ -763,7 +756,7 @@ export async function saveScore(skinKey, score, level, userName = null, settings
     }
     overallLeaderboard.sort((a, b) => ((b.level || 0) - (a.level || 0)) || (b.score - a.score));
     overallLeaderboard = overallLeaderboard.slice(0, 5);
-    setCookie(`leaderboard_overall`, JSON.stringify(overallLeaderboard));
+    writeLocalTable('overall', overallLeaderboard);
 
     // Save to cloud. The result tells the caller what actually happened, so the player
     // can be told (new record / record kept / not saved / playing as a guest).

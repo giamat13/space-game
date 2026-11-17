@@ -26,6 +26,7 @@
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 import { claimLocalProgress } from './account-data.js';
+import { readLocalTable, localTableNames } from './local-tables.js';
 import { clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 
 export const DB_URL = 'https://space-game-ii-default-rtdb.europe-west1.firebasedatabase.app';
@@ -263,9 +264,15 @@ async function doFlush() {
                 if (result?.world) records.push(result);
             }
         } catch (e) {
-            if (e.code === 'permission-denied') {
-                // The server will never accept this write; keep the queue moving.
-                console.warn('⚠️ [CLOUD] Write refused by the rules, dropped:', item.kind, e.message);
+            // A write the server refuses for good (rules, a bad request, too large) is dropped.
+            // Before, a 400 counted as "try later" and stayed first in the queue forever,
+            // so every save queued after it was never sent.
+            const s = Number(e.status) || 0;
+            const permanent = e.code === 'permission-denied'
+                || (s >= 400 && s < 500 && s !== 408 && s !== 429)
+                || (item.tries || 0) >= 50;
+            if (permanent) {
+                console.warn('⚠️ [CLOUD] Write refused for good, dropped:', item.kind, e.message);
                 updateOutbox(list => list.filter(i => i.id !== item.id));
                 continue;
             }
@@ -364,11 +371,9 @@ async function writeScore(user, entry) {
 // All personal runs this device knows: top row of each local table + every history game.
 async function personalRuns() {
     const runs = [];
-    for (const raw of document.cookie.split(';')) {
-        const name = raw.split('=')[0].trim();
-        if (!name.startsWith('leaderboard_')) continue;
-        const list = readJSONCookie(name, []);
-        if (Array.isArray(list) && list[0]) runs.push({ ...list[0], skin: list[0].skin || (name === 'leaderboard_overall' ? null : name.slice(12)) });
+    for (const table of localTableNames()) {
+        const list = readLocalTable(table);
+        if (Array.isArray(list) && list[0]) runs.push({ ...list[0], skin: list[0].skin || (table === 'overall' ? null : table) });
     }
     try {
         const { loadGameHistory } = await import('./game-history.js');
@@ -412,6 +417,43 @@ async function checkPersonalBests(user) {
         }) });
     }
     console.log(`🏆 [BESTS] ${toSend.size} personal best(s) better than the leaderboard, adding`);
+    flushPendingSaves().catch(() => {});
+}
+
+// The same check for speedrun times (boss kills, levels, points): the fastest local time of
+// each goal is compared with the account's time in the cloud and sent when it is faster.
+async function checkSpeedrunBests(user) {
+    const uid = user.uid;
+    const best = new Map();
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith('sr_lb_')) continue;
+            let rows = [];
+            try { rows = JSON.parse(localStorage.getItem(k) || '[]'); } catch { continue; }
+            for (const r of Array.isArray(rows) ? rows : []) {
+                if (isValidTime(r) && (!best.has(k.slice(6)) || r.time < best.get(k.slice(6)).time)) best.set(k.slice(6), r);
+            }
+        }
+    } catch { return; }
+    if (!best.size) return;
+    const goals = [...best.keys()];
+    let cloud;
+    try { cloud = await Promise.all(goals.map(g => cloudRest(`speedrun/${safeKey(g)}/${uid}`))); }
+    catch (e) { console.warn('⚠️ [BESTS] Speedrun times not reachable, will check next time:', e.code); return; }
+    const waiting = readOutbox().filter(i => i.kind === 'speedrun' && i.uid === uid).map(i => `${i.goalKey}|${i.entry?.time}`);
+    let sent = 0;
+    goals.forEach((g, i) => {
+        const run = best.get(g);
+        if (!isFasterTime(run, isValidTime(cloud[i]) ? cloud[i] : null)) return;
+        if (waiting.includes(`${g}|${run.time}`)) return;
+        const entry = sanitize({ ...run, clientTimestamp: run.timestamp || Date.now() });
+        if (!entry.userName || entry.userName === 'Anonymous') entry.userName = user.displayName || user.email?.split('@')[0] || 'Anonymous';
+        enqueueItem({ kind: 'speedrun', uid, goalKey: g, entry });
+        sent++;
+    });
+    if (!sent) return;
+    console.log(`⏱️ [BESTS] ${sent} speedrun time(s) faster than the cloud, adding`);
     flushPendingSaves().catch(() => {});
 }
 // The old "sent once" list is no longer used.
@@ -1030,6 +1072,7 @@ export function initCloudSync() {
         if (claimLocalProgress(user.uid)) { window.location.reload(); return; }
         await syncAllData();
         checkPersonalBests(user).catch(e => console.warn('⚠️ [BESTS] Check failed:', e));
+        checkSpeedrunBests(user).catch(e => console.warn('⚠️ [BESTS] Speedrun check failed:', e));
     });
 }
 

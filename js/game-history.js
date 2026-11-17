@@ -1,35 +1,65 @@
 // ===== GAME HISTORY & PERSONAL LEADERBOARD =====
-// Chronological history: separate localStorage
-// Personal bests: reads directly from existing leaderboard_* cookies
+// History: localStorage (gameHistory_v2), newest first, MAX_HISTORY games.
+// Replays: IndexedDB (database spaceGameReplays), one record per game.
+// Personal bests: the local best tables (js/local-tables.js).
+import { readLocalTable } from './local-tables.js';
 
 const HISTORY_KEY = 'gameHistory_v2';
 const MAX_HISTORY = 50;
 
-// ===== COOKIE HELPERS (same as data.js) =====
-function getCookie(name) {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1);
-        if (c.indexOf(nameEQ) === 0) {
-            try { return JSON.parse(c.substring(nameEQ.length)); } catch(e) { return null; }
-        }
-    }
-    return null;
-}
-
-// ===== HISTORY (chronological, localStorage) =====
-
 // ===== REPLAYS =====
-// Each replay is kept under its own key (gameReplay_v1_<timestamp>), not inside the history list.
-// localStorage is wrapped by the external WARP proxy, which copies every key into ONE cloud
-// document (max 1 MB) and swallows storage errors. A history list holding many replays grew past
-// that limit, stopped saving, and new replays vanished after a reload. Now every replay is thinned
-// to fit MAX_REPLAY_CHARS, and the newest replays are kept within REPLAY_BUDGET_CHARS in total.
+// Replays used to be kept in localStorage. Together they filled the browser's ~5 MB limit
+// (shared by every game on the same site), and from then on the history list, the boss
+// times and the replays themselves failed to save. IndexedDB has room for them.
 const REPLAY_PREFIX = 'gameReplay_v1_';
-const MAX_REPLAY_CHARS = 900000;
-const REPLAY_BUDGET_CHARS = 3500000;
+const REPLAY_DB = 'spaceGameReplays';
+const REPLAY_STORE = 'replays';
+const MAX_REPLAY_CHARS = 3000000;       // one replay; longer ones are thinned to fit
+const REPLAY_BUDGET_CHARS = 60000000;   // all replays together; the newest are kept
+const LS_FALLBACK_CHARS = 400000;       // without IndexedDB, only a small replay goes to localStorage
+
+let _db = null;
+function openDb() {
+    if (_db) return _db;
+    _db = new Promise((resolve, reject) => {
+        if (typeof indexedDB === 'undefined') { reject(new Error('IndexedDB unavailable')); return; }
+        const req = indexedDB.open(REPLAY_DB, 1);
+        req.onupgradeneeded = () => { req.result.createObjectStore(REPLAY_STORE); };
+        req.onsuccess = () => {
+            const db = req.result;
+            // Account data cleared (sign-out): close so the database can be deleted.
+            db.onversionchange = () => { db.close(); _db = null; };
+            resolve(db);
+        };
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error('IndexedDB blocked'));
+    });
+    _db.catch(() => { _db = null; });
+    return _db;
+}
+function idb(mode, fn) {
+    return openDb().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(REPLAY_STORE, mode);
+        const req = fn(tx.objectStore(REPLAY_STORE));
+        let out;
+        if (req) req.onsuccess = () => { out = req.result; };
+        tx.oncomplete = () => resolve(out);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    }));
+}
+const idbPut = (key, json) => idb('readwrite', s => s.put(json, key));
+const idbGet = (key) => idb('readonly', s => s.get(key));
+const idbKeys = () => idb('readonly', s => s.getAllKeys());
+const idbDelete = (keys) => idb('readwrite', s => { keys.forEach(k => s.delete(k)); return null; });
+
+// The last replays of this session stay in memory, so a replay can be watched right after
+// the game, before (or even if) it is written.
+const _recent = new Map();
+function remember(key, log) {
+    _recent.set(key, log);
+    while (_recent.size > 3) _recent.delete(_recent.keys().next().value);
+}
 
 // Drop every other snapshot frame (event frames stay) until the replay fits.
 function fitReplay(log) {
@@ -43,44 +73,84 @@ function fitReplay(log) {
     return json.length > MAX_REPLAY_CHARS ? null : json;
 }
 
-function readReplay(key) {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
-}
-
-// replayLog is read only when a replay is opened, so listing the history stays cheap.
-function attachReplay(entry) {
-    if (!entry || !entry.replayKey || entry.replayLog) return entry;
-    let cached;
-    Object.defineProperty(entry, 'replayLog', {
-        enumerable: false, configurable: true,
-        get() { if (cached === undefined) cached = readReplay(entry.replayKey); return cached; }
+function storeReplay(key, json) {
+    idbPut(key, json).catch(err => {
+        console.warn('⚠️ [REPLAY] IndexedDB not available, trying localStorage:', err);
+        if (json.length > LS_FALLBACK_CHARS) return;
+        try { localStorage.setItem(key, json); } catch { /* no room */ }
     });
-    return entry;
 }
 
 export function hasReplay(entry) {
-    return !!(entry && (entry.replayKey || entry.replayLog));
+    return !!(entry && (entry.replayKey || Array.isArray(entry.replayLog)));
 }
 
+// Reads a game's replay: from memory, from IndexedDB, or from an old localStorage copy.
+export async function loadReplay(entry) {
+    if (!entry) return null;
+    if (Array.isArray(entry.replayLog)) return entry.replayLog;
+    const key = entry.replayKey;
+    if (!key) return null;
+    if (_recent.has(key)) return _recent.get(key);
+    let json = null;
+    try { json = await idbGet(key); } catch { /* IndexedDB unavailable */ }
+    if (!json) { try { json = localStorage.getItem(key); } catch { /* storage unavailable */ } }
+    if (!json) return null;
+    try { return typeof json === 'string' ? JSON.parse(json) : json; } catch { return null; }
+}
+
+// Old replays in localStorage move to IndexedDB once, which frees the room the history needs.
+async function moveOldReplays() {
+    const keys = [];
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(REPLAY_PREFIX)) keys.push(k);
+        }
+    } catch { return; }
+    for (const k of keys) {
+        try {
+            const v = localStorage.getItem(k);
+            if (v) await idbPut(k, v);
+            localStorage.removeItem(k);
+        } catch { return; }   // IndexedDB unavailable: they stay where they are
+    }
+}
+if (typeof window !== 'undefined') moveOldReplays();
+
+// ===== HISTORY =====
 export function loadGameHistory() {
     try {
         const item = localStorage.getItem(HISTORY_KEY);
-        if (item) return JSON.parse(item).map(attachReplay);
-    } catch(e) {}
+        if (item) {
+            const list = JSON.parse(item);
+            if (Array.isArray(list)) return list.filter(Boolean);
+        }
+    } catch (e) { console.warn('⚠️ [HISTORY] Could not read game history:', e); }
     return [];
 }
 
+function writeHistory(list) {
+    // If storage is full, keep fewer games rather than none.
+    for (let n = list.length; n > 0; n = Math.floor(n / 2)) {
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, n))); return true; }
+        catch (e) { console.warn(`⚠️ [HISTORY] Could not save ${n} games:`, e); }
+    }
+    return false;
+}
+
 function saveGameHistory(history) {
-    const list = history.slice(0, MAX_HISTORY).map(e => {
-        if (!e) return e;
-        const own = Object.getOwnPropertyDescriptor(e, 'replayLog');
-        const inline = own && 'value' in own ? own.value : undefined;   // not the lazy getter
-        const { replayLog, ...rest } = { ...e, replayLog: undefined };
-        if (inline && !rest.replayKey) {
-            const json = fitReplay(inline);
+    const list = history.filter(Boolean).slice(0, MAX_HISTORY).map(e => {
+        const { replayLog, ...rest } = e;
+        if (Array.isArray(replayLog) && replayLog.length && !rest.replayKey) {
+            const json = fitReplay(replayLog);
             if (json) {
                 const key = REPLAY_PREFIX + (rest.timestamp || Date.now());
-                try { localStorage.setItem(key, json); rest.replayKey = key; } catch { rest.replayDropped = true; }
+                rest.replayKey = key;
+                rest.replaySize = json.length;
+                delete rest.replayDropped;
+                remember(key, JSON.parse(json));
+                storeReplay(key, json);
             } else rest.replayDropped = true;
         }
         return rest;
@@ -90,22 +160,17 @@ function saveGameHistory(history) {
     let used = 0;
     const keep = new Set();
     for (const e of list) {
-        if (!e?.replayKey) continue;
-        const v = (() => { try { return localStorage.getItem(e.replayKey); } catch { return null; } })();
-        if (v && used + v.length <= REPLAY_BUDGET_CHARS) { used += v.length; keep.add(e.replayKey); }
-        else { delete e.replayKey; e.replayDropped = true; }
+        if (!e.replayKey) continue;
+        const size = e.replaySize || 0;
+        if (used + size <= REPLAY_BUDGET_CHARS) { used += size; keep.add(e.replayKey); }
+        else { delete e.replayKey; delete e.replaySize; e.replayDropped = true; }
     }
-    try {
-        const stale = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith(REPLAY_PREFIX) && !keep.has(k)) stale.push(k);
-        }
-        stale.forEach(k => localStorage.removeItem(k));
-    } catch { /* storage unavailable */ }
+    idbKeys().then(keys => {
+        const stale = (keys || []).filter(k => !keep.has(k));
+        if (stale.length) return idbDelete(stale);
+    }).catch(() => { /* IndexedDB unavailable */ });
 
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
-    catch (e) { console.warn('⚠️ [HISTORY] Could not save game history:', e); }
+    return writeHistory(list);
 }
 
 export function addGameToHistory(entry) {
@@ -143,7 +208,7 @@ export function mergeCloudHistory(cloudEntries = []) {
     return list;
 }
 
-// ===== PERSONAL BESTS — read from existing leaderboard cookies =====
+// ===== PERSONAL BESTS — read from the local best tables =====
 const ALL_SKINS = ['classic','interceptor','tanker','phoenix','vortex','joker','baby_dragon'];
 
 export function getPersonalBests(skinKey = 'overall', limit = 10) {
@@ -151,14 +216,14 @@ export function getPersonalBests(skinKey = 'overall', limit = 10) {
         // Collect best entry per skin from each skin leaderboard
         const allEntries = [];
         for (const sk of ALL_SKINS) {
-            const entries = getCookie(`leaderboard_${sk}`) || [];
+            const entries = readLocalTable(sk) || [];
             entries.forEach(e => {
                 if (!e.skin) e.skin = sk;
                 allEntries.push(e);
             });
         }
         // Also try the overall cookie directly
-        const overall = getCookie('leaderboard_overall') || [];
+        const overall = readLocalTable('overall') || [];
         overall.forEach(e => allEntries.push(e));
 
         // Deduplicate by userName+skin, keep highest score
@@ -169,7 +234,7 @@ export function getPersonalBests(skinKey = 'overall', limit = 10) {
         }
         return Object.values(seen).sort((a,b) => b.score - a.score).slice(0, limit);
     } else {
-        const entries = getCookie(`leaderboard_${skinKey}`) || [];
+        const entries = readLocalTable(skinKey) || [];
         return [...entries].sort((a,b) => b.score - a.score).slice(0, limit);
     }
 }
@@ -179,7 +244,7 @@ export function getPersonalBest() {
     let best = null;
     const keys = ['overall', ...ALL_SKINS];
     for (const sk of keys) {
-        const entries = getCookie(`leaderboard_${sk}`) || [];
+        const entries = readLocalTable(sk) || [];
         for (const e of entries) {
             if (!best || e.score > best.score) {
                 best = { ...e, skin: e.skin || sk };
@@ -195,7 +260,7 @@ export function getPersonalStats() {
     // Also pull from leaderboard cookies for stats even before history existed
     const allLeaderboard = [];
     for (const sk of ['overall', ...ALL_SKINS]) {
-        const entries = getCookie(`leaderboard_${sk}`) || [];
+        const entries = readLocalTable(sk) || [];
         allLeaderboard.push(...entries.map(e => ({ ...e, skin: e.skin || sk })));
     }
 

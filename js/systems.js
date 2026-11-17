@@ -197,10 +197,17 @@ export function damagePlayer(amount, source = 'unknown') {
                 import('./i18n.js'),
                 import('./game-history.js')
             ]).then(([dataModule, authModule, eduModule, i18nModule, histModule]) => {
+                // Every step below runs on its own: one failing step (a full storage, a
+                // missing setting) must never stop the others from saving the game.
+                const step = (name, fn) => {
+                    try { return fn(); }
+                    catch (err) { console.error(`❌ [GAME OVER] ${name} failed:`, err); return undefined; }
+                };
                 const userName = authModule.currentUser?.displayName || 'Anonymous';
                 const skinKey = dataModule.currentSkinKey;
                 const skinName = dataModule.SKINS[skinKey]?.name || skinKey;
-                const settings = {
+                const endedAt = Date.now();
+                const settings = step('Settings', () => ({
                     isMobile: dataModule.deviceMode.isMobile,
                     controlType: dataModule.keyBindings.controlType,
                     shoot: dataModule.keyBindings.shoot,
@@ -224,41 +231,11 @@ export function damagePlayer(amount, source = 'unknown') {
                         ...(state.inputUsed?.keyboard ? ['keyboard'] : []),
                         ...(state.inputUsed?.gamepad ? ['gamepad'] : [])
                     ]
-                };
-
-                // Save to global leaderboard (cloud + local)
-                window.__showScoreSaveStatus?.({ pending: true });
-                dataModule.saveScore(skinKey, state.score, state.level, userName, settings)
-                    .then((result) => {
-                        window.__showScoreSaveStatus?.(result);
-                        window.__refreshLeaderboard?.();
-                    })
-                    .catch(err => {
-                        console.error('❌ [GAME OVER] Leaderboard save failed:', err);
-                        window.__showScoreSaveStatus?.({ ok: false, reason: 'error', queued: false });
-                    });
-                console.log(`💾 [GAME OVER] Score save started for user: ${userName}`);
-
-                // Save speedrun results
-                const allGoals = [...(dataModule.SPEEDRUN_GOALS || []), ...(dataModule.getCustomSpeedrunGoals?.() || [])];
-                for (const goal of allGoals) {
-                    const t = (state.speedrunHits || {})[goal.key];
-                    if (t != null) {
-                        dataModule.saveSpeedrunResult(goal.key, {
-                            userName,
-                            time: t,
-                            score: state.score,
-                            level: state.level,
-                            skin: skinKey,
-                            date: new Date().toLocaleDateString('he-IL'),
-                            timestamp: Date.now(),
-                            settings
-                        });
-                    }
-                }
+                })) || { gameDuration, startTime: state.startTime || null,
+                         bossKilled: !!state.bossDone, bossesKilled: state.bossesBeaten || 0 };
 
                 // Attach replay log (compact events recorded during gameplay)
-                const replayLog = window.__flushReplayLog ? window.__flushReplayLog() : null;
+                const replayLog = step('Replay', () => window.__flushReplayLog ? window.__flushReplayLog() : null);
 
                 const histEntry = {
                     score: state.score,
@@ -266,17 +243,52 @@ export function damagePlayer(amount, source = 'unknown') {
                     skin: skinKey,
                     skinName,
                     duration: gameDuration,
-                    date: new Date().toLocaleDateString('he-IL'),
-                    timestamp: Date.now(),
+                    date: new Date(endedAt).toLocaleDateString('he-IL'),
+                    timestamp: endedAt,
                     userName,
                     isDebug: false,
                     settings,
                     replayLog: replayLog || undefined
                 };
 
-                // Save to personal game history
-                histModule.addGameToHistory(histEntry);
-                console.log(`✅ [GAME OVER] Game added to personal history`);
+                // 1. Personal game history (first: it is the record of the game)
+                step('History', () => {
+                    histModule.addGameToHistory(histEntry);
+                    console.log(`✅ [GAME OVER] Game added to personal history`);
+                });
+
+                // 2. Leaderboards (local table + cloud)
+                step('Leaderboard', () => {
+                    window.__showScoreSaveStatus?.({ pending: true });
+                    dataModule.saveScore(skinKey, state.score, state.level, userName, settings)
+                        .then((result) => {
+                            window.__showScoreSaveStatus?.(result);
+                            window.__refreshLeaderboard?.();
+                        })
+                        .catch(err => {
+                            console.error('❌ [GAME OVER] Leaderboard save failed:', err);
+                            window.__showScoreSaveStatus?.({ ok: false, reason: 'error', queued: false });
+                        });
+                    console.log(`💾 [GAME OVER] Score save started for user: ${userName}`);
+                });
+
+                // 3. Speedrun times (boss kills, levels, points), each goal on its own
+                const allGoals = step('Speedrun goals', () =>
+                    [...(dataModule.SPEEDRUN_GOALS || []), ...(dataModule.getCustomSpeedrunGoals?.() || [])]) || [];
+                for (const goal of allGoals) {
+                    const t = (state.speedrunHits || {})[goal.key];
+                    if (t == null) continue;
+                    step(`Speedrun ${goal.key}`, () => dataModule.saveSpeedrunResult(goal.key, {
+                        userName,
+                        time: t,
+                        score: state.score,
+                        level: state.level,
+                        skin: skinKey,
+                        date: histEntry.date,
+                        timestamp: endedAt,
+                        settings
+                    }));
+                }
 
                 // Check achievements
                 import('./achievements.js').then(({ checkAchievements, showAchievementToast }) => {
@@ -292,16 +304,16 @@ export function damagePlayer(amount, source = 'unknown') {
                 }).catch(() => {});
 
                 // ===== ANALYTICS: log death + save full session to Firebase =====
-                trackDeath(source, 0, state.score, state.level);
-                saveAnalyticsToCloud(
-                    { score: state.score, level: state.level },
-                    settings
-                ).catch(e => console.error('❌ [ANALYTICS] Save failed:', e));
+                step('Analytics', () => {
+                    trackDeath(source, 0, state.score, state.level);
+                    saveAnalyticsToCloud(
+                        { score: state.score, level: state.level },
+                        settings
+                    ).catch(e => console.error('❌ [ANALYTICS] Save failed:', e));
+                });
 
                 // Notify main menu to refresh personal best display
-                if (typeof window.__refreshPersonalBest === 'function') {
-                    window.__refreshPersonalBest();
-                }
+                step('Refresh', () => window.__refreshPersonalBest?.());
             }).catch(err => {
                 console.error('❌ [GAME OVER] Save error:', err);
             });

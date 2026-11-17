@@ -38,7 +38,13 @@ const firebaseConfig = {
 // copy. Its copy starts empty (it reads window._realLS before setting it) and is synced to another
 // project, so Firebase could read its own sign-in keys as missing and sign the player out.
 // Here window._realLS returns the real storage from the start (so the proxy's copy starts full),
-// and once the proxy is in place, keys starting with "firebase:" always go to the real storage.
+// and once the proxy is in place:
+//   - keys starting with "firebase:" (the sign-in) only ever use the real storage;
+//   - every other key is read from the real storage first. The proxy loads its cloud copy
+//     after the page starts and overwrites newer values with it (a copy is often older: the
+//     tab closed before it was uploaded), which made the last games vanish from the history.
+//     The proxy's value is used only when this device has none (a new device).
+//   - writes go to the real storage and to the proxy (which keeps its cloud copy).
 (function guardAuthStorage() {
     let real;
     try { real = window.localStorage; } catch { return; }
@@ -51,9 +57,28 @@ const firebaseConfig = {
         if (!proxy || proxy === real || proxy.__authGuard) return;
         const wrapped = {
             __authGuard: true,
-            getItem: (k) => own(k) ? real.getItem(k) : proxy.getItem(k),
-            setItem: (k, v) => own(k) ? real.setItem(k, v) : proxy.setItem(k, v),
-            removeItem: (k) => own(k) ? real.removeItem(k) : proxy.removeItem(k),
+            getItem(k) {
+                if (own(k)) return real.getItem(k);
+                let v = null;
+                try { v = real.getItem(k); } catch { /* storage unavailable */ }
+                return v !== null ? v : proxy.getItem(k);
+            },
+            setItem(k, v) {
+                if (own(k)) return real.setItem(k, v);
+                let err = null;
+                try { real.setItem(k, v); }
+                catch (e) {
+                    // No room: drop the old value so reads don't return it; the proxy's copy has the new one.
+                    err = e;
+                    try { real.removeItem(k); } catch { /* ignore */ }
+                }
+                try { proxy.setItem(k, v); } catch { /* proxy failure is not ours */ }
+                if (err) throw err;
+            },
+            removeItem(k) {
+                try { real.removeItem(k); } catch { /* ignore */ }
+                if (!own(k)) proxy.removeItem(k);
+            },
             clear: () => proxy.clear(),
             key: (i) => proxy.key(i),
             get length() { return proxy.length; }

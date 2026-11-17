@@ -3171,7 +3171,7 @@ function clearDevConsole() {
 
 // ===== PERSONAL HISTORY & PERSONAL LEADERBOARD =====
 
-import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration, hasReplay } from './game-history.js';
+import { loadGameHistory, getPersonalBests, getPersonalStats, getPersonalBest, formatDuration, hasReplay, loadReplay } from './game-history.js';
 import { getAchievementProgress } from './achievements.js';
 
 // ===== REPLAY — records what the game DRAWS, so the viewer looks exactly like the game =====
@@ -3377,8 +3377,9 @@ function _replayMake(id) {
     return el;
 }
 
-function openReplay(histEntry) {
-    const log = histEntry.replayLog;
+async function openReplay(histEntry) {
+    let log = null;
+    try { log = await loadReplay(histEntry); } catch (e) { console.warn('⚠️ [REPLAY] Could not read replay:', e); }
     if (!log || !log.length) {
         alert(t('replayNoData'));
         return;
