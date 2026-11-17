@@ -1,6 +1,6 @@
 import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { SCORE_MULTS } from './score-upgrade.js';
-import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
+import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, useIvoryTooth, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -546,6 +546,7 @@ const LB_SKINS = [
     { key: 'phoenix',     get label() { return t('skinPhoenix'); } },
     { key: 'vortex',      get label() { return t('skinVortex'); } },
     { key: 'joker',       get label() { return t('skinJoker'); } },
+    { key: 'ivory',           get label() { return '🦷 ' + t('skinIvory'); } },
     { key: 'baby_dragon',      get label() { return '🐉 ' + t('skinDragon'); } },
 ];
 
@@ -690,6 +691,7 @@ const SHOP_TABS = [
     { key: 'phoenix',     labelKey: 'skinPhoenix',     icon: '🔥' },
     { key: 'vortex',      labelKey: 'skinVortex',      icon: '⚡' },
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
+    { key: 'ivory',           labelKey: 'skinIvory',       icon: '🦷' },
     { key: 'baby_dragon',      labelKey: 'skinDragon',      icon: '🐉' },
     { key: 'global',      labelKey: 'shopTabGlobal',    icon: '⭐' },
     { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
@@ -1054,7 +1056,8 @@ function renderShopItems() {
     }
     container.appendChild(_makeHPCard(_currentShopTab, coins));
 
-    const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
+    // 'all' upgrades (the cooldown ladder) show on every ship's tab
+    const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab || u.skin === 'all');
     if (skinUpgrades.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'text-align:center;opacity:0.45;font-size:0.85rem;padding:12px;';
@@ -1782,12 +1785,18 @@ async function initGame() {
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerHTML = icon('abDragon');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+    } else if (currentSkinKey === 'ivory') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abIvory');
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
     }
 
-    // Make sure invincibility visual is cleared on a fresh game
+    // Make sure invincibility and tooth visuals are cleared on a fresh game
     DOM.player.classList.remove('dragon-invincible');
+    DOM.player.classList.remove('ivory-tooth');
     
     const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam, .lightning-bolt');
     elementsToRemove.forEach(e => e.remove());
@@ -1989,6 +1998,27 @@ function updateAbilityCooldown(now) {
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
+    } else if (currentSkinKey === 'ivory') {
+        // The tooth leaves when its time runs out
+        if (state.ivoryAbility.activeUntil > 0 && now >= state.ivoryAbility.activeUntil) {
+            state.ivoryAbility.activeUntil = 0;
+            state.ivoryAbility.hitsLeft = 0;
+            DOM.player.classList.remove('ivory-tooth');
+        }
+
+        if (!state.ivoryAbility.ready) {
+            const elapsed = now - state.ivoryAbility.lastUsed;
+            const remaining = state.ivoryAbility.cooldown - elapsed;
+
+            if (remaining <= 0) {
+                state.ivoryAbility.ready = true;
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.ivoryAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
     } else if (currentSkinKey === 'baby_dragon') {
         // Clear invincibility visual when it expires
         if (state.dragonAbility.invincibleUntil > 0 && now >= state.dragonAbility.invincibleUntil) {
@@ -2041,6 +2071,15 @@ function activateSpecialAbility() {
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('joker_chaos', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'joker' });
+    } else if (currentSkinKey === 'ivory') {
+        if (!state.ivoryAbility.ready) return;
+
+        useIvoryTooth();
+        state.ivoryAbility.ready = false;
+        state.ivoryAbility.lastUsed = Date.now();
+        document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('ivory_tooth', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'ivory' });
     } else if (currentSkinKey === 'baby_dragon') {
         if (!state.dragonAbility.ready) return;
 
@@ -3575,6 +3614,7 @@ const ABILITY_INFO = {
     vortex:  { icon: '⚡', color: '#9b59b6', get label() { return t('abilityVortex'); } },
     phoenix: { icon: '🔥', color: '#ff6b35', get label() { return t('abilityPhoenix'); } },
     joker:   { icon: '🃏', color: '#ff4500', get label() { return t('abilityJoker'); } },
+    ivory:   { icon: '🦷', color: '#fff3c4', get label() { return t('abilityIvory'); } },
     baby_dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },
     dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },   // replays saved before the rename
 };

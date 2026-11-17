@@ -43,6 +43,13 @@ export const SHIPS = {
         p('M50 6 L72 26 L80 56 L66 82 L50 92 L34 82 L20 56 L28 26 Z', a.H) + hi('M50 10 L68 28 L72 40 L28 40 L32 28 Z') + sh('M24 62 L76 62 L66 80 L50 90 L34 80 Z', 0.32) +
         mir(`<path d="M30 44 L46 50 L34 58 Z" fill="${a.e}" stroke="#05070f" stroke-width="2" ${a.F}/>`) +
         p('M36 66 L42 74 L50 66 L58 74 L64 66 L60 78 L40 78 Z', '#fff', 'stroke="#05070f" stroke-width="1.6"')),
+    // Ivory: a pale hull with a tooth-shaped nose and pink jets (the tooth shield is drawn in CSS)
+    ivory: svg('iv', ['#fffdf4', '#f1e6c8', '#8c7e5c', '#ffffff'], (a) =>
+        mir(jet(a, 38, 92, 4) + p('M34 38 L14 30 L10 64 L30 72 Z', a.M) + dot(a, 14, 52, 2.6)) +
+        p('M50 4 L64 30 L66 68 L50 88 L34 68 L36 30 Z', a.H) + hi('M50 8 L58 30 L50 38 L42 30 Z') + sh('M36 60 L64 60 L50 86 Z', 0.3) +
+        p('M50 2 L56 14 L44 14 Z', '#ffffff', 'stroke="#05070f" stroke-width="1.4"') +
+        glass('M50 22 L57 40 L50 50 L43 40 Z') + dot(a, 50, 62, 3) +
+        mir(`<path d="M30 52 L40 56 L32 64 Z" fill="${a.e}" stroke="#05070f" stroke-width="1.8" ${a.F}/>`), '#ffd9f0'),
 };
 
 const EN = { red: ['#ffc2c2', '#ff3b3b', '#6e0808', '#ffe45c'], orange: ['#ffe0b0', '#ffa31a', '#7a4200', '#fff07a'], green: ['#c8ffd9', '#25d96b', '#0b5a28', '#e4ff6a'], blue: ['#c2e0ff', '#3d9bff', '#0e3a80', '#7ff3ff'] };

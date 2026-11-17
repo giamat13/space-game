@@ -115,6 +115,18 @@ export const SKINS = {
         isFire: true,
         get description() { return t('skinDescJoker'); }
     },
+    ivory: {
+        get svg() { return SHIPS.ivory; },
+        color: '#fff3c4',
+        unlockLevel: 15,        // the Twin Fangs boss appears at level 15 and wins the ship (js/bosses.js)
+        unlockBoss: 'twins',
+        get name() { return t('skinIvory'); },
+        fireRate: 1.8,
+        bulletSpeed: 1.7,
+        bulletDamage: 4.0,
+        maxHP: 700,
+        get description() { return t('skinDescIvory'); }
+    },
     baby_dragon: {
         svg: `<img src="assets/dragon.png" style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 15px #ffaa33);" />`,
         color: '#ffaa33',
@@ -512,12 +524,30 @@ export const UPGRADES = {
         skin: 'phoenix',
         requires: 'phoenix_homing_feathers'
     },
+    // Cooldown ladder for every ship's special ability. The first step keeps its old key
+    // (vortex_cooldown_half) so purchases made before the change still count as ×2.
     vortex_cooldown_half: {
         key: 'vortex_cooldown_half',
-        nameKey: 'upgVortexCooldownName',
-        descKey: 'upgVortexCooldownDesc',
+        nameKey: 'upgCooldownX2Name',
+        descKey: 'upgCooldownX2Desc',
         cost: 20000,
-        skin: 'vortex'
+        skin: 'all'
+    },
+    cooldown_x3: {
+        key: 'cooldown_x3',
+        nameKey: 'upgCooldownX3Name',
+        descKey: 'upgCooldownX3Desc',
+        cost: 40000,
+        skin: 'all',
+        requires: 'vortex_cooldown_half'
+    },
+    cooldown_x4: {
+        key: 'cooldown_x4',
+        nameKey: 'upgCooldownX4Name',
+        descKey: 'upgCooldownX4Desc',
+        cost: 70000,
+        skin: 'all',
+        requires: 'cooldown_x3'
     },
     joker_kill_coins: {
         key: 'joker_kill_coins',
@@ -525,8 +555,32 @@ export const UPGRADES = {
         descKey: 'upgJokerCoinsDesc',
         cost: 50000,
         skin: 'joker'
-    }
+    },
+    // Duration ladder: each level adds 5 s to the ability (Joker Chaos, Baby Dragon invincibility)
+    joker_duration_1: { key: 'joker_duration_1', nameKey: 'upgDur1Name', descKey: 'upgJokerDur1Desc', cost: 15000, skin: 'joker' },
+    joker_duration_2: { key: 'joker_duration_2', nameKey: 'upgDur2Name', descKey: 'upgJokerDur2Desc', cost: 30000, skin: 'joker', requires: 'joker_duration_1' },
+    joker_duration_3: { key: 'joker_duration_3', nameKey: 'upgDur3Name', descKey: 'upgJokerDur3Desc', cost: 50000, skin: 'joker', requires: 'joker_duration_2' },
+    dragon_duration_1: { key: 'dragon_duration_1', nameKey: 'upgDur1Name', descKey: 'upgDragonDur1Desc', cost: 15000, skin: 'baby_dragon' },
+    dragon_duration_2: { key: 'dragon_duration_2', nameKey: 'upgDur2Name', descKey: 'upgDragonDur2Desc', cost: 30000, skin: 'baby_dragon', requires: 'dragon_duration_1' },
+    dragon_duration_3: { key: 'dragon_duration_3', nameKey: 'upgDur3Name', descKey: 'upgDragonDur3Desc', cost: 50000, skin: 'baby_dragon', requires: 'dragon_duration_2' }
 };
+
+// ===== ABILITY COOLDOWN (all ships) =====
+// Base cooldowns in ms. The Cooldown ×2 / ×3 / ×4 upgrades divide every ship's cooldown.
+export const ABILITY_BASE_COOLDOWN = { special: 30000, phoenix: 15000, joker: 30000, dragon: 25000, ivory: 30000 };
+export function getCooldownMultiplier() {
+    if (isUpgradeActive('cooldown_x4')) return 4;
+    if (isUpgradeActive('cooldown_x3')) return 3;
+    if (isUpgradeActive('vortex_cooldown_half')) return 2;
+    return 1;
+}
+
+// Duration ladder: each owned level (prefix_duration_1..3) adds 5 s to the ability's base duration.
+export function abilityDurationMs(prefix, baseMs) {
+    let level = 0;
+    while (level < 3 && isUpgradeActive(`${prefix}_duration_${level + 1}`)) level++;
+    return baseMs + level * 5000;
+}
 
 // ===== HP UPGRADE SYSTEM =====
 const HP_PER_LEVEL = 50;
@@ -834,6 +888,13 @@ export const state = {
         lastUsed: 0,
         invincibleUntil: 0
     },
+    ivoryAbility: {
+        ready: true,
+        cooldown: 30000,
+        lastUsed: 0,
+        activeUntil: 0,   // the tooth stands until this time
+        hitsLeft: 0       // hits the tooth can still absorb
+    },
     isDebugGame: false,
     paused: false,
     startTime: 0,
@@ -906,17 +967,28 @@ export function resetState() {
     state.runHpBonus = 0;
     state.specialAbility.ready = true;
     state.specialAbility.lastUsed = 0;
-    state.specialAbility.cooldown = (currentSkinKey === 'vortex' && isUpgradeActive('vortex_cooldown_half')) ? 15000 : 30000;
+    const cdm = getCooldownMultiplier();
+    state.specialAbility.ready = true;
+    state.specialAbility.lastUsed = 0;
+    state.specialAbility.cooldown = ABILITY_BASE_COOLDOWN.special / cdm;
     state.phoenixAbility.ready = true;
     state.phoenixAbility.lastUsed = 0;
+    state.phoenixAbility.cooldown = ABILITY_BASE_COOLDOWN.phoenix / cdm;
     state.jokerAbility.ready = true;
     state.jokerAbility.lastUsed = 0;
     state.jokerAbility.active = false;
     state.jokerKills = 0;
     state.jokerAbility.endTime = 0;
+    state.jokerAbility.cooldown = ABILITY_BASE_COOLDOWN.joker / cdm;
     state.dragonAbility.ready = true;
     state.dragonAbility.lastUsed = 0;
     state.dragonAbility.invincibleUntil = 0;
+    state.dragonAbility.cooldown = ABILITY_BASE_COOLDOWN.dragon / cdm;
+    state.ivoryAbility.ready = true;
+    state.ivoryAbility.lastUsed = 0;
+    state.ivoryAbility.activeUntil = 0;
+    state.ivoryAbility.hitsLeft = 0;
+    state.ivoryAbility.cooldown = ABILITY_BASE_COOLDOWN.ivory / cdm;
     state.isDebugGame = false;
     state.paused = false;
     state.startTime = Date.now();

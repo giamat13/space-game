@@ -27,7 +27,7 @@ const MILESTONE_LEVELS = [100, 250, 500, 750, 1000];
 
 // ---------- schedule ----------
 // Encounters, in order: Phoenix boss (level 3), Vortex boss (level 5) and Joker boss (level 10) win their ships,
-// Twin Fangs comes at level 15, the Baby Dragon boss at level 25 (it wins the Baby Dragon ship), then one roster
+// Twin Fangs at level 15 wins the Ivory ship, the Baby Dragon boss at level 25 (it wins the Baby Dragon ship), then one roster
 // boss every 25 levels from level 50 (no roster boss at 25).
 // Milestone bosses take the slots at 100 / 250 / 500 / 750 / 1000, then every 250 levels forever.
 // `m` is the index in the original roster schedule (level 10, 25, 50, 75 …) that the roster rotation follows, so the
@@ -551,6 +551,8 @@ function finishDeath(b) {
     const trophies = getBossTrophies();
     const first = !trophies[def.id];
     if (first) bonusCoins += 2500 * mult;
+    // each boss pays in proportion to its own HP factor (def.hp, default 1): tougher bosses pay more, softer ones less
+    bonusCoins = Math.round(bonusCoins * (def.hp || 1));
     const scoreBefore = state.score;
     addScore(bonusScore);
     // the bonus must not skip levels: it does not count toward the next level-up

@@ -229,6 +229,28 @@ body {
 .dev-console-output .dev-log { color: #cccccc; }
 .dev-console-output .dev-warn { color: #ffcc44; }
 
+/* Ivory's tooth shield: stands in front of the ship (above it) while the ability runs */
+#player.ivory-tooth::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 30px;
+    height: 34px;
+    margin-left: -15px;
+    background: linear-gradient(#ffffff, #fff3c4 60%, #d9c79a);
+    border: 2px solid #05070f;
+    border-radius: 40% 40% 50% 50% / 30% 30% 70% 70%;
+    box-shadow: 0 0 14px #fff3c4;
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 56% 84%, 50% 100%, 44% 84%, 12% 100%);
+    pointer-events: none;
+    animation: ivoryTooth 0.9s ease-in-out infinite alternate;
+}
+@keyframes ivoryTooth {
+    from { transform: translateY(0); }
+    to { transform: translateY(-3px); }
+}
+
 #player.dragon-invincible {
     animation: dragonPulse 0.4s ease-in-out infinite alternate;
 }

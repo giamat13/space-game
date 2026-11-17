@@ -1,4 +1,4 @@
-import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
+import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, abilityDurationMs, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
 import { ART, enemyArt } from './art.js';
 import { burst } from './scene.js';
 import { t, tf, currentLang } from './i18n.js';
@@ -144,6 +144,13 @@ export function damagePlayer(amount, source = 'unknown') {
     // Dragon invincibility - ignore all damage while active
     if (state.dragonAbility && Date.now() < state.dragonAbility.invincibleUntil) {
         console.log('🛡️ [DRAGON] Damage blocked by invincibility');
+        return;
+    }
+
+    // Ivory tooth: the tooth in front of the ship takes the hit instead
+    if (ivoryToothActive()) {
+        state.ivoryAbility.hitsLeft--;
+        if (state.ivoryAbility.hitsLeft <= 0) breakIvoryTooth();
         return;
     }
 
@@ -375,13 +382,15 @@ export function shoot(rateMultiplier = 1) {
         b.style.boxShadow = '0 0 15px var(--primary)';
     }
     
+    // Ivory tooth stands: every shot deals ×1.5
+    const dmg = state.currentSkinStats.bulletDamage * (ivoryToothActive() ? IVORY_TOOTH_DAMAGE : 1);
     DOM.wrapper.appendChild(b);
-    state.bullets.push({ 
-        el: b, 
+    state.bullets.push({
+        el: b,
         y: 80,
-        damage: state.currentSkinStats.bulletDamage
+        damage: dmg
     });
-    trackShot(state.playerX + 23, DOM.wrapper.clientHeight - 80, state.currentSkinStats.bulletDamage);
+    trackShot(state.playerX + 23, DOM.wrapper.clientHeight - 80, dmg);
 }
 
 export function enemyShoot(en) {
@@ -632,7 +641,7 @@ export function useJokerChaos() {
     
     // Set chaos mode active for 10 seconds
     state.jokerAbility.active = true;
-    state.jokerAbility.endTime = Date.now() + 10000;
+    state.jokerAbility.endTime = Date.now() + abilityDurationMs('joker', 10000);
     
     // Convert all existing enemies to chaos and GIVE 75% POINTS
     let convertedCount = 0;
@@ -685,6 +694,27 @@ export function useJokerChaos() {
     console.log(`✅ [JOKER] ${convertedCount} enemies turned chaotic, +${pointsGained} points, Total: ${state.score}`);
 }
 
+// Ivory, special ability: a tooth stands in front of the ship for 15 s. It takes the next 3 hits
+// meant for the ship, and while it stands every shot deals ×1.5 damage.
+export const IVORY_TOOTH_MS = 15000;
+export const IVORY_TOOTH_HITS = 3;
+export const IVORY_TOOTH_DAMAGE = 1.5;
+export function ivoryToothActive() {
+    return state.ivoryAbility.hitsLeft > 0 && Date.now() < state.ivoryAbility.activeUntil;
+}
+export function useIvoryTooth() {
+    state.ivoryAbility.activeUntil = Date.now() + IVORY_TOOTH_MS;
+    state.ivoryAbility.hitsLeft = IVORY_TOOTH_HITS;
+    DOM.player.classList.add('ivory-tooth');
+    showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
+}
+export function breakIvoryTooth() {
+    state.ivoryAbility.hitsLeft = 0;
+    state.ivoryAbility.activeUntil = 0;
+    DOM.player.classList.remove('ivory-tooth');
+    showFloatingMessage(t('msgToothBroke'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#ff9f6b');
+}
+
 export function useDragonFire() {
     window.__damageBoss?.(0.05);
     console.log('🐉 [DRAGON] Activating DRAGON INFERNO!');
@@ -693,7 +723,7 @@ export function useDragonFire() {
     const playerY = DOM.wrapper.clientHeight - 90;
 
     // Become invincible for 10 seconds
-    state.dragonAbility.invincibleUntil = Date.now() + 10000;
+    state.dragonAbility.invincibleUntil = Date.now() + abilityDurationMs('dragon', 10000);
     DOM.player.classList.add('dragon-invincible');
 
     // Breathe fire in all directions
