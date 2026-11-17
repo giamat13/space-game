@@ -354,55 +354,68 @@ async function writeScore(user, entry) {
     };
 }
 
-// ===== LOCAL BESTS =====
-// The best run per table kept on this device (played as a guest, or before signing in) is
-// sent to the account at sign-in. Only lb/ and top/ are written: the run itself reached the
-// cloud when it was played signed in, so runs/ and totalGames are not counted twice.
-// Each local run is sent once per account; writeLocalBest keeps only the better run anyway.
-const LOCAL_BESTS_SENT_KEY = 'localBestsSent_v1';
+// ===== PERSONAL BESTS CHECK =====
+// Every time the account enters the game, this device's personal bests (the local best tables,
+// and the game history, which the sign-in sync already merged with the cloud's) are compared
+// with the account's entries on the leaderboards. Where a personal best is better, it is added.
+// This repairs a leaderboard that missed a run (a guest game, a lost save, an old bug).
+// Only lb/ and top/ are written: runs/ and totalGames are not counted twice.
 
-// The top row of each local table is this device's best for that table (lists are sorted).
-function localBestRuns() {
+// All personal runs this device knows: top row of each local table + every history game.
+async function personalRuns() {
     const runs = [];
     for (const raw of document.cookie.split(';')) {
         const name = raw.split('=')[0].trim();
         if (!name.startsWith('leaderboard_')) continue;
         const list = readJSONCookie(name, []);
-        if (Array.isArray(list) && list[0]) runs.push(list[0]);
+        if (Array.isArray(list) && list[0]) runs.push({ ...list[0], skin: list[0].skin || (name === 'leaderboard_overall' ? null : name.slice(12)) });
     }
-    return runs;
+    try {
+        const { loadGameHistory } = await import('./game-history.js');
+        for (const e of loadGameHistory()) if (e && !e.isDebug) runs.push(e);
+    } catch { /* history not readable */ }
+    return runs.filter(r => r && r.skin && isValidRun(r));
 }
 
-// The same run always gets the same id (FNV-1a hash of what the run is).
-function localRunId(run) {
-    const text = [run.skin, run.score, run.level, run.date, run.userName, JSON.stringify(run.settings || null)].join('|');
-    let h = 2166136261;
-    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619) >>> 0;
-    return String(h);
-}
+async function checkPersonalBests(user) {
+    const uid = user.uid;
+    const runs = await personalRuns();
+    if (!runs.length) return;
+    // Best personal run of each table.
+    const best = new Map();
+    const take = (table, run) => { if (isBetterRun(run, best.get(table) || null)) best.set(table, run); };
+    for (const r of runs) { take('overall', r); take(safeKey(r.skin), r); }
 
-function sendLocalBests(user) {
-    let sent = {};
-    try { sent = JSON.parse(localStorage.getItem(LOCAL_BESTS_SENT_KEY) || '{}') || {}; } catch { sent = {}; }
-    const known = new Set(sent[user.uid] || []);
-    let queued = false;
-    for (const run of localBestRuns()) {
-        const id = localRunId(run);
-        if (known.has(id)) continue;
-        known.add(id);
-        queued = true;
+    const tables = [...best.keys()];
+    let cloud;
+    try { cloud = await Promise.all(tables.map(t => cloudRest(`lb/${t}/${uid}`))); }
+    catch (e) { console.warn('⚠️ [BESTS] Leaderboards not reachable, will check next time:', e.code); return; }
+
+    // Runs that beat the account's entry on at least one table (one upload per run).
+    const toSend = new Set();
+    tables.forEach((t, i) => {
+        const mine = isValidRun(cloud[i]) ? cloud[i] : null;
+        if (isBetterRun(best.get(t), mine)) toSend.add(best.get(t));
+    });
+    if (!toSend.size) return;
+
+    const waiting = readOutbox().filter(i => i.kind === 'score' && i.localBest && i.uid === uid)
+        .map(i => `${i.entry.skin}|${i.entry.level}|${i.entry.score}`);
+    for (const run of toSend) {
+        const skin = run.skin || 'classic';
+        if (waiting.includes(`${skin}|${run.level}|${run.score}`)) continue;   // already queued, offline
         const named = run.userName && run.userName !== 'Anonymous' ? run.userName : null;
-        enqueueItem({ kind: 'score', uid: user.uid, localBest: true, entry: sanitize({
+        enqueueItem({ kind: 'score', uid, localBest: true, entry: sanitize({
             userName: named || user.displayName || user.email?.split('@')[0] || 'Anonymous',
-            score: run.score, level: run.level, skin: run.skin || 'classic',
+            score: run.score, level: run.level, skin,
             date: run.date || null, settings: run.settings || null
         }) });
     }
-    if (!queued) return;
-    try { localStorage.setItem(LOCAL_BESTS_SENT_KEY, JSON.stringify({ ...sent, [user.uid]: [...known].slice(-300) })); }
-    catch { /* storage full: a run may be sent again later, which is harmless */ }
+    console.log(`🏆 [BESTS] ${toSend.size} personal best(s) better than the leaderboard, adding`);
     flushPendingSaves().catch(() => {});
 }
+// The old "sent once" list is no longer used.
+try { localStorage.removeItem('localBestsSent_v1'); } catch { /* storage unavailable */ }
 
 // Writes a stored run to the account's best tables (lb/ and top/), only where it beats them.
 async function writeLocalBest(user, entry) {
@@ -1016,7 +1029,7 @@ export function initCloudSync() {
         // Progress from another account on this device must not reach this one
         if (claimLocalProgress(user.uid)) { window.location.reload(); return; }
         await syncAllData();
-        sendLocalBests(user);
+        checkPersonalBests(user).catch(e => console.warn('⚠️ [BESTS] Check failed:', e));
     });
 }
 
