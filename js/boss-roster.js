@@ -30,6 +30,12 @@ function tickPull(b, K) {
     if (b.t < (b.s.pullUntil || 0)) K.push(Math.sign(b.x + b.w / 2 - K.px()) * b.s.pullStr, 170);
 }
 
+// Joker's wild card: the ship sways left and right (gently) while `s.wildUntil` is running.
+function tickWild(b, K) {
+    if (b.t < (b.s.wildUntil || 0)) K.push(Math.sin(b.t / 230) > 0 ? 1.6 : -1.6, 60);
+}
+function endWild(b) { b.s.wildUntil = 0; state.ctrl.release = true; }
+
 // Arena goes dark except for a pool of light around the ship.
 function darkness(b, K, ms) {
     let el = document.getElementById('boss-dark');
@@ -297,6 +303,21 @@ export const EARLY = [
             spiral(b, K) { return K.spiral(b, 8 + 2 * b.phase, 24, 62, 3.0); },
             // drags the ship toward the core and down its beam; afterwards it is exposed
             pull(b, K) { pull(b, K, 2300, 1.1 + 0.2 * b.phase); K.say(b, 'bossPull', '#b985ff'); K.beam(b, { x: b.x + b.w / 2, track: 0, warn: 2000, dur: 600, w: 70, dmg: 100 }); K.after(b, 2300, () => K.expose(b, 2600)); return 2400; }
+        }
+    },
+    {
+        id: 'joker', unlocksSkin: 'joker', color: '#ff3b2e', size: 150, gap: 1900, hp: 0.5, art: ART.joker,
+        phases: [['jest', 'wild'], ['jest', 'ring', 'wild'], ['ring', 'jest', 'wild', 'ring']],
+        tick: tickWild, cleanup: endWild,
+        cards: {
+            jest(b, K) { K.fan(b, K.n(b, 3, 1), 34, 2.8); return 300; },
+            ring(b, K) { K.ring(b, K.n(b, 6, 1), 2.5); return 300; },
+            // flips a card: after the warning the ship is tossed left and right for a few seconds
+            wild(b, K) {
+                K.say(b, 'bossWild', '#ff3b2e');
+                K.after(b, 1100, () => { b.s.wildUntil = b.t + 2600; K.shake(300); });
+                return 1100 + 2600 + 200;
+            }
         }
     }
 ];

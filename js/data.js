@@ -105,7 +105,8 @@ export const SKINS = {
     joker: {
         get svg() { return SHIPS.joker; },
         color: '#ff4500',
-        unlockLevel: 10,
+        unlockLevel: 10,        // the Joker ship is won by defeating the Jester boss at level 10 (js/bosses.js)
+        unlockBoss: 'joker',
         get name() { return t('skinJoker'); },
         fireRate: 2.0,
         bulletSpeed: 1.6,

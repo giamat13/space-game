@@ -397,6 +397,7 @@ const STRINGS = {
     bossDrones: { he: 'תגבורת!', en: 'REINFORCEMENTS!', ar: 'تعزيزات!', ru: 'ПОДКРЕПЛЕНИЕ!', fr: 'RENFORTS !', es: '¡REFUERZOS!' },
     bossPhase2: { he: 'הוא כועס!', en: 'HE\'S ANGRY!', ar: 'لقد غضب!', ru: 'ОН В ЯРОСТИ!', fr: 'IL EST FURIEUX !', es: '¡ESTÁ FURIOSO!' },
     bossPhase3: { he: 'זעם מוחלט!', en: 'ENRAGED!', ar: 'غضب مطلق!', ru: 'БЕШЕНСТВО!', fr: 'FUREUR TOTALE !', es: '¡FURIA TOTAL!' },
+    bossWild: { he: 'קלף פרוע!', en: 'WILD CARD!', ar: 'بطاقة متقلبة!', ru: 'ДИКАЯ КАРТА!', fr: 'CARTE FOLLE !', es: '¡CARTA SALVAJE!' },
     bossWeak: { he: 'חשוף! נזק x2', en: 'EXPOSED! x2 DMG', ar: 'مكشوف! ضرر x2', ru: 'УЯЗВИМ! УРОН x2', fr: 'EXPOSÉ ! DÉGÂTS x2', es: '¡EXPUESTO! DAÑO x2' },
     bossShield: { he: 'מגן!', en: 'SHIELD!', ar: 'درع!', ru: 'ЩИТ!', fr: 'BOUCLIER !', es: '¡ESCUDO!' },
     goalBoss: { he: 'הריגת בוס', en: 'Boss kill', ar: 'هزيمة الزعيم', ru: 'Победа над боссом', fr: 'Boss vaincu', es: 'Jefe derrotado' },

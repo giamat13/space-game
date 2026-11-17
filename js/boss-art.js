@@ -61,6 +61,17 @@ export const ART = {
         glow('M100 44 A56 56 0 1 1 52 84', a.e, 3, 'b-spin') + glow('M100 70 A30 30 0 1 1 78 100', a.e, 3, 'b-spin') +
         mir(200, eye(a, 'M46 70 L84 82 L52 98 Z') + bolt(34, 128, 3)) + p('M72 108 L128 108 L116 150 L84 150 Z', '#0a0d18') + lamp(a, 100, 126, 11)),
 
+    // early boss (level 10) — a grinning jester; wins you the Joker ship
+    joker: () => svg('jkb', [200, 200], ['#ffc9c2', '#ff3b2e', '#7a0c06', '#ffe45c'], (a) =>
+        mir(200, p('M58 62 L18 10 L40 4 L72 50 Z', a.M) + lamp(a, 18, 8, 5, 'b-vent') + p('M60 52 L30 28 L48 60 Z', a.e, `stroke="#05070f" stroke-width="1.5"`)) +
+        p('M84 48 L100 0 L116 48 Z', a.M) + lamp(a, 100, 4, 6, 'b-vent') +
+        p('M56 50 L144 50 L168 112 L152 168 L100 190 L48 168 L32 112 Z', a.H) +
+        shine('M60 54 L140 54 L156 84 L44 84 Z') + shade('M34 140 L166 140 L152 168 L100 190 L48 168 Z', 0.3) +
+        seam('M50 50 L150 50') +
+        mir(200, eye(a, 'M66 92 L94 100 L70 112 Z') + glow('M52 86 L80 92', a.e, 2.2, 'b-eye')) +
+        p('M52 134 Q100 184 148 134 Q100 156 52 134 Z', '#0a0d18') + p('M76 146 L84 158 L92 146 Z', '#fff', 'stroke="none"') + p('M108 146 L116 158 L124 146 Z', '#fff', 'stroke="none"') +
+        lamp(a, 100, 118, 6)),
+
     cubeking: () => svg('ck', [200, 200], ['#d9a4ff', '#8a2be2', '#2e0a66', '#ffd21a'], (a) =>
         mir(200, p('M26 72 L8 24 L54 46 Z', a.H) + p('M36 150 L12 190 L58 172 Z', a.H) + shine('M24 60 L14 32 L44 46 Z', 0.3)) +
         p('M32 56 L100 30 L168 56 L184 120 L164 176 L100 190 L36 176 L16 120 Z', a.H) + shine('M38 60 L100 36 L162 60 L150 74 L50 74 Z') +

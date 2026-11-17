@@ -26,14 +26,19 @@ const HITBOX = 14;           // half-width of the player's hit zone for beams / 
 const MILESTONE_LEVELS = [100, 250, 500, 750, 1000];
 
 // ---------- schedule ----------
-// Encounters: Phoenix boss (level 3) and Vortex boss (level 5) win their ships, Twin Fangs comes at
-// level 15, then one boss every 25 levels from level 50 (there is no boss at 10 or 25).
+// Encounters: Phoenix boss (level 3), Vortex boss (level 5) and Joker boss (level 10) win their ships,
+// Twin Fangs comes at level 15, then one boss every 25 levels from level 50 (there is no boss at 25).
 // Milestone bosses take the slots at 100 / 250 / 500 / 750 / 1000, then every 250 levels forever.
 // `m` is the index in the original roster schedule (level 10, 25, 50, 75 …) that the roster rotation follows;
 // the old level-10 slot is gone and the slot-1 boss (Twin Fangs) moved from 25 to 15.
 const E = EARLY.length;
+const EARLY_LEVELS = [3, 5, 10];          // one level per entry of EARLY, in order
 const baseLevel = (m) => (m <= 0 ? 10 : m * 25);
-export const bossLevel = (n) => (n < E ? [3, 5][n] : (n - E + 1 === 1 ? 15 : (n - E + 1) * 25));
+export const bossLevel = (n) => (n < E ? EARLY_LEVELS[n] : (n - E + 1 === 1 ? 15 : (n - E + 1) * 25));
+
+// Score for beating a boss: grows with its level, with each ascension, and triples for milestone bosses.
+// (Phoenix 800, Vortex 1000, Joker 1500, Twin Fangs 2000, the level-50 boss 5500 …)
+export const bossScore = (enc) => Math.round((500 + 100 * enc.level) * enc.tier * (enc.milestone ? 3 : 1));
 const isMilestone = (level) => MILESTONE_LEVELS.includes(level) || (level > 1000 && level % 250 === 0);
 
 function pickMutations(seed, count, def) {
@@ -538,7 +543,7 @@ function finishDeath(b) {
 
     // ---- rewards: score, coins, a first-kill bounty, and armor plating for the rest of the run ----
     const mult = enc.milestone ? 3 : 1;
-    const bonusScore = 5000 * mult;
+    const bonusScore = bossScore(enc);
     let bonusCoins = (2000 + 400 * Math.min(enc.rank, 60)) * mult;
     const trophies = getBossTrophies();
     const first = !trophies[def.id];
@@ -569,7 +574,7 @@ function finishDeath(b) {
     setTimeout(() => showFloatingMessage(tf('bossPlating', { n: plating }), K.W / 2 - 80, K.H / 2 + 34, 'var(--health)'), 500);
     if (first) setTimeout(() => showFloatingMessage(t('bossFirstKill'), K.W / 2 - 80, K.H / 2 - 34, '#ffe27a'), 250);
 
-    // Some bosses leave a ship behind (Ashen Phoenix → Phoenix, Maelstrom → Vortex). Debug runs (startLvl) never unlock.
+    // Some bosses leave a ship behind (Ashen Phoenix → Phoenix, Maelstrom → Vortex, Jester → Joker). Debug runs (startLvl) never unlock.
     if (def.unlocksSkin && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && unlockSkin(def.unlocksSkin)) {
         const sk = SKINS[def.unlocksSkin];
         window.__updateSkinOptions?.();
