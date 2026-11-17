@@ -287,7 +287,7 @@ async function doFlush() {
 async function runItem(user, item) {
     switch (item.kind) {
         case 'patch': await cloudRest('', { method: 'PATCH', body: item.data }); return null;
-        case 'score': return writeScore(user, item.entry);
+        case 'score': return item.localBest ? writeLocalBest(user, item.entry) : writeScore(user, item.entry);
         case 'speedrun': return writeSpeedrun(user, item.goalKey, item.entry);
         case 'analytics': await cloudRest(`analytics/${user.uid}/${safeKey(item.sid)}`, { method: 'PUT', body: item.data }); return null;
         default: return null;
@@ -349,6 +349,101 @@ async function writeScore(user, entry) {
     if (overall === 'saved') _myBest = data;
     return {
         overall, skin: skinRes, world,
+        record: world ? { scope: world, skin, level: data.level, score: data.score,
+            beaten: world === 'overall' ? beatenAll : beatenSkin, previous: world === 'overall' ? topAll : topSkin } : null
+    };
+}
+
+// ===== LOCAL BESTS =====
+// The best run per table kept on this device (played as a guest, or before signing in) is
+// sent to the account at sign-in. Only lb/ and top/ are written: the run itself reached the
+// cloud when it was played signed in, so runs/ and totalGames are not counted twice.
+// Each local run is sent once per account; writeLocalBest keeps only the better run anyway.
+const LOCAL_BESTS_SENT_KEY = 'localBestsSent_v1';
+
+// The top row of each local table is this device's best for that table (lists are sorted).
+function localBestRuns() {
+    const runs = [];
+    for (const raw of document.cookie.split(';')) {
+        const name = raw.split('=')[0].trim();
+        if (!name.startsWith('leaderboard_')) continue;
+        const list = readJSONCookie(name, []);
+        if (Array.isArray(list) && list[0]) runs.push(list[0]);
+    }
+    return runs;
+}
+
+// The same run always gets the same id (FNV-1a hash of what the run is).
+function localRunId(run) {
+    const text = [run.skin, run.score, run.level, run.date, run.userName, JSON.stringify(run.settings || null)].join('|');
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619) >>> 0;
+    return String(h);
+}
+
+function sendLocalBests(user) {
+    let sent = {};
+    try { sent = JSON.parse(localStorage.getItem(LOCAL_BESTS_SENT_KEY) || '{}') || {}; } catch { sent = {}; }
+    const known = new Set(sent[user.uid] || []);
+    let queued = false;
+    for (const run of localBestRuns()) {
+        const id = localRunId(run);
+        if (known.has(id)) continue;
+        known.add(id);
+        queued = true;
+        const named = run.userName && run.userName !== 'Anonymous' ? run.userName : null;
+        enqueueItem({ kind: 'score', uid: user.uid, localBest: true, entry: sanitize({
+            userName: named || user.displayName || user.email?.split('@')[0] || 'Anonymous',
+            score: run.score, level: run.level, skin: run.skin || 'classic',
+            date: run.date || null, settings: run.settings || null
+        }) });
+    }
+    if (!queued) return;
+    try { localStorage.setItem(LOCAL_BESTS_SENT_KEY, JSON.stringify({ ...sent, [user.uid]: [...known].slice(-300) })); }
+    catch { /* storage full: a run may be sent again later, which is harmless */ }
+    flushPendingSaves().catch(() => {});
+}
+
+// Writes a stored run to the account's best tables (lb/ and top/), only where it beats them.
+async function writeLocalBest(user, entry) {
+    const uid = user.uid;
+    const skin = safeKey(entry.skin || 'classic');
+    const data = sanitize({ ...entry, userId: uid, timestamp: Date.now() });
+
+    const [bestAll, bestSkin, topAll, topSkin] = await Promise.all([
+        cloudRest(`lb/overall/${uid}`), cloudRest(`lb/${skin}/${uid}`),
+        cloudRest('top/overall', { authed: false }), cloudRest(`top/${skin}`, { authed: false })
+    ]);
+    const overall = isBetterRun(data, isValidRun(bestAll) ? bestAll : null);
+    const skinBest = isBetterRun(data, isValidRun(bestSkin) ? bestSkin : null);
+    const worldAll = isBetterRun(data, isValidRun(topAll) ? topAll : null);
+    const worldSkin = isBetterRun(data, isValidRun(topSkin) ? topSkin : null);
+
+    const upd = {};
+    if (overall) upd[`lb/overall/${uid}`] = data;
+    if (skinBest) upd[`lb/${skin}/${uid}`] = data;
+    const holder = { uid, userName: data.userName, level: data.level, score: data.score, skin, at: data.timestamp };
+    if (worldAll) upd['top/overall'] = holder;
+    if (worldSkin) upd[`top/${skin}`] = holder;
+    let world = worldAll ? 'overall' : (worldSkin ? 'skin' : null);
+
+    if (Object.keys(upd).length) {
+        try {
+            await cloudRest('', { method: 'PATCH', body: upd });
+        } catch (e) {
+            // Someone set a higher record a moment ago: keep the best-table entries, drop the record.
+            if (e.code !== 'permission-denied' || !world) throw e;
+            delete upd['top/overall']; delete upd[`top/${skin}`];
+            world = null;
+            if (Object.keys(upd).length) await cloudRest('', { method: 'PATCH', body: upd });
+        }
+        dropCache();
+    }
+    if (overall) _myBest = data;
+    const beatenAll = isValidRun(topAll) && topAll.uid !== uid ? topAll : null;
+    const beatenSkin = isValidRun(topSkin) && topSkin.uid !== uid ? topSkin : null;
+    return {
+        overall: overall ? 'saved' : 'kept', skin: skinBest ? 'saved' : 'kept', world,
         record: world ? { scope: world, skin, level: data.level, score: data.score,
             beaten: world === 'overall' ? beatenAll : beatenSkin, previous: world === 'overall' ? topAll : topSkin } : null
     };
@@ -901,6 +996,7 @@ export function initCloudSync() {
         // Progress from another account on this device must not reach this one
         if (claimLocalProgress(user.uid)) { window.location.reload(); return; }
         await syncAllData();
+        sendLocalBests(user);
     });
 }
 
