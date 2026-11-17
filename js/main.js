@@ -1,4 +1,5 @@
-import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { SCORE_MULTS } from './score-upgrade.js';
 import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
@@ -871,6 +872,53 @@ function _makeHPCard(skinKey, coins) {
     return card;
 }
 
+function _makeScoreCard(coins) {
+    const level = getScoreLevel();
+    const nextCost = getScoreUpgradeCost(level);
+    const canAfford = nextCost !== null && coins >= nextCost;
+    const maxLevel = nextCost === null;
+    const prevCost = level > 0 ? (getScoreUpgradeCost(level - 1) ?? 0) : 0;
+    const scoreRefund = Math.floor(prevCost * 0.75);
+    const mult = level > 0 ? SCORE_MULTS[level - 1] : 1;
+
+    const card = document.createElement('div');
+    card.style.cssText = `padding:14px 16px;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.35);border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
+
+    const levelBar = Array.from({length: level}, () => '⭐').join('') || '☆';
+    card.innerHTML = `
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:0.95rem;font-weight:bold;color:#ffd700;margin-bottom:4px;">
+                ${t('shopScoreUpgrade')} — ${tf('levelN', { n: level })}${maxLevel ? ' ' + t('shopHPMax') : ''}
+            </div>
+            <div style="font-size:0.78rem;opacity:0.75;">${tf('shopScoreDesc', { m: mult })}</div>
+            <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
+            ${!maxLevel ? `<div style="font-size:0.72rem;opacity:0.55;margin-top:3px;">${t('shopHPNextCost')} 💰${nextCost?.toLocaleString()}</div>` : ''}
+        </div>
+        <div class="score-actions" style="display:flex;flex-direction:column;gap:5px;min-width:90px;align-items:stretch;"></div>
+    `;
+
+    const actions = card.querySelector('.score-actions');
+
+    if (!maxLevel) {
+        const buyBtn = document.createElement('button');
+        buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
+        buyBtn.disabled = !canAfford;
+        buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ffd700' : '#555'};color:${canAfford ? '#ffd700' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
+        buyBtn.onclick = () => { if (buyScoreLevel()) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(buyBtn);
+    }
+
+    if (level > 0) {
+        const sellBtn = document.createElement('button');
+        sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${scoreRefund})`;
+        sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
+        sellBtn.onclick = () => { if (sellScoreLevel() !== false) { _refreshShopCoins(); renderShopItems(); } };
+        actions.appendChild(sellBtn);
+    }
+
+    return card;
+}
+
 function _renderSendCoinsUI(container, coins) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:14px;';
@@ -994,12 +1042,17 @@ function renderShopItems() {
     }
 
     if (_currentShopTab === 'all') {
+        container.appendChild(_makeScoreCard(coins));
         Object.values(UPGRADES).forEach(upg => container.appendChild(_makeUpgradeCard(upg, coins)));
         return;
     }
 
-    // Skin-specific tab: HP card + skin upgrades (the 'global' tab has no HP card)
-    if (_currentShopTab !== 'global') container.appendChild(_makeHPCard(_currentShopTab, coins));
+    // The score boost lives on the 'global' tab; skin tabs show their HP card and skin upgrades
+    if (_currentShopTab === 'global') {
+        container.appendChild(_makeScoreCard(coins));
+        return;
+    }
+    container.appendChild(_makeHPCard(_currentShopTab, coins));
 
     const skinUpgrades = Object.values(UPGRADES).filter(u => u.skin === _currentShopTab);
     if (skinUpgrades.length === 0) {
@@ -1761,7 +1814,7 @@ console.log('✅ [EXPORT] initGame exported:', typeof window.initGame);
 
 function handleLevelUp() {
     const isEarlyLevel = state.level < state.startingLevel;
-    const threshold = isEarlyLevel ? 100 : 1000;
+    const threshold = isEarlyLevel ? 50 : 1000;
     if (state.score >= state.lastLevelScore + threshold) {
         state.lastLevelScore += threshold;
         state.level++;

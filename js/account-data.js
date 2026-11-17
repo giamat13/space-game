@@ -7,7 +7,7 @@ const OWNER_KEY = 'localDataOwner_v1';
 
 // Cookies that hold per-player progress. Language and other preferences are not listed.
 const PROGRESS_COOKIES = [
-    'playerCoins', 'ownedUpgrades', 'disabledUpgrades', 'hpLevels', 'unlockedSkins',
+    'playerCoins', 'ownedUpgrades', 'disabledUpgrades', 'hpLevels', 'scoreLevel', 'unlockedSkins',
     'maxLevel', 'keyBindings', 'gameRules', 'deviceMode', 'customSpeedrunGoals'
 ];
 const PROGRESS_COOKIE_PREFIXES = ['leaderboard_'];

@@ -28,6 +28,7 @@ import {
     syncCoins,
     syncUpgrades,
     pushShopState,
+    pushScoreLevel,
     forceSetCoins,
     saveSpeedrunToCloud,
     getSpeedrunLeaderboardFromCloud,
@@ -43,6 +44,7 @@ import {
 export { sendCoinsToFriend, claimPendingTransfers };
 
 import { SHIPS } from './art.js';
+import { SCORE_MULTS, SCORE_LEVEL_COSTS, clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 
 // Skin Configuration
 export const SKINS = {
@@ -512,50 +514,6 @@ export const UPGRADES = {
         cost: 20000,
         skin: 'vortex'
     },
-    double_score: {
-        key: 'double_score',
-        nameKey: 'upgDoubleScoreName',
-        descKey: 'upgDoubleScoreDesc',
-        cost: 300000,
-        skin: 'global',
-        scoreMultiplier: 2
-    },
-    score_x4: {
-        key: 'score_x4',
-        nameKey: 'upgScoreX4Name',
-        descKey: 'upgScoreX4Desc',
-        cost: 2000000,
-        skin: 'global',
-        requires: 'double_score',
-        scoreMultiplier: 4
-    },
-    score_x6: {
-        key: 'score_x6',
-        nameKey: 'upgScoreX6Name',
-        descKey: 'upgScoreX6Desc',
-        cost: 6000000,
-        skin: 'global',
-        requires: 'score_x4',
-        scoreMultiplier: 6
-    },
-    score_x8: {
-        key: 'score_x8',
-        nameKey: 'upgScoreX8Name',
-        descKey: 'upgScoreX8Desc',
-        cost: 8000000,
-        skin: 'global',
-        requires: 'score_x6',
-        scoreMultiplier: 8
-    },
-    score_x10: {
-        key: 'score_x10',
-        nameKey: 'upgScoreX10Name',
-        descKey: 'upgScoreX10Desc',
-        cost: 10000000,
-        skin: 'global',
-        requires: 'score_x8',
-        scoreMultiplier: 10
-    },
     joker_kill_coins: {
         key: 'joker_kill_coins',
         nameKey: 'upgJokerCoinsName',
@@ -685,12 +643,65 @@ export function isUpgradeActive(key) {
     return getOwnedUpgrades().includes(key) && !getDisabledUpgrades().includes(key);
 }
 
-// Score helper: every score gain goes through here so the score upgrade applies everywhere.
+// ===== SCORE MULTIPLIER (one shop upgrade with levels, like HP) =====
+// Level n multiplies every score gain by SCORE_MULTS[n - 1]. Buying level n costs
+// SCORE_LEVEL_COSTS[n - 1]. Selling the top level refunds 75%.
+export function getScoreLevel() {
+    const saved = getCookie('scoreLevel');
+    if (saved !== null && saved !== '') return clampScoreLevel(saved);
+    // First read on this device: turn the old score upgrades (double_score ... score_x10) into a level.
+    const owned = getOwnedUpgrades();
+    const level = legacyScoreLevel(owned);
+    if (level > 0) {
+        const disabled = stripLegacyScore(getDisabledUpgrades());
+        const newOwned = stripLegacyScore(owned);
+        setCookie('ownedUpgrades', JSON.stringify(newOwned));
+        setCookie('disabledUpgrades', JSON.stringify(disabled));
+        syncUpgrades(newOwned).catch(() => {});
+        pushShopState(getHPLevels(), disabled).catch(() => {});
+    }
+    setCookie('scoreLevel', String(level));
+    if (level > 0) pushScoreLevel(level).catch(() => {});
+    return level;
+}
+
+export function getScoreMultiplier() {
+    const level = getScoreLevel();
+    return level > 0 ? SCORE_MULTS[level - 1] : 1;
+}
+
+export function getScoreUpgradeCost(currentLevel) {
+    if (currentLevel >= SCORE_LEVEL_COSTS.length) return null;
+    return SCORE_LEVEL_COSTS[currentLevel];
+}
+
+function setScoreLevel(level) {
+    setCookie('scoreLevel', String(level));
+    pushScoreLevel(level).catch(() => {});
+}
+
+export function buyScoreLevel() {
+    const current = getScoreLevel();
+    const cost = getScoreUpgradeCost(current);
+    if (cost === null) return false;
+    if (getCoins() < cost) return false;
+    addCoins(-cost);
+    setScoreLevel(current + 1);
+    return true;
+}
+
+export function sellScoreLevel() {
+    const current = getScoreLevel();
+    if (current <= 0) return false;
+    const refund = Math.floor(SCORE_LEVEL_COSTS[current - 1] * 0.75);
+    addCoins(refund);
+    setScoreLevel(current - 1);
+    return refund;
+}
+
+// Score helper: every score gain goes through here so the score multiplier applies everywhere.
 export function addScore(points) {
-    const mult = Object.values(UPGRADES)
-        .filter(upgrade => upgrade.scoreMultiplier && isUpgradeActive(upgrade.key))
-        .reduce((highest, upgrade) => Math.max(highest, upgrade.scoreMultiplier), 1);
-    state.score += points * mult;
+    state.score += points * getScoreMultiplier();
 }
 
 export function resetCoins() {

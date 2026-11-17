@@ -26,6 +26,7 @@
 import { getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 import { claimLocalProgress } from './account-data.js';
+import { clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 
 export const DB_URL = 'https://space-game-ii-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -529,6 +530,7 @@ export async function syncMaxLevel() {
 export async function forceSetCoins(amount) { writeCoins(amount); }
 export async function syncCoins(localCoins) { writeCoins(localCoins); return localCoins; }
 export async function pushShopState(hpLevels, disabledUpgrades) { profileWrite({ hpLevels, disabledUpgrades }); }
+export async function pushScoreLevel(scoreLevel) { profileWrite({ scoreLevel }); }
 export async function syncUpgrades(localUpgrades) { profileWrite({ ownedUpgrades: localUpgrades }); setCookie('ownedUpgrades', JSON.stringify(localUpgrades)); return localUpgrades; }
 export async function syncAchievements(list = []) {
     profileWrite(Object.fromEntries(list.map(a => [`achievements/${safeKey(a)}`, true])));
@@ -593,14 +595,17 @@ async function doSignInSync() {
         customSpeedrunGoals: readJSONCookie('customSpeedrunGoals', [])
     };
 
+    // Old score upgrades (double_score ... score_x10) are folded into scoreLevel and removed from the list.
+    const ownedRaw = [...new Set([...asList(cloud.ownedUpgrades), ...local.ownedUpgrades])];
     const goalMap = new Map();
     [...asList(cloud.customSpeedrunGoals), ...local.customSpeedrunGoals].forEach(g => g?.key && goalMap.set(g.key, g));
     const merged = {
         skins: normalizeSkins([...DEFAULT_SKINS, ...asKeys(cloud.skins), ...asList(cloud.unlockedSkins), ...local.skins]),
         maxLevel: Math.max(Number(cloud.maxLevel) || 1, local.maxLevel),
         coins: Math.max(Number(cloud.coins) || 0, local.coins),
-        ownedUpgrades: [...new Set([...asList(cloud.ownedUpgrades), ...local.ownedUpgrades])],
-        disabledUpgrades: cloud.disabledUpgrades !== undefined ? asList(cloud.disabledUpgrades) : (local.disabledUpgrades || []),
+        ownedUpgrades: stripLegacyScore(ownedRaw),
+        disabledUpgrades: stripLegacyScore(cloud.disabledUpgrades !== undefined ? asList(cloud.disabledUpgrades) : (local.disabledUpgrades || [])),
+        scoreLevel: Math.max(clampScoreLevel(cloud.scoreLevel), clampScoreLevel(getCookie('scoreLevel')), legacyScoreLevel(ownedRaw)),
         hpLevels: renameDragonKey((cloud.hpLevels && typeof cloud.hpLevels === 'object') ? cloud.hpLevels : (local.hpLevels || {})),
         achievements: [...new Set([...asKeys(cloud.achievements), ...asList(cloud.achievementsList), ...local.achievements])],
         keyBindings: { ...(cloud.keyBindings || {}), ...local.keyBindings },
@@ -616,6 +621,7 @@ async function doSignInSync() {
     setCookie('ownedUpgrades', JSON.stringify(merged.ownedUpgrades));
     setCookie('disabledUpgrades', JSON.stringify(merged.disabledUpgrades));
     setCookie('hpLevels', JSON.stringify(merged.hpLevels));
+    setCookie('scoreLevel', String(merged.scoreLevel));
     setCookie('keyBindings', JSON.stringify(merged.keyBindings));
     setCookie('gameRules', JSON.stringify(merged.gameRules));
     setCookie('deviceMode', JSON.stringify(merged.deviceMode));
@@ -634,6 +640,7 @@ async function doSignInSync() {
         ownedUpgrades: merged.ownedUpgrades,
         disabledUpgrades: merged.disabledUpgrades,
         hpLevels: merged.hpLevels,
+        scoreLevel: merged.scoreLevel || null,
         achievements: Object.fromEntries(merged.achievements.map(a => [safeKey(a), true])),
         keyBindings: merged.keyBindings,
         gameRules: merged.gameRules,
