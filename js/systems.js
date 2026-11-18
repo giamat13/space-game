@@ -705,7 +705,7 @@ export function useJokerChaos() {
 // Ivory, special ability: a tooth stands in front of the ship for 5 s. It takes the next hits
 // meant for the ship (3, plus 1 per Ivory duration level), and while it stands every shot deals ×1.5 damage.
 // The Ivory duration upgrade does not add time; it only adds absorbed hits.
-export const IVORY_TOOTH_MS = 5000;
+export const IVORY_TOOTH_MS = 10000;
 export const IVORY_TOOTH_HITS = 3;
 export function ivoryToothHits() {
     return IVORY_TOOTH_HITS + getDurationLevel('ivory');
