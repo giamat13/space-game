@@ -1,4 +1,4 @@
-import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, abilityDurationMs, getHPLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
+import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, abilityDurationMs, getHPLevel, getDurationLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
 import { ART, enemyArt } from './art.js';
 import { burst } from './scene.js';
 import { t, tf, currentLang } from './i18n.js';
@@ -701,17 +701,21 @@ export function useJokerChaos() {
     return state.jokerAbility.endTime;
 }
 
-// Ivory, special ability: a tooth stands in front of the ship for 15 s. It takes the next 3 hits
-// meant for the ship, and while it stands every shot deals ×1.5 damage.
-export const IVORY_TOOTH_MS = 15000;
+// Ivory, special ability: a tooth stands in front of the ship for 5 s. It takes the next hits
+// meant for the ship (3, plus 1 per Ivory duration level), and while it stands every shot deals ×1.5 damage.
+// The Ivory duration upgrade does not add time; it only adds absorbed hits.
+export const IVORY_TOOTH_MS = 5000;
 export const IVORY_TOOTH_HITS = 3;
+export function ivoryToothHits() {
+    return IVORY_TOOTH_HITS + getDurationLevel('ivory');
+}
 export const IVORY_TOOTH_DAMAGE = 1.5;
 export function ivoryToothActive() {
     return state.ivoryAbility.hitsLeft > 0 && Date.now() < state.ivoryAbility.activeUntil;
 }
 export function useIvoryTooth() {
-    state.ivoryAbility.activeUntil = Date.now() + abilityDurationMs('ivory', IVORY_TOOTH_MS);
-    state.ivoryAbility.hitsLeft = IVORY_TOOTH_HITS;
+    state.ivoryAbility.activeUntil = Date.now() + IVORY_TOOTH_MS;
+    state.ivoryAbility.hitsLeft = ivoryToothHits();
     DOM.player.classList.add('ivory-tooth');
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
 }
