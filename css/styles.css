@@ -251,6 +251,45 @@ body {
     to { transform: translateY(-3px); }
 }
 
+/* Crack overlay: sits exactly on the tooth shape; each cracked line appears after a hit */
+.tooth-cracks {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 30px;
+    height: 34px;
+    margin-left: -15px;
+    pointer-events: none;
+    display: none;
+}
+#player.ivory-tooth .tooth-cracks { display: block; }
+.tooth-cracks svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.tooth-cracks path {
+    fill: none;
+    stroke: #3a2e1a;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: opacity 0.12s, stroke-dashoffset 0.25s ease-out;
+}
+.tooth-cracks path.on { opacity: 0.9; stroke-dashoffset: 0; }
+.tooth-cracks.shatter { animation: toothShatter 0.4s ease-out forwards; }
+@keyframes toothShatter {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5) translateY(-6px); opacity: 0; }
+}
+#player.tooth-hit { animation: toothHitShake 0.25s ease-out; }
+@keyframes toothHitShake {
+    0%, 100% { translate: 0 0; }
+    20% { translate: -4px 0; }
+    40% { translate: 4px 0; }
+    60% { translate: -2px 0; }
+    80% { translate: 2px 0; }
+}
+
 #player.dragon-invincible {
     animation: dragonPulse 0.4s ease-in-out infinite alternate;
 }

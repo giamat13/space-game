@@ -150,6 +150,7 @@ export function damagePlayer(amount, source = 'unknown') {
     // Ivory tooth: the tooth in front of the ship takes the hit instead
     if (ivoryToothActive()) {
         state.ivoryAbility.hitsLeft--;
+        showToothHit();
         if (state.ivoryAbility.hitsLeft <= 0) breakIvoryTooth();
         return;
     }
@@ -713,16 +714,62 @@ export const IVORY_TOOTH_DAMAGE = 1.5;
 export function ivoryToothActive() {
     return state.ivoryAbility.hitsLeft > 0 && Date.now() < state.ivoryAbility.activeUntil;
 }
+// The tooth's crack overlay: one SVG crack per absorbed hit, shown on top of the tooth shape (CSS ::before).
+const TOOTH_CRACK_PATHS = [
+    'M15 14 L12 20', 'M9 8 L13 12', 'M21 10 L18 17',
+    'M14 22 L20 26', 'M6 18 L10 24', 'M17 4 L19 10',
+];
+function toothCracksEl() {
+    let el = DOM.player.querySelector('.tooth-cracks');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'tooth-cracks';
+        el.innerHTML = '<svg viewBox="0 0 30 34" width="30" height="34">' +
+            TOOTH_CRACK_PATHS.map(d => `<path d="${d}"/>`).join('') + '</svg>';
+        DOM.player.appendChild(el);
+    }
+    return el;
+}
+function setToothCracks(n) {
+    const el = toothCracksEl();
+    el.querySelectorAll('path').forEach((p, i) => p.classList.toggle('on', i < n));
+}
+function toothScreenPos() {
+    const r = DOM.player.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top - 17 };
+}
+function showToothHit() {
+    const max = Number(DOM.player.dataset.toothMax) || IVORY_TOOTH_HITS;
+    const cracks = Math.min(max - 1, max - Math.max(state.ivoryAbility.hitsLeft, 0));
+    setToothCracks(cracks);
+    // Impact feedback: a quick shake and a few chips flying off the tooth
+    DOM.player.classList.remove('tooth-hit');
+    void DOM.player.offsetWidth; // restart the animation
+    DOM.player.classList.add('tooth-hit');
+    const p = toothScreenPos();
+    for (let i = 0; i < 5; i++) spawnParticle(p.x, p.y, '#fff3c4', { dist: 40, duration: 350 });
+}
 export function useIvoryTooth() {
     state.ivoryAbility.activeUntil = Date.now() + IVORY_TOOTH_MS;
     state.ivoryAbility.hitsLeft = ivoryToothHits();
+    DOM.player.dataset.toothMax = String(state.ivoryAbility.hitsLeft);
     DOM.player.classList.add('ivory-tooth');
+    setToothCracks(0);
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
 }
 export function breakIvoryTooth() {
     state.ivoryAbility.hitsLeft = 0;
     state.ivoryAbility.activeUntil = 0;
     DOM.player.classList.remove('ivory-tooth');
+    // Shatter: the cracked tooth bursts apart, then its overlay is removed
+    const p = toothScreenPos();
+    createExplosion(p.x, p.y, '#fff3c4');
+    for (let i = 0; i < 6; i++) spawnParticle(p.x, p.y, '#d9c79a', { dist: 70, duration: 450 });
+    const old = DOM.player.querySelector('.tooth-cracks');
+    if (old) {
+        old.classList.add('shatter');
+        setTimeout(() => old.remove(), 400);
+    }
     showFloatingMessage(t('msgToothBroke'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#ff9f6b');
 }
 
