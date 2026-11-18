@@ -49,7 +49,7 @@ import { SHIPS } from './art.js';
 import { readLocalTable, writeLocalTable } from './local-tables.js';
 import { SCORE_MULTS, SCORE_LEVEL_COSTS, clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 import { COOLDOWN_MULTS, COOLDOWN_LEVEL_COSTS, clampCooldownLevel, legacyCooldownLevel, stripLegacyCooldown } from './cooldown-upgrade.js';
-import { DURATION_STEP_MS, DURATION_LEVEL_COSTS, normalizeDurationLevels, legacyDurationLevels, stripLegacyDuration } from './duration-upgrade.js';
+import { DURATION_STEP_MS, durationLevelCost, durationMaxLevel, normalizeDurationLevels, legacyDurationLevels, stripLegacyDuration } from './duration-upgrade.js';
 
 // Skin Configuration
 export const SKINS = {
@@ -621,9 +621,8 @@ export function getDurationLevel(ship) {
     return getDurationLevels()[ship] || 0;
 }
 
-export function getDurationUpgradeCost(currentLevel) {
-    if (currentLevel >= DURATION_LEVEL_COSTS.length) return null;
-    return DURATION_LEVEL_COSTS[currentLevel];
+export function getDurationUpgradeCost(ship, currentLevel) {
+    return durationLevelCost(ship, currentLevel);
 }
 
 function setDurationLevel(ship, level) {
@@ -635,7 +634,7 @@ function setDurationLevel(ship, level) {
 
 export function buyDurationLevel(ship) {
     const current = getDurationLevel(ship);
-    const cost = getDurationUpgradeCost(current);
+    const cost = getDurationUpgradeCost(ship, current);
     if (cost === null) return false;
     if (getCoins() < cost) return false;
     addCoins(-cost);
@@ -646,7 +645,7 @@ export function buyDurationLevel(ship) {
 export function sellDurationLevel(ship) {
     const current = getDurationLevel(ship);
     if (current <= 0) return false;
-    const refund = Math.floor(DURATION_LEVEL_COSTS[current - 1] * 0.75);
+    const refund = Math.floor(getDurationUpgradeCost(ship, current - 1) * 0.75);
     addCoins(refund);
     setDurationLevel(ship, current - 1);
     return refund;

@@ -1,7 +1,7 @@
 import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, getCooldownLevel, getCooldownUpgradeCost, buyCooldownLevel, sellCooldownLevel, getDurationLevel, getDurationUpgradeCost, buyDurationLevel, sellDurationLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { SCORE_MULTS } from './score-upgrade.js';
 import { COOLDOWN_MULTS } from './cooldown-upgrade.js';
-import { DURATION_STEP_MS, DURATION_SHIPS } from './duration-upgrade.js';
+import { DURATION_STEP_MS, DURATION_SHIPS, durationMaxLevel, ivoryHitsForLevel } from './duration-upgrade.js';
 import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, useIvoryTooth, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
@@ -973,10 +973,10 @@ function _makeCooldownCard(coins) {
 // Duration card for the ships whose ability has a duration (Joker, Baby Dragon, Ivory)
 function _makeDurationCard(ship, coins) {
     const level = getDurationLevel(ship);
-    const nextCost = getDurationUpgradeCost(level);
+    const nextCost = getDurationUpgradeCost(ship, level);
     const canAfford = nextCost !== null && coins >= nextCost;
     const maxLevel = nextCost === null;
-    const prevCost = level > 0 ? (getDurationUpgradeCost(level - 1) ?? 0) : 0;
+    const prevCost = level > 0 ? (getDurationUpgradeCost(ship, level - 1) ?? 0) : 0;
     const durRefund = Math.floor(prevCost * 0.75);
     const addedSec = (level * DURATION_STEP_MS) / 1000;
     const isIvory = ship === 'ivory';
@@ -984,13 +984,13 @@ function _makeDurationCard(ship, coins) {
     const card = document.createElement('div');
     card.style.cssText = `padding:14px 16px;background:rgba(192,132,252,0.07);border:1px solid rgba(192,132,252,0.35);border-radius:10px;text-align:right;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;`;
 
-    const levelBar = Array.from({length: level}, () => '⏳').join('') || '🕒';
+    const levelBar = isIvory ? '🦷 ' + ivoryHitsForLevel(level) + ' / 100' : (Array.from({length: level}, () => '⏳').join('') || '🕒');
     card.innerHTML = `
         <div style="flex:1;min-width:0;">
             <div style="font-size:0.95rem;font-weight:bold;color:#c084fc;margin-bottom:4px;">
                 ${t('shopDurationUpgrade')} — ${tf('levelN', { n: level })}${maxLevel ? ' ' + t('shopHPMax') : ''}
             </div>
-            <div style="font-size:0.78rem;opacity:0.75;">${isIvory ? tf('shopToothHitsDesc', { h: level }) : tf('shopDurationDesc', { s: addedSec })}</div>
+            <div style="font-size:0.78rem;opacity:0.75;">${isIvory ? tf('shopToothHitsDesc', { h: ivoryHitsForLevel(level) }) : tf('shopDurationDesc', { s: addedSec })}</div>
             <div style="font-size:0.82rem;margin-top:5px;letter-spacing:1px;">${levelBar}</div>
             ${!maxLevel ? `<div style="font-size:0.72rem;opacity:0.55;margin-top:3px;">${t('shopHPNextCost')} 💰${nextCost?.toLocaleString()}</div>` : ''}
         </div>

@@ -6,6 +6,25 @@ export const DURATION_STEP_MS = 5000;
 // Ships whose special ability has a duration (Joker Chaos, Baby Dragon invincibility, Ivory tooth).
 export const DURATION_SHIPS = ['joker', 'dragon', 'ivory'];
 export const DURATION_MAX_LEVEL = 3;
+
+// Ivory's upgrade is different: no extra time, each level adds hits to the tooth.
+// 3 base hits, +2 per level, capped at 100 hits (level 49 reaches the cap).
+export const IVORY_BASE_HITS = 3;
+export const IVORY_HITS_PER_LEVEL = 2;
+export const IVORY_HITS_CAP = 100;
+export const IVORY_MAX_LEVEL = 49;
+export function ivoryHitsForLevel(level) {
+    return Math.min(IVORY_HITS_CAP, IVORY_BASE_HITS + IVORY_HITS_PER_LEVEL * Math.max(0, level));
+}
+export function durationMaxLevel(ship) {
+    return ship === 'ivory' ? IVORY_MAX_LEVEL : DURATION_MAX_LEVEL;
+}
+// Coins to buy the next level of a ship's upgrade (null at max). Joker/dragon keep the fixed table.
+export function durationLevelCost(ship, currentLevel) {
+    if (currentLevel >= durationMaxLevel(ship)) return null;
+    if (ship === 'ivory') return 5000 * (currentLevel + 1);
+    return DURATION_LEVEL_COSTS[currentLevel];
+}
 // Coins for buying level n (index n - 1). Selling the top level refunds 75%.
 export const DURATION_LEVEL_COSTS = [15000, 30000, 50000];
 
@@ -16,10 +35,10 @@ export function isLegacyDurationKey(key) {
     return LEGACY_DURATION_KEY.test(key);
 }
 
-export function clampDurationLevel(value) {
+export function clampDurationLevel(value, ship = 'joker') {
     const n = Number.parseInt(value, 10);
     if (!Number.isFinite(n) || n < 0) return 0;
-    return Math.min(n, DURATION_MAX_LEVEL);
+    return Math.min(n, durationMaxLevel(ship));
 }
 
 // Returns { joker, dragon } with the highest level implied by the old duration keys.
@@ -44,7 +63,7 @@ export function normalizeDurationLevels(value) {
     }
     const src = obj && typeof obj === 'object' ? obj : {};
     const out = {};
-    for (const ship of DURATION_SHIPS) out[ship] = clampDurationLevel(src[ship]);
+    for (const ship of DURATION_SHIPS) out[ship] = clampDurationLevel(src[ship], ship);
     return out;
 }
 

@@ -1,5 +1,6 @@
 import { DOM, state, addScore, INGREDIENT_TYPES, deviceMode, isUpgradeActive, abilityDurationMs, getHPLevel, getDurationLevel, currentSkinKey, addCoins, keyBindings, dangerForLevel, enemyHpScale } from './data.js';
 import { ART, enemyArt } from './art.js';
+import { ivoryHitsForLevel } from './duration-upgrade.js';
 import { burst } from './scene.js';
 import { t, tf, currentLang } from './i18n.js';
 import {
@@ -708,7 +709,7 @@ export function useJokerChaos() {
 export const IVORY_TOOTH_MS = 10000;
 export const IVORY_TOOTH_HITS = 3;
 export function ivoryToothHits() {
-    return IVORY_TOOTH_HITS + getDurationLevel('ivory');
+    return ivoryHitsForLevel(getDurationLevel('ivory'));
 }
 export const IVORY_TOOTH_DAMAGE = 1.5;
 export function ivoryToothActive() {
@@ -730,8 +731,10 @@ function toothCracksEl() {
     }
     return el;
 }
-function setToothCracks(n) {
+// Cracks grow with the share of hits taken, so 3 hits or 100 hits both look right.
+function setToothCracks(hitsTaken, max) {
     const el = toothCracksEl();
+    const n = hitsTaken <= 0 ? 0 : Math.min(TOOTH_CRACK_PATHS.length, Math.max(1, Math.round(hitsTaken / max * TOOTH_CRACK_PATHS.length)));
     el.querySelectorAll('path').forEach((p, i) => p.classList.toggle('on', i < n));
 }
 function toothScreenPos() {
@@ -740,8 +743,7 @@ function toothScreenPos() {
 }
 function showToothHit() {
     const max = Number(DOM.player.dataset.toothMax) || IVORY_TOOTH_HITS;
-    const cracks = Math.min(max - 1, max - Math.max(state.ivoryAbility.hitsLeft, 0));
-    setToothCracks(cracks);
+    setToothCracks(max - Math.max(state.ivoryAbility.hitsLeft, 0), max);
     // Impact feedback: a quick shake and a few chips flying off the tooth
     DOM.player.classList.remove('tooth-hit');
     void DOM.player.offsetWidth; // restart the animation
@@ -754,7 +756,7 @@ export function useIvoryTooth() {
     state.ivoryAbility.hitsLeft = ivoryToothHits();
     DOM.player.dataset.toothMax = String(state.ivoryAbility.hitsLeft);
     DOM.player.classList.add('ivory-tooth');
-    setToothCracks(0);
+    setToothCracks(0, state.ivoryAbility.hitsLeft);
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
 }
 export function breakIvoryTooth() {
