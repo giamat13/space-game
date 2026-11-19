@@ -260,7 +260,21 @@ async function doFlush() {
         try {
             const result = await runItem(user, item);
             if (result) _results.set(item.id, result);
-            updateOutbox(list => list.filter(i => i.id !== item.id));
+            if (item.kind === 'patch') {
+                // Changes merged into this patch while it was being sent (e.g. a ship unlocked
+                // right after a boss reward) are not in what was sent: keep them for the next flush.
+                updateOutbox(list => list.flatMap(i => {
+                    if (i.id !== item.id) return [i];
+                    const rest = {};
+                    for (const [k, v] of Object.entries(i.data || {})) {
+                        if (JSON.stringify(v) !== JSON.stringify(item.data[k])) rest[k] = v;
+                    }
+                    return Object.keys(rest).length ? [{ ...i, data: rest }] : [];
+                }));
+                if (readOutbox().some(i => i.id === item.id)) scheduleFlush(1500);
+            } else {
+                updateOutbox(list => list.filter(i => i.id !== item.id));
+            }
             if (item.tries && (item.kind === 'score' || item.kind === 'speedrun')) {
                 late++;
                 if (result?.world) records.push(result);
