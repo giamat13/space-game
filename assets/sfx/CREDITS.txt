@@ -1,0 +1,9 @@
+Recorded sound effects in this folder are by Kenney (www.kenney.nl),
+from the packs Sci-Fi Sounds, Impact Sounds, Interface Sounds, Digital Audio,
+Music Jingles and Casino Audio.
+
+License: Creative Commons Zero (CC0)
+http://creativecommons.org/publicdomain/zero/1.0/
+
+The file names are the original names from the packs.
+The other sounds of the game are synthesized in js/sfx.js.

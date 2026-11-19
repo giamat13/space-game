@@ -1,10 +1,15 @@
 // ===== SOUND EFFECTS =====
-// Every sound is synthesized live with the Web Audio API: no audio files to load.
+// A hybrid sound engine (Web Audio API):
+//   • Recorded sounds — CC0 samples by Kenney (kenney.nl) in assets/sfx/*.ogg, listed in BANK.
+//     Each event picks one of its variants at random, at a slightly random pitch, and
+//     several can be layered (BANK[name].also) or mixed with a synth layer (BANK[name].fx).
+//   • Self-made sounds — synthesized live in S. They play the events that have no
+//     recording (fire shots, burgers, boss alarm…) and stand in for any recording
+//     that is not loaded yet or that the browser cannot decode.
 //   play('<name>', x?)  — x is the screen X (px) of the source; it places the sound left/right.
 //   window.__sfx is the same function, for inline onclick handlers.
 // Signal chain: voice → its own stereo bus → master → compressor → speakers,
 // with a send from every bus into a shared synthetic reverb (space-hall feel).
-// Each play gets a small random pitch change so repeated sounds never sound identical.
 // Settings live in localStorage 'sfxSettings_v1' = { on, vol } (vol 0..1).
 
 const KEY = 'sfxSettings_v1';
@@ -55,6 +60,7 @@ function ensureCtx() {
 
         curve = new Float32Array(1024);
         for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(3 * x); }
+        loadSamples();
     } catch (_) { ctx = null; }
     return ctx;
 }
@@ -463,6 +469,152 @@ const GAP = {
     pickup: 50, telegraph: 120, bossAttack: 150, shake: 200, click: 30, type: 25, playerHit: 90,
     toothHit: 60, heal: 120, coin: 60, whoosh: 120, blocked: 90, abilityWait: 150,
 };
+// ---- recorded sounds ----
+// v: variants (one is picked per play) · db: loudness it is brought to (RMS dBFS)
+// rate: base playback speed (1 = as recorded; lower = deeper) · jit: random pitch spread (default 4%)
+// also: [file, delay s, dB relative to db] layers played with it · fx: synth layer (out, v) => …
+// off/dur: play only a slice of the file (with fades) · delay: start later
+const BANK = {
+    // Player shots
+    shoot:       { v: ['laserSmall_000', 'laserSmall_001', 'laserSmall_003'], db: -27 },
+    shootHeavy:  { v: ['laserLarge_000', 'laserLarge_002'], db: -25, rate: 0.9 },
+    shootJoker:  { v: ['pepSound1', 'pepSound3'], db: -27, jit: 0.12 },
+    shootIvory:  { v: ['impactGlass_light_000', 'impactGlass_light_001', 'impactGlass_light_002'], db: -24, rate: 1.15 },
+    noAmmo:      { v: ['switch_003'], db: -24, rate: 0.8 },
+    enemyShoot:  { v: ['laserRetro_002', 'laserRetro_004'], db: -31, rate: 0.8 },
+    // Impacts
+    hit:         { v: ['impactMetal_light_000', 'impactMetal_light_001', 'impactMetal_light_002'], db: -27, jit: 0.08 },
+    explode:     { v: ['explosionCrunch_000', 'explosionCrunch_002'], db: -19, jit: 0.08 },
+    explodeBig:  { v: ['explosionCrunch_001'], db: -15, rate: 0.85, also: [['lowFrequency_explosion_000', 0, 0]] },
+    asteroidHit: { v: ['impactMining_000', 'impactMining_002'], db: -23, jit: 0.1 },
+    asteroidCrash: { v: ['impactPunch_heavy_000', 'impactPunch_heavy_001'], db: -17, also: [['explosionCrunch_004', 0.02, -4]] },
+    playerHit:   { v: ['impactPlate_heavy_000', 'impactPlate_heavy_002'], db: -16, also: [['lowFrequency_explosion_001', 0, -6]] },
+    blocked:     { v: ['forceField_000', 'forceField_002'], db: -22, rate: 1.2, jit: 0.06 },
+    toothHit:    { v: ['impactGlass_medium_000', 'impactGlass_medium_002'], db: -20 },
+    toothBreak:  { v: ['impactGlass_heavy_000', 'impactGlass_heavy_002'], db: -15, also: [['impactGlass_light_001', 0.07, -4], ['impactGlass_light_002', 0.15, -7]] },
+    gameOver:    { v: ['jingles_STEEL07'], db: -17, jit: 0, delay: 0.45, also: [['explosionCrunch_001', -0.45, 2], ['lowFrequency_explosion_000', -0.45, 0]] },
+    // Pickups and rewards
+    heal:        { v: ['powerUp6'], db: -22, jit: 0.03 },
+    pickup:      { v: ['powerUp2'], db: -24, jit: 0.05 },
+    ammoFull:    { v: ['twoTone2'], db: -24, rate: 1.1 },
+    coin:        { v: ['chips-collide-1', 'chips-collide-2', 'chips-collide-3'], db: -20, rate: 1.1 },
+    levelUp:     { v: ['jingles_NES09'], db: -19, jit: 0, fx: (o) => sparkle(o, 0.25, 5) },
+    achievement: { v: ['jingles_NES12'], db: -19, jit: 0 },
+    unlock:      { v: ['jingles_STEEL10'], db: -17, jit: 0, fx: (o) => sparkle(o, 0.3, 10) },
+    record:      { v: ['jingles_PIZZI10'], db: -17, jit: 0, also: [['jingles_STEEL02', 0.7, 0]], fx: (o) => sparkle(o, 0.7, 12) },
+    // Ship abilities
+    phoenix:     { v: ['thrusterFire_001'], off: 1.2, dur: 1.1, db: -17, rate: 1.25, jit: 0, fx: (o) => {
+                       [69, 73, 76, 81, 85].forEach((n, i) => saws(o, { f: M(n), dur: 0.36, vol: 0.03, lp: 1200, lp2: 5000, delay: 0.1 + i * 0.07 }));
+                   } },
+    vortex:      { v: ['zap1'], db: -18, rate: 0.9, also: [['lowFrequency_explosion_001', 0.2, -5]] },
+    joker:       { v: ['jingles_PIZZI00'], db: -18, jit: 0, also: [['pepSound3', 0.05, -6]] },
+    dragon:      { v: ['lowFrequency_explosion_001'], db: -14, rate: 0.75, also: [['thrusterFire_001', 0.1, -2]], fx: (o) => {
+                       osc(o, { type: 'sawtooth', f: 95, f2: 55, dur: 1.2, vol: 0.09, vib: 8, vibRate: 11, lp: 900, shape: true, a: 0.05 });
+                   } },
+    tooth:       { v: ['impactBell_heavy_002'], db: -19, rate: 1.4, jit: 0, fx: (o) => sparkle(o, 0.05, 4) },
+    servants:    { v: ['zapTwoTone2'], db: -22, rate: 1.2 },
+    abilityReady:{ v: ['confirmation_001'], db: -21, jit: 0 },
+    abilityWait: { v: ['error_008'], db: -24 },
+    // Bosses
+    bossPhase:   { v: ['zapThreeToneDown'], db: -17, rate: 0.8, jit: 0, also: [['lowFrequency_explosion_000', 0, -2]] },
+    bossHit:     { v: ['impactMetal_heavy_000', 'impactMetal_heavy_001', 'impactMetal_heavy_003'], db: -26, jit: 0.07 },
+    bossDeath:   { v: ['lowFrequency_explosion_000'], db: -13, jit: 0, also: [
+                       ['explosionCrunch_004', 0, -2], ['explosionCrunch_001', 0.6, -3], ['explosionCrunch_000', 1.1, -4],
+                       ['explosionCrunch_002', 1.6, -4], ['lowFrequency_explosion_000', 1.9, -2]] },
+    bossWin:     { v: ['jingles_STEEL02'], db: -16, jit: 0, fx: (o) => { sparkle(o, 0.4, 14); osc(o, { type: 'sine', f: M(48), dur: 1.6, vol: 0.1, a: 0.05 }); } },
+    bossAttack:  { v: ['laserLarge_003', 'laserLarge_004'], db: -20, rate: 0.65 },
+    shake:       { v: ['lowFrequency_explosion_001'], db: -21, rate: 0.9 },
+    // Game flow and menus
+    start:       { v: ['zapThreeToneUp'], db: -20, jit: 0 },
+    pause:       { v: ['minimize_001'], db: -22, jit: 0 },
+    resume:      { v: ['maximize_001'], db: -22, jit: 0 },
+    click:       { v: ['click_002', 'click_003'], db: -24, jit: 0.06 },
+    toggle:      { v: ['toggle_002'], db: -24 },
+    open:        { v: ['open_001'], db: -26 },
+    close:       { v: ['close_001'], db: -26 },
+    type:        { v: ['tick_001'], db: -30, jit: 0.1 },
+    buy:         { v: ['chips-stack-1', 'chips-stack-3'], db: -19, also: [['chips-collide-2', 0.12, -3]] },
+    sell:        { v: ['chips-handle-3'], db: -20 },
+    error:       { v: ['error_002'], db: -21, jit: 0 },
+    success:     { v: ['confirmation_002'], db: -21, jit: 0 },
+    correct:     { v: ['confirmation_003'], db: -19, jit: 0 },
+    wrong:       { v: ['error_006'], db: -19, jit: 0 },
+    notify:      { v: ['question_003'], db: -22, jit: 0 },
+};
+
+// High FM-bell glitter over a reward jingle (self-made layer).
+function sparkle(o, start, count) {
+    for (let i = 0; i < count; i++)
+        bell(o, { f: M(pick([96, 100, 103, 108])), ratio: 2, index: 0.8, dur: 0.45, vol: 0.02, delay: start + i * 0.08 });
+}
+
+const SFX_URL = new URL('../assets/sfx/', import.meta.url);
+const buffers = {};   // file → { buf, gain } once decoded; false if it failed
+let samplesStarted = false;
+// Loudness of the loud part of a buffer, in dB (RMS of the blocks within 20 dB of the loudest one).
+function loudness(buf) {
+    const d = buf.getChannelData(0), B = 512, rms = [];
+    let peak = 0;
+    for (let i = 0; i + B <= d.length; i += B) {
+        let s = 0;
+        for (let j = i; j < i + B; j++) { s += d[j] * d[j]; const a = Math.abs(d[j]); if (a > peak) peak = a; }
+        rms.push(s / B);
+    }
+    if (!rms.length) return { db: -60, peak: 1 };
+    const top = Math.max(...rms), loud = rms.filter(r => r >= top / 100);
+    return { db: 10 * Math.log10(loud.reduce((a, b) => a + b, 0) / loud.length + 1e-12), peak: peak || 1 };
+}
+function loadSamples() {
+    if (samplesStarted) return;
+    samplesStarted = true;
+    const files = new Set();
+    for (const e of Object.values(BANK)) { e.v.forEach(f => files.add(f)); (e.also || []).forEach(a => files.add(a[0])); }
+    for (const f of files) {
+        fetch(new URL(f + '.ogg', SFX_URL))
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+            .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+            .then(buf => { buffers[f] = { buf, ...loudness(buf) }; })
+            .catch(() => { buffers[f] = false; });
+    }
+}
+const ready = (f) => !!buffers[f];
+
+// Plays one recording into bus o, brought to `db` loudness (never clipping), at speed `rate`.
+function sample(o, f, db, rate, delay = 0, off = 0, dur = 0) {
+    const s = buffers[f];
+    if (!s) return;
+    const t = ctx.currentTime + Math.max(0, delay);
+    const src = ctx.createBufferSource(); src.buffer = s.buf; src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    const vol = Math.min(Math.pow(10, (db - s.db) / 20), 0.95 / s.peak);
+    if (dur) {   // a slice of a long file: fade in and out so it does not click
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.06);
+        g.gain.setValueAtTime(vol, t + dur * 0.6);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    } else g.gain.value = vol;
+    src.connect(g); g.connect(o);
+    if (dur) src.start(t, off, dur * rate + 0.05); else src.start(t);
+}
+
+// Plays BANK[name]; returns false when its recordings are not ready (the synth plays instead).
+function playRecorded(name, o) {
+    const e = BANK[name];
+    if (!e) return false;
+    const f = pick(e.v);
+    if (!ready(f)) return false;
+    const jit = e.jit ?? 0.04;
+    const rate = (e.rate || 1) * (1 + rnd(-jit, jit));
+    const d0 = e.delay || 0;
+    sample(o, f, e.db, rate, d0, e.off || 0, e.dur || 0);
+    for (const [af, ad, adb] of e.also || []) if (ready(af)) {
+        const slice = af === 'thrusterFire_001' ? [1.0, 1.1] : [0, 0];   // the thruster file is a 5 s loop: use a slice
+        sample(o, af, e.db + adb, rate, d0 + ad, slice[0], slice[1]);
+    }
+    if (e.fx) e.fx(o, rate);
+    return true;
+}
+
 const last = {};
 let voices = 0;
 const MAX_VOICES = 28;
@@ -470,7 +622,7 @@ const MAX_VOICES = 28;
 export function play(name, x) {
     if (!settings.on || settings.vol <= 0) return;
     const fn = S[name];
-    if (!fn) return;
+    if (!fn && !BANK[name]) return;
     const c = ensureCtx();
     if (!c || c.state !== 'running') return;
     const now = performance.now();
@@ -481,7 +633,10 @@ export function play(name, x) {
     setTimeout(() => { voices--; }, 300);
     const w = window.innerWidth || 1;
     const pan = Number.isFinite(x) ? Math.max(-1, Math.min(1, (x / w) * 2 - 1)) * 0.6 : 0;
-    try { fn(bus(pan, WET[name] ?? 0.12), rnd(0.96, 1.04)); } catch (e) { console.warn('[SFX]', name, e); }
+    try {
+        const o = bus(pan, WET[name] ?? 0.12);
+        if (!playRecorded(name, o) && fn) fn(o, rnd(0.96, 1.04));
+    } catch (e) { console.warn('[SFX]', name, e); }
 }
 
 export function getSfxSettings() { return { ...settings }; }
