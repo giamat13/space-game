@@ -110,6 +110,9 @@ const STRINGS = {
     listenKey:        { he: '...לחץ על מקש', en: '...Press a key', ar: '...اضغط على مفتاح', ru: '...Нажмите клавишу', fr: '...Appuyez sur une touche', es: '...Presiona una tecla' },
     rcOn:             { he: '✅ פעיל', en: '✅ On', ar: '✅ تشغيل', ru: '✅ Вкл', fr: '✅ Activé', es: '✅ Activado' },
     rcOff:            { he: '❌ כבוי', en: '❌ Off', ar: '❌ إيقاف', ru: '❌ Выкл', fr: '❌ Désactivé', es: '❌ Desactivado' },
+    sfxLabel:         { he: '🔊 אפקטים קוליים:', en: '🔊 Sound effects:', ar: '🔊 المؤثرات الصوتية:', ru: '🔊 Звуковые эффекты:', fr: '🔊 Effets sonores :', es: '🔊 Efectos de sonido:' },
+    sfxVolume:        { he: 'עוצמה', en: 'Volume', ar: 'مستوى الصوت', ru: 'Громкость', fr: 'Volume', es: 'Volumen' },
+    sfxTest:          { he: '🔔 בדיקה', en: '🔔 Test', ar: '🔔 تجربة', ru: '🔔 Проверка', fr: '🔔 Tester', es: '🔔 Probar' },
 
     // ---- Rules tab ----
     enemiesAsteLabel: { he: 'אויבים יורים דרך סלעים:', en: 'Enemies shoot through asteroids:', ar: 'الأعداء يطلقون عبر الكويكبات:', ru: 'Враги стреляют сквозь астероиды:', fr: 'Les ennemis tirent à travers les astéroïdes :', es: 'Los enemigos disparan a través de asteroides:' },

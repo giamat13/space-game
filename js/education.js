@@ -5,6 +5,7 @@
 
 import { state } from './data.js';
 import { t, currentLang } from './i18n.js';
+import { play } from './sfx.js';
 
 // ---------- Persistent config ----------
 // eduConfig describes the *current* education setup.
@@ -350,6 +351,7 @@ const EVENT_LABELS = () => ({
 });
 
 function showQuizModal(q, eventType, onCorrect, onWrong) {
+    play('notify');
     quizOpen = true;
     const wasActive = state.active;
     state.active = false; // pause the game loop
@@ -367,6 +369,7 @@ function showQuizModal(q, eventType, onCorrect, onWrong) {
     optionsEl.innerHTML = '';
 
     const finish = (correct) => {
+        play(correct ? 'correct' : 'wrong');
         setTimeout(() => {
             modal.style.display = 'none';
             quizOpen = false;

@@ -7,6 +7,7 @@ import {
     trackChaoticKill, trackAsteroidDestroyed, trackIngredientCollected,
     trackBurgerEaten, trackScoreUpdate
 } from './analytics.js';
+import { play } from './sfx.js';
 
 // ===== UPDATE BULLETS =====
 
@@ -132,13 +133,13 @@ export function updateEnemyBullets() {
                     eb.el.style.width = '14px';
                     eb.el.style.height = '14px';
                     eb.el.style.borderRadius = '50%';
-                    createExplosion(eb.x, eb.y, '#ffaa33');
+                    createExplosion(eb.x, eb.y, '#ffaa33', 'blocked');
                     showFloatingMessage(t('msgRicochet'), eb.x - 50, eb.y, '#ffaa33');
                     continue;
                 }
                 damagePlayer(eb.dmg || 15, 'enemy_bullet');
                 if (eb.drain) { state.ammo = Math.max(0, state.ammo - eb.drain); updateAmmoUI(); showFloatingMessage(t('kDrained'), eb.x - 30, eb.y - 30, '#b4ff6a'); }
-                createExplosion(eb.x, eb.y, 'var(--primary)');
+                createExplosion(eb.x, eb.y, 'var(--primary)', null);
                 eb.el.remove();
                 state.enemyBullets.splice(i, 1);
                 continue;
@@ -155,8 +156,8 @@ export function updateEnemyBullets() {
                     const damage = eb.damage || 40;
                     targetEn.hp -= damage;
                     targetEn.hpFill.style.width = (Math.max(0, targetEn.hp) / targetEn.maxHP * 100) + '%';
-                    createExplosion(eb.x, eb.y, '#ffaa33');
-                    createExplosion(eb.x, eb.y, '#ffff00');
+                    createExplosion(eb.x, eb.y, '#ffaa33', 'hit');
+                    createExplosion(eb.x, eb.y, '#ffff00', null);
                     if (targetEn.hp <= 0) {
                         const points = getEnemyPoints(targetEn.type);
                         addScore(points);
@@ -184,7 +185,7 @@ export function updateEnemyBullets() {
                 let ast = state.asteroids[ai];
                 const aRect = ast.rect || ast.el.getBoundingClientRect();
                 if(!(ebRect.right < aRect.left || ebRect.left > aRect.right || ebRect.bottom < aRect.top || ebRect.top > aRect.bottom)) {
-                    createExplosion(eb.x, eb.y, '#666');
+                    createExplosion(eb.x, eb.y, '#666', 'asteroidHit');
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
                     hitAsteroid = true;
@@ -208,7 +209,7 @@ export function updateEnemyBullets() {
                     targetEn.hp -= 1;
                     targetEn.hpFill.style.width = (targetEn.hp / targetEn.maxHP * 100) + '%';
 
-                    createExplosion(eb.x, eb.y, '#00f2ff');
+                    createExplosion(eb.x, eb.y, '#00f2ff', 'hit');
                     
                     // Kill enemy if HP reaches 0
                     if (targetEn.hp <= 0) {
@@ -255,7 +256,7 @@ export function updateEnemyBullets() {
                         registerJokerKill(teRect.left, teRect.top);
                     }
                     
-                    createExplosion(eb.x, eb.y, 'white');
+                    createExplosion(eb.x, eb.y, 'white', 'friendlyHit');
                     eb.el.remove();
                     state.enemyBullets.splice(i, 1);
                     hitEnemy = true;
@@ -290,7 +291,7 @@ export function updateBurgers() {
             healPlayer(15);
             const becameFat = !state.isPlayerFat && wasFullHP && state.burgersEatenAtFullHP + 1 >= 3;
             trackBurgerEaten(state.playerMaxHP * 0.15, hpBefore, state.playerHP, becameFat);
-            createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)');
+            createExplosion(bRect.left + 25, bRect.top + 25, 'var(--burger)', 'burger');
             bgr.el.remove();
             state.burgers.splice(i, 1);
             
@@ -302,6 +303,7 @@ export function updateBurgers() {
                     state.isPlayerFat = true;
                     DOM.player.style.transform = 'scale(1.5)';
                     showFloatingMessage(t('msgFat'), state.playerX - 20, DOM.wrapper.clientHeight - 120, "#ff6b35");
+                    play('fat');
                 }
             }
             
@@ -317,7 +319,7 @@ export function updateBurgers() {
                 bgr.hpFill.style.width = (bgr.hp / bgr.maxHP * 100) + '%';
                 
                 if (bul.el.dataset.isFire === 'true') {
-                    createExplosion(bulRect.left, bulRect.top, '#ff4500');
+                    createExplosion(bulRect.left, bulRect.top, '#ff4500', 'hit');
                 }
                 
                 bul.el.remove();
@@ -361,6 +363,7 @@ export function updateIngredients() {
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + 5);
             updateHPUI();
             trackIngredientCollected('generic', 'heal', 5);
+            play('pickup');
             ing.el.remove();
             state.ingredients.splice(i, 1);
             continue;
@@ -387,7 +390,7 @@ export function updateAsteroids() {
         
         if(!(aRect.right < pRect.left || aRect.left > pRect.right || aRect.bottom < pRect.top || aRect.top > pRect.bottom)) {
             damagePlayer(40, 'asteroid_collision');
-            createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)');
+            createExplosion(aRect.left + 25, aRect.top + 25, 'var(--stone)', 'asteroidCrash');
             trackAsteroidDestroyed('collision');
             ast.el.remove();
             state.asteroids.splice(i, 1);
@@ -400,7 +403,7 @@ export function updateAsteroids() {
                 let bul = state.bullets[bi];
                 const bRect = bul.rect || bul.el.getBoundingClientRect();
                 if(!(bRect.right < aRect.left || bRect.left > aRect.right || bRect.bottom < aRect.top || bRect.top > aRect.bottom)) {
-                    createExplosion(bRect.left, bRect.top, '#666');
+                    createExplosion(bRect.left, bRect.top, '#666', 'asteroidHit');
                     bul.el.remove();
                     state.bullets.splice(bi, 1);
                     trackAsteroidDestroyed('bullet');
@@ -499,10 +502,10 @@ export function updateEnemies(now) {
                 
                 // Fire explosion for joker bullets
                 if (bul.el.dataset.isFire === 'true') {
-                    createExplosion(bRect.left, bRect.top, '#ff4500');
-                    createExplosion(bRect.left, bRect.top, '#ffa500');
+                    createExplosion(bRect.left, bRect.top, '#ff4500', 'hit');
+                    createExplosion(bRect.left, bRect.top, '#ffa500', null);
                 } else {
-                    createExplosion(bRect.left, bRect.top, 'white');
+                    createExplosion(bRect.left, bRect.top, 'white', 'hit');
                 }
                 
                 bul.el.remove();
@@ -574,7 +577,7 @@ export function updateLightnings() {
             state.ammo = state.maxAmmo;
             updateAmmoUI();
             showFloatingMessage(t('msgAmmoFull'), state.playerX - 30, DOM.wrapper.clientHeight - 140, '#ffe000');
-            createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000');
+            createExplosion(lRect.left + 20, lRect.top + 30, '#ffe000', 'ammoFull');
             lt.el.remove();
             state.lightnings.splice(i, 1);
             continue;

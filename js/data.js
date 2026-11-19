@@ -50,6 +50,7 @@ import { readLocalTable, writeLocalTable } from './local-tables.js';
 import { SCORE_MULTS, SCORE_LEVEL_COSTS, clampScoreLevel, legacyScoreLevel, stripLegacyScore } from './score-upgrade.js';
 import { COOLDOWN_MULTS, COOLDOWN_LEVEL_COSTS, clampCooldownLevel, legacyCooldownLevel, stripLegacyCooldown } from './cooldown-upgrade.js';
 import { DURATION_STEP_MS, durationLevelCost, durationMaxLevel, normalizeDurationLevels, legacyDurationLevels, stripLegacyDuration } from './duration-upgrade.js';
+import { play } from './sfx.js';
 
 // Skin Configuration
 export const SKINS = {
@@ -478,6 +479,7 @@ export function getCoins() {
 }
 
 export function addCoins(amount) {
+    if (amount > 0) play('coin');
     const current = getCoins();
     const newTotal = current + amount;
     setCookie('playerCoins', newTotal.toString());

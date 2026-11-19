@@ -12,6 +12,7 @@
 import { DOM, state, deviceMode, enemyHpScale } from './data.js';
 import { createExplosion, showFloatingMessage, damagePlayer } from './systems.js';
 import { t } from './i18n.js';
+import { play } from './sfx.js';
 
 const OUT = 'stroke="#05070f" stroke-width="2.6" stroke-linejoin="round"';
 const mir = (s) => s + `<g transform="matrix(-1 0 0 1 100 0)">${s}</g>`;
@@ -49,12 +50,13 @@ export function fireAt(en, deg, speed, o = {}) {
     DOM.wrapper.appendChild(el);
     const eb = { el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: en.el, dmg: (o.dmg ?? 18) * (en.elite ? 1.4 : 1), drain: o.drain };
     state.enemyBullets.push(eb);
+    play('enemyShoot', en.rect?.left);
     return eb;
 }
 const aim = (x, y) => Math.atan2(py() - y, px() - x) * 180 / Math.PI;
 const aimed = (en, speed, o) => fireAt(en, aim(ex(en), en.y + en.size * 0.8) + (o?.off || 0), speed, o);
 
-function heal(en, x, y, color) { createExplosion(DOM.wrapper.getBoundingClientRect().left + x, DOM.wrapper.getBoundingClientRect().top + y, color); }
+function heal(en, x, y, color) { createExplosion(DOM.wrapper.getBoundingClientRect().left + x, DOM.wrapper.getBoundingClientRect().top + y, color, 'whoosh'); }
 
 // ---------- the kinds ----------
 export const KINDS = {

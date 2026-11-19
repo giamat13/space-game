@@ -5,6 +5,7 @@
 import { currentLang } from './i18n.js';
 import { sparkleAt } from './fx.js';
 import { syncAchievements } from './cloud-sync.js';
+import { play } from './sfx.js';
 
 const ACHIEVEMENTS_KEY = 'achievements_v1';
 
@@ -249,6 +250,7 @@ export function getAchievementProgress() {
 
 // Show toast notification for newly unlocked achievement
 export function showAchievementToast(ach) {
+    play('achievement');
     const existing = document.getElementById('achievement-toast-container');
     const container = existing || (() => {
         const el = document.createElement('div');

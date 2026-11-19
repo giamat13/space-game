@@ -15,6 +15,7 @@ import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateA
 import { t, tf } from './i18n.js';
 import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy, celebrateSkinUnlock } from './fx.js';
 import { ROSTER, MILESTONES, MUTATIONS, EARLY } from './boss-roster.js';
+import { play } from './sfx.js';
 
 const TICK = 1000 / 60;
 const ARENA_HP = 600;        // boss hits are heavy: max HP is raised to at least this for the fight
@@ -80,6 +81,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 function shake(ms = 350) {
+    play('shake');
     const w = DOM.wrapper;
     w.classList.remove('shake');
     void w.offsetWidth;
@@ -132,6 +134,7 @@ export const K = {
         DOM.wrapper.appendChild(el);
         const eb = { el, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, friendly: false, chaotic: false, shooterId: null, dmg: o.dmg ?? (30 + 10 * b.phase), boss: true };
         state.enemyBullets.push(eb);
+        play('enemyShoot', WR.left + x);
         return eb;
     },
     fan(b, n, spread, speed, o = {}) {
@@ -194,13 +197,14 @@ export const K = {
     beam(b, o = {}) {
         const w = o.w ?? 80, warn = o.warn ?? 1100, dur = o.dur ?? 520, dmg = o.dmg ?? 260, track = o.track ?? 0.15;
         const fromBoss = o.top == null;
+        if (!o.quiet) play('telegraph');
         K.obj(b, {
             cls: 'boss-beam warn ' + (o.cls || ''), haz: true, x: (o.x ?? K.px()) - w / 2, y: fromBoss ? b.y + b.h * 0.7 : o.top, w, h: K.H,
             update(s) {
                 const age = b.t - s.born;
                 if (track && age < warn - 320) s.x += (K.px() - w / 2 - s.x) * track;
                 if (fromBoss) s.y = b.y + b.h * 0.7;
-                if (!s.fired && age >= warn) { s.fired = true; s.el.className = 'bo boss-beam fire ' + (o.cls || ''); if (!o.quiet) shake(300); }
+                if (!s.fired && age >= warn) { s.fired = true; s.el.className = 'bo boss-beam fire ' + (o.cls || ''); if (!o.quiet) { shake(300); play('bossAttack'); } }
                 if (s.fired && !s.hit && Math.abs(K.px() - (s.x + w / 2)) < w / 2 + HITBOX) { s.hit = true; K.hurt(dmg, 'boss_beam'); }
                 return age < warn + dur;
             }
@@ -219,11 +223,12 @@ export const K = {
     // marked circle on the player's line, then a strike
     zap(b, x, o = {}) {
         const r = o.r ?? 52, warn = o.warn ?? 900, dmg = o.dmg ?? 70;
+        play('telegraph');
         K.obj(b, {
             cls: 'boss-zap warn ' + (o.cls || ''), haz: true, x: x - r, y: 0, w: r * 2, h: K.H,
             update(s) {
                 const age = b.t - s.born;
-                if (!s.fired && age >= warn) { s.fired = true; s.el.className = 'bo boss-zap strike ' + (o.cls || ''); if (Math.abs(K.px() - x) < r + HITBOX - 6) K.hurt(dmg, 'boss_zap'); }
+                if (!s.fired && age >= warn) { s.fired = true; s.el.className = 'bo boss-zap strike ' + (o.cls || ''); play('bossAttack'); if (Math.abs(K.px() - x) < r + HITBOX - 6) K.hurt(dmg, 'boss_zap'); }
                 return age < warn + 260;
             }
         });
@@ -231,6 +236,7 @@ export const K = {
     },
     // slow homing rocket; can be shot down
     missile(b, x, y, o = {}) {
+        play('whoosh');
         return K.obj(b, {
             cls: 'boss-missile', haz: true, x: x - 13, y: y - 13, w: 26, h: 26, hp: o.hp ?? 2, a: o.deg ?? 90, sp: o.speed ?? 2.5,
             update(s) {
@@ -251,6 +257,7 @@ export const K = {
     },
     // drifting mine: explodes when shot or when the player gets close (after a short fuse)
     mine(b, x, y, o = {}) {
+        play('telegraph');
         const R = o.r ?? 95;
         return K.obj(b, {
             cls: 'boss-mine ' + (o.cls || ''), haz: true, x: x - 17, y: y - 17, w: 34, h: 34, hp: o.hp ?? 2, ty: o.ty ?? rnd(K.H * 0.45, K.H - 150), vy: o.vy ?? 2.2,
@@ -273,6 +280,7 @@ export const K = {
     },
     // small escort that hovers near the boss, blocks shots and fires back
     drone(b, o = {}) {
+        play('servants');
         const ph = Math.random() * 6.28;
         return K.obj(b, {
             cls: 'boss-drone ' + (o.cls || ''), x: b.x + b.w / 2 - 20, y: b.y + b.h / 2, w: 40, h: 40, hp: o.hp ?? 5, block: true, last: b.t + rnd(300, 1400), drone: true,
@@ -289,8 +297,9 @@ export const K = {
     // marked column, then a rock comes down it
     meteor(b, x, o = {}) {
         const warn = o.warn ?? 850;
+        play('telegraph');
         K.obj(b, { cls: 'boss-mark', haz: true, x: x - 30, y: K.H - 78, w: 60, h: 24, update: (s) => b.t - s.born < warn + 500 });
-        K.after(b, warn, () => K.obj(b, {
+        K.after(b, warn, () => (play('whoosh'), K.obj(b, {
             cls: 'boss-meteor', haz: true, x: x - 22, y: -50, w: 44, h: 44, hp: o.hp ?? 4,
             update(s) {
                 s.y += o.speed ?? 9; s.rot = (s.rot || 0) + 7;
@@ -298,15 +307,15 @@ export const K = {
                 return s.y < K.H;
             },
             onDeath(s) { K.boom(s.x + 22, s.y + 22, '#ff9d3c'); }
-        }));
+        })));
         return warn + 500;
     },
     count: (b, flag) => b.objs.filter(o => o[flag]).length,
 
     // ----- boss state helpers -----
-    expose(b, ms) { b.weakUntil = Math.max(b.weakUntil, b.t + ms); K.say(b, 'bossWeak'); },
+    expose(b, ms) { b.weakUntil = Math.max(b.weakUntil, b.t + ms); K.say(b, 'bossWeak'); play('notify'); },
     calm(b, ms) { b.calmUntil = Math.max(b.calmUntil, b.t + ms); },
-    shield(b, on) { b.shieldOn = on; b.el.classList.toggle('boss-shielded', on); if (on) K.say(b, 'bossShield', '#7fe9ff'); },
+    shield(b, on) { b.shieldOn = on; b.el.classList.toggle('boss-shielded', on); if (on) { K.say(b, 'bossShield', '#7fe9ff'); play('blocked'); } },
     busy(b, ms) { b.busyUntil = Math.max(b.busyUntil, b.t + ms); },
     // heal the boss (leeching mechanics). Never crosses back over a phase boundary.
     heal(b, amount) { const cap = b.maxHP * (b.phase === 1 ? 1 : b.phase === 2 ? 0.66 : 0.33); b.hp = Math.min(cap, b.hp + amount); },
@@ -388,6 +397,7 @@ function clearField() {
 function showIntro(b) {
     const el = document.createElement('div');
     el.id = 'boss-intro';
+    play('bossAlarm');
     el.style.setProperty('--bc', b.def.color);
     el.innerHTML = `<div class="bi-warn">${t('bossWarning')}</div><div class="bi-art">${b.def.art()}</div>` +
         `<div class="bi-name">${bossName(b.enc)}</div><div class="bi-title">${t('bt_' + b.def.id)}</div>`;
@@ -469,6 +479,7 @@ function phaseChange(b, phase) {
     DOM.wrapper.classList.remove('icy', 'pulling');
     document.getElementById('boss-dark')?.classList.add('off');
     b.def.onPhase?.(b, K, phase);
+    play('bossPhase');
     const m = K.mid(b), color = phase === 3 ? '#ff4d2f' : '#ffd21a';
     K.shock(m.x, m.y, color, 600);
     shake(700);
@@ -489,8 +500,9 @@ function hitBoss(b, hit) {
     let m = b.inv || b.shieldOn ? 0 : 1;
     const custom = b.def.onHit?.(b, K, hit);
     if (custom !== undefined && m !== 0) m = custom;
-    if (m === 'reflect') return 'reflect';
-    if (!m) return 0;
+    if (m === 'reflect') { play('blocked'); return 'reflect'; }
+    if (!m) { if (!hit.ability) play('blocked'); return 0; }
+    play('bossHit');
     if (b.t < b.weakUntil) m *= EXPOSED_MULT;
     const dmg = hit.ability ? b.maxHP * hit.dmg : Math.min(hit.dmg, hit.ricochet ? MAX_HIT * 2 : MAX_HIT);
     b.hp -= dmg * m;
@@ -505,6 +517,7 @@ function startDeath(b) {
     b.dying = true;
     b.dyingStart = b.t;
     b.dyingUntil = b.t + 3300;
+    play('bossDeath');
     const m = K.mid(b);
     b.beams = lightBeams(WR.left + m.x, WR.top + m.y);
     shake(3300);
@@ -532,6 +545,7 @@ function finishDeath(b) {
     const { enc, def } = b;
     const m = K.mid(b), cx = WR.left + m.x, cy = WR.top + m.y;
     b.beams?.end(500);
+    play('bossWin');
     flash('#fff', 1100);
     shake(900);
     confettiBurst(cx, cy, { count: enc.milestone ? 160 : 110, spread: 480 });
@@ -673,6 +687,7 @@ function updatePickups(b, pRect) {
             state.playerHP = Math.min(state.playerMaxHP, state.playerHP + heal);
             updateHPUI();
             showFloatingMessage(`+${heal} HP`, pk.x - 10, pk.y - 20, 'var(--health)');
+            play('heal');
             K.boom(pk.x + 15, pk.y + 15, '#34e89e');
             K.boom(pk.x + 15, pk.y + 15, '#ffffff');
         }

@@ -1,6 +1,7 @@
 // ===== CELEBRATION EFFECTS =====
 // Pure-DOM effects (no deps): confetti, shockwaves, new-ship reveal, level-up banner.
 import { t, tf } from './i18n.js';
+import { play } from './sfx.js';
 
 const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COLORS = ['#ffd166', '#22e6ff', '#c04dff', '#ff4d6a', '#34e89e', '#ffe600', '#ff7a2e'];
@@ -54,6 +55,7 @@ export function shockwave(x, y, color = '#ffd166', size = 320) {
 
 // Full-screen "new ship unlocked" reveal.
 export function celebrateSkinUnlock({ svg, name, color = '#ffd166' }) {
+    play('unlock');
     const host = layer();
     const box = document.createElement('div');
     box.className = 'fx-reveal';
@@ -78,6 +80,7 @@ export function celebrateSkinUnlock({ svg, name, color = '#ffd166' }) {
 
 // Level-up banner + flash over the playfield.
 export function levelUpFx(level) {
+    play('levelUp');
     const host = layer();
     const b = document.createElement('div');
     b.className = 'fx-levelup';
@@ -97,6 +100,7 @@ export function sparkleAt(el, opts = {}) {
 
 // Big centered banner (boss warning / victory).
 export function showBanner(text, { color = '#fff', ms = 2000, shake = false } = {}) {
+    play('whoosh');
     const b = document.createElement('div');
     b.className = 'fx-banner' + (shake ? ' fx-banner-shake' : '');
     b.textContent = text;

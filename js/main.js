@@ -10,6 +10,7 @@ import { initAuth, currentUser, isAuthenticated } from './auth.js';
 import { initFirestoreSync, getMoneyLeaderboard, pullShopState } from './cloud-sync.js';
 import { loadEduConfig, loadQuestionBank, eduConfig, isEduActive, triggerQuiz, resetQuizCooldown, getSubjects, getGradesForSubject, setEduEnabled, setEduSubject, setEduGrade, lockEdu, unlockEdu, buildEduLink, gradeLabel, forceUnlockLocal, applyExpiryIfNeeded, lockMsRemaining, listenForUnlock, startManaging, becomeManager, listenParticipants, unlockAllParticipants, unlockOneParticipant, joinSession } from './education.js';
 import { celebrateSkinUnlock, levelUpFx } from './fx.js';
+import { play, getSfxSettings, setSfxEnabled, setSfxVolume } from './sfx.js';
 import { updateBoss, resetBoss, hideBoss, firstEncounterFrom } from './bosses.js';
 initScene();
 initIcons();
@@ -790,7 +791,7 @@ function _makeUpgradeCard(upg, coins) {
             const removeBtn = document.createElement('button');
             removeBtn.textContent = `${t('shopBtnRefund')} (💰${refund})`;
             removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
-            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { _refreshShopCoins(); renderShopItems(); } };
+            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
 
             actionsDiv.appendChild(enableBtn);
             actionsDiv.appendChild(removeBtn);
@@ -808,7 +809,7 @@ function _makeUpgradeCard(upg, coins) {
             const removeBtn = document.createElement('button');
             removeBtn.textContent = `${t('shopBtnRefund')} (💰${refund})`;
             removeBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.7rem;cursor:pointer;';
-            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { _refreshShopCoins(); renderShopItems(); } };
+            removeBtn.onclick = () => { if (removeUpgrade(upg.key) !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
 
             actionsDiv.appendChild(ownedBtn);
             actionsDiv.appendChild(disableBtn);
@@ -820,7 +821,7 @@ function _makeUpgradeCard(upg, coins) {
         buyBtn.textContent = `💰 ${upg.cost}`;
         buyBtn.disabled = !canBuy;
         buyBtn.style.cssText = `background:${canBuy ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canBuy ? '#ffd700' : '#555'};color:${canBuy ? '#ffd700' : '#555'};padding:8px 14px;font-size:0.85rem;min-width:80px;cursor:${canBuy ? 'pointer' : 'default'};`;
-        buyBtn.onclick = () => { if (buyUpgrade(upg.key)) { _refreshShopCoins(); renderShopItems(); } };
+        buyBtn.onclick = () => { if (buyUpgrade(upg.key)) { play('buy'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actionsDiv.appendChild(buyBtn);
     }
 
@@ -861,7 +862,7 @@ function _makeHPCard(skinKey, coins) {
         buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
         buyBtn.disabled = !canAfford;
         buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,100,100,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ff6b6b' : '#555'};color:${canAfford ? '#ff6b6b' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
-        buyBtn.onclick = () => { if (buyHPLevel(skinKey)) { _refreshShopCoins(); renderShopItems(); } };
+        buyBtn.onclick = () => { if (buyHPLevel(skinKey)) { play('buy'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(buyBtn);
     }
 
@@ -869,7 +870,7 @@ function _makeHPCard(skinKey, coins) {
         const sellBtn = document.createElement('button');
         sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${hpRefund})`;
         sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
-        sellBtn.onclick = () => { if (sellHPLevel(skinKey) !== false) { _refreshShopCoins(); renderShopItems(); } };
+        sellBtn.onclick = () => { if (sellHPLevel(skinKey) !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(sellBtn);
     }
 
@@ -908,7 +909,7 @@ function _makeScoreCard(coins) {
         buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
         buyBtn.disabled = !canAfford;
         buyBtn.style.cssText = `background:${canAfford ? 'rgba(255,215,0,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#ffd700' : '#555'};color:${canAfford ? '#ffd700' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
-        buyBtn.onclick = () => { if (buyScoreLevel()) { _refreshShopCoins(); renderShopItems(); } };
+        buyBtn.onclick = () => { if (buyScoreLevel()) { play('buy'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(buyBtn);
     }
 
@@ -916,7 +917,7 @@ function _makeScoreCard(coins) {
         const sellBtn = document.createElement('button');
         sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${scoreRefund})`;
         sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
-        sellBtn.onclick = () => { if (sellScoreLevel() !== false) { _refreshShopCoins(); renderShopItems(); } };
+        sellBtn.onclick = () => { if (sellScoreLevel() !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(sellBtn);
     }
 
@@ -955,7 +956,7 @@ function _makeCooldownCard(coins) {
         buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
         buyBtn.disabled = !canAfford;
         buyBtn.style.cssText = `background:${canAfford ? 'rgba(0,242,255,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#00f2ff' : '#555'};color:${canAfford ? '#00f2ff' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
-        buyBtn.onclick = () => { if (buyCooldownLevel()) { _refreshShopCoins(); renderShopItems(); } };
+        buyBtn.onclick = () => { if (buyCooldownLevel()) { play('buy'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(buyBtn);
     }
 
@@ -963,7 +964,7 @@ function _makeCooldownCard(coins) {
         const sellBtn = document.createElement('button');
         sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${cdRefund})`;
         sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
-        sellBtn.onclick = () => { if (sellCooldownLevel() !== false) { _refreshShopCoins(); renderShopItems(); } };
+        sellBtn.onclick = () => { if (sellCooldownLevel() !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(sellBtn);
     }
 
@@ -1004,7 +1005,7 @@ function _makeDurationCard(ship, coins) {
         buyBtn.textContent = `${t('shopBtnUpgrade')} (💰${nextCost?.toLocaleString()})`;
         buyBtn.disabled = !canAfford;
         buyBtn.style.cssText = `background:${canAfford ? 'rgba(192,132,252,0.2)' : 'rgba(100,100,100,0.1)'};border-color:${canAfford ? '#c084fc' : '#555'};color:${canAfford ? '#c084fc' : '#555'};padding:7px 8px;font-size:0.75rem;cursor:${canAfford ? 'pointer' : 'default'};`;
-        buyBtn.onclick = () => { if (buyDurationLevel(ship)) { _refreshShopCoins(); renderShopItems(); } };
+        buyBtn.onclick = () => { if (buyDurationLevel(ship)) { play('buy'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(buyBtn);
     }
 
@@ -1012,7 +1013,7 @@ function _makeDurationCard(ship, coins) {
         const sellBtn = document.createElement('button');
         sellBtn.textContent = `${t('shopBtnDowngrade')} (💰${durRefund})`;
         sellBtn.style.cssText = 'background:rgba(255,77,77,0.12);border-color:#ff4d4d;color:#ff4d4d;padding:6px 8px;font-size:0.72rem;cursor:pointer;';
-        sellBtn.onclick = () => { if (sellDurationLevel(ship) !== false) { _refreshShopCoins(); renderShopItems(); } };
+        sellBtn.onclick = () => { if (sellDurationLevel(ship) !== false) { play('sell'); _refreshShopCoins(); renderShopItems(); } else play('error'); };
         actions.appendChild(sellBtn);
     }
 
@@ -1724,7 +1725,7 @@ function showWorldRecord(rec) {
     setTimeout(() => window.addEventListener('keydown', close), 600);
     setTimeout(close, 7000);
     document.body.appendChild(el);
-    try { if (typeof playSound === 'function') playSound('levelup'); } catch (_) {}
+    play('record');
 }
 window.__showWorldRecord = showWorldRecord;
 // A record that was waiting on this device reached the server later
@@ -1860,6 +1861,7 @@ async function initGame() {
     DOM.overlay.style.display = 'none';
     document.getElementById('floating-settings-btn').style.display = 'none';
     document.getElementById('pause-btn').style.display = 'flex';
+    play('start');
     document.getElementById('pause-overlay').style.display = 'none';
 
     // Show/hide special ability button based on skin and reset cooldown display
@@ -2033,6 +2035,7 @@ function togglePause() {
     const pauseOverlay = document.getElementById('pause-overlay');
     if (pauseBtn) pauseBtn.innerText = state.paused ? '▶' : '⏸';
     if (pauseOverlay) pauseOverlay.style.display = state.paused ? 'flex' : 'none';
+    play(state.paused ? 'pause' : 'resume');
     if (state.paused) {
         trackPauseStart();
     } else {
@@ -2062,6 +2065,7 @@ function updateAbilityCooldown(now) {
             
             if (remaining <= 0) {
                 state.specialAbility.ready = true;
+                play('abilityReady');
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
@@ -2076,6 +2080,7 @@ function updateAbilityCooldown(now) {
             
             if (remaining <= 0) {
                 state.phoenixAbility.ready = true;
+                play('abilityReady');
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
@@ -2091,6 +2096,7 @@ function updateAbilityCooldown(now) {
 
             if (remaining <= 0) {
                 state.jokerAbility.ready = true;
+                play('abilityReady');
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
@@ -2112,6 +2118,7 @@ function updateAbilityCooldown(now) {
 
             if (remaining <= 0) {
                 state.ivoryAbility.ready = true;
+                play('abilityReady');
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
@@ -2132,6 +2139,7 @@ function updateAbilityCooldown(now) {
 
             if (remaining <= 0) {
                 state.dragonAbility.ready = true;
+                play('abilityReady');
                 abilityBtn.classList.remove('cooldown');
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
             } else {
@@ -2146,7 +2154,7 @@ function activateSpecialAbility() {
     if (!state.active) return;
 
     if (currentSkinKey === 'vortex') {
-        if (!state.specialAbility.ready) return;
+        if (!state.specialAbility.ready) { play('abilityWait'); return; }
 
         useVortexLaser();
         state.specialAbility.ready = false;
@@ -2155,7 +2163,7 @@ function activateSpecialAbility() {
         trackAbilityUsed('vortex_laser', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'vortex' });
     } else if (currentSkinKey === 'phoenix') {
-        if (!state.phoenixAbility.ready) return;
+        if (!state.phoenixAbility.ready) { play('abilityWait'); return; }
 
         usePhoenixFeathers();
         state.phoenixAbility.ready = false;
@@ -2164,7 +2172,7 @@ function activateSpecialAbility() {
         trackAbilityUsed('phoenix_feathers', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'phoenix' });
     } else if (currentSkinKey === 'joker') {
-        if (!state.jokerAbility.ready) return;
+        if (!state.jokerAbility.ready) { play('abilityWait'); return; }
 
         // The cooldown starts when the chaos ends, so it can never run out while chaos is still on
         state.jokerAbility.lastUsed = useJokerChaos();
@@ -2173,7 +2181,7 @@ function activateSpecialAbility() {
         trackAbilityUsed('joker_chaos', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'joker' });
     } else if (currentSkinKey === 'ivory') {
-        if (!state.ivoryAbility.ready) return;
+        if (!state.ivoryAbility.ready) { play('abilityWait'); return; }
 
         useIvoryTooth();
         state.ivoryAbility.ready = false;
@@ -2182,7 +2190,7 @@ function activateSpecialAbility() {
         trackAbilityUsed('ivory_tooth', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'ivory' });
     } else if (currentSkinKey === 'baby_dragon') {
-        if (!state.dragonAbility.ready) return;
+        if (!state.dragonAbility.ready) { play('abilityWait'); return; }
 
         // The cooldown starts when the invincibility ends, so the two can never overlap
         state.dragonAbility.lastUsed = useDragonFire();

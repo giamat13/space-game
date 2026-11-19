@@ -11,6 +11,7 @@ import {
 // ===== ENEMY TYPE HELPERS =====
 
 import { KINDS, maybeSpawnKind } from './enemy-types.js';
+import { play } from './sfx.js';
 
 export function getEnemyPoints(type) {
     if (KINDS[type]) return KINDS[type].pts;
@@ -145,6 +146,7 @@ export function damagePlayer(amount, source = 'unknown') {
     // Dragon invincibility - ignore all damage while active
     if (state.dragonAbility && Date.now() < state.dragonAbility.invincibleUntil) {
         console.log('🛡️ [DRAGON] Damage blocked by invincibility');
+        play('blocked');
         return;
     }
 
@@ -152,6 +154,7 @@ export function damagePlayer(amount, source = 'unknown') {
     if (ivoryToothActive()) {
         state.ivoryAbility.hitsLeft--;
         showToothHit();
+        if (state.ivoryAbility.hitsLeft > 0) play('toothHit');
         if (state.ivoryAbility.hitsLeft <= 0) breakIvoryTooth();
         return;
     }
@@ -160,6 +163,7 @@ export function damagePlayer(amount, source = 'unknown') {
     const hpBefore = state.playerHP;
     state.playerHP -= amount;
     trackDamageTaken(amount, source, hpBefore, state.playerHP);
+    if (state.playerHP > 0) play('playerHit');
 
     // Check if player should lose weight
     if (state.isPlayerFat && state.playerHP < state.playerMaxHP - 1) {
@@ -168,6 +172,7 @@ export function damagePlayer(amount, source = 'unknown') {
         DOM.player.style.transform = 'scale(1)';
         console.log('🏃 [FAT] Weight lost! Back to normal');
         showFloatingMessage(t('msgWeightLost'), state.playerX, DOM.wrapper.clientHeight - 120, "#00ff00");
+        play('slim');
     }
     
     updateHPUI();
@@ -175,6 +180,7 @@ export function damagePlayer(amount, source = 'unknown') {
     if(state.playerHP <= 0) {
         console.log('💀 [GAME OVER] Final Score:', state.score, 'Level:', state.level);
         state.active = false;
+        play('gameOver');
 
         // Strong death rumble on any connected gamepad
         try {
@@ -344,6 +350,7 @@ export function healPlayer(percent) {
     const hpBefore = state.playerHP;
     state.playerHP = Math.min(state.playerMaxHP, state.playerHP + amount);
     trackHeal(amount, 'level_up', hpBefore, state.playerHP);
+    play('heal');
     updateHPUI();
     showFloatingMessage(tf('msgRepair', { p: percent }), state.playerX, DOM.wrapper.clientHeight - 100, "var(--health)");
 }
@@ -357,7 +364,7 @@ export function shoot(rateMultiplier = 1) {
     // gamepad's analog Right Trigger: light press = slow, hard press = fast.
     const adjustedCooldown = state.shotCooldown / (state.currentSkinStats.fireRate * rateMultiplier);
     if (now - state.lastShot < adjustedCooldown) return;
-    if (state.ammo <= 0) return;
+    if (state.ammo <= 0) { play('noAmmo'); return; }
     state.lastShot = now;
     state.ammo--;
     updateAmmoUI();
@@ -398,6 +405,8 @@ export function shoot(rateMultiplier = 1) {
         damage: dmg
     });
     trackShot(state.playerX + 23, DOM.wrapper.clientHeight - 80, dmg);
+    play(currentSkinKey === 'joker' ? 'shootJoker' : currentSkinKey === 'ivory' ? 'shootIvory'
+        : b.dataset.isFire ? 'shootFire' : state.currentSkinStats.bulletDamage > 1.5 ? 'shootHeavy' : 'shoot', state.playerRect?.left);
 }
 
 export function enemyShoot(en) {
@@ -472,6 +481,7 @@ export function enemyShoot(en) {
         shooterId: en.el,
         dmg: state.level <= 20 ? 9 : 15
     });
+    play('enemyShoot', en.rect?.left);
 }
 
 // ===== VISUAL EFFECTS =====
@@ -486,8 +496,10 @@ export function spawnParticle(x, y, color, opts = {}) {
     burst(x, y, color, 1, { speed: (opts.dist || 60) * 2.2, life: (opts.duration || 500) / 1000, size: (opts.size || 4) * 0.6 });
 }
 
-export function createExplosion(x, y, color) {
+// `sound` is the sound effect to play with it ('explode' by default, null for none).
+export function createExplosion(x, y, color, sound = 'explode') {
     burst(x, y, color, deviceMode.isMobile ? 9 : 16);
+    if (sound) play(sound, x);
 }
 
 export function showFloatingMessage(text, x, y, color) {
@@ -505,6 +517,7 @@ export function showFloatingMessage(text, x, y, color) {
 
 export function usePhoenixFeathers() {
     console.log('🔥 [PHOENIX] Activating feathers!');
+    play('phoenix');
 
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
@@ -551,6 +564,7 @@ export function usePhoenixFeathers() {
 // not the whole screen. Against a boss it removes a big slice of HP, never the whole bar.
 const VORTEX_BASE = 42, VORTEX_SPREAD = 0.22;     // half-width at the ship (px) / widening per px of height
 export function useVortexLaser() {
+    play('vortex');
     const wr = DOM.wrapper.getBoundingClientRect();
     const px = state.playerX + 25, py = DOM.wrapper.clientHeight - 90;
     const inCone = (x, y, pad = 0) => y < py + 20 && Math.abs(x - px) <= VORTEX_BASE + Math.max(0, py - y) * VORTEX_SPREAD + pad;
@@ -642,8 +656,9 @@ function summonServants() {
 // Returns the time the ability's cooldown starts from: the end of the chaos (or now for a boss summon).
 export function useJokerChaos() {
     window.__damageBoss?.(0.04);
-    if (state.boss) { summonServants(); return Date.now(); }
+    if (state.boss) { play('servants'); summonServants(); return Date.now(); }
     console.log('🃏 [JOKER] Activating CHAOS MODE!');
+    play('joker');
     const playerCenterX = state.playerX + 25;
     const playerY = DOM.wrapper.clientHeight - 90;
     
@@ -757,6 +772,7 @@ export function useIvoryTooth() {
     DOM.player.dataset.toothMax = String(state.ivoryAbility.hitsLeft);
     DOM.player.classList.add('ivory-tooth');
     setToothCracks(0, state.ivoryAbility.hitsLeft);
+    play('tooth');
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
 }
 export function breakIvoryTooth() {
@@ -765,7 +781,7 @@ export function breakIvoryTooth() {
     DOM.player.classList.remove('ivory-tooth');
     // Shatter: the cracked tooth bursts apart, then its overlay is removed
     const p = toothScreenPos();
-    createExplosion(p.x, p.y, '#fff3c4');
+    createExplosion(p.x, p.y, '#fff3c4', 'toothBreak');
     for (let i = 0; i < 6; i++) spawnParticle(p.x, p.y, '#d9c79a', { dist: 70, duration: 450 });
     const old = DOM.player.querySelector('.tooth-cracks');
     if (old) {
@@ -780,6 +796,7 @@ export function breakIvoryTooth() {
 export function useDragonFire() {
     window.__damageBoss?.(0.05);
     console.log('🐉 [DRAGON] Activating DRAGON INFERNO!');
+    play('dragon');
     const playerCenterX = state.playerX + 25;
     const playerTop = DOM.wrapper.clientHeight - 90;
     const playerY = DOM.wrapper.clientHeight - 90;
