@@ -553,15 +553,23 @@ export async function renameInLeaderboards(newName) {
     if (!initCloud() || !user || !newName) return;
     const uid = user.uid;
     try {
-        const [lbTables, goals, money] = await Promise.all([
+        const [lbTables, goals, money, runTables, spRunGoals] = await Promise.all([
             cloudRest('lb', { query: { shallow: true }, authed: false }),
             cloudRest('speedrun', { query: { shallow: true }, authed: false }),
-            cloudRest(`money/${uid}`, { query: { shallow: true }, authed: false })
+            cloudRest(`money/${uid}`, { query: { shallow: true }, authed: false }),
+            cloudRest('runs', { query: { shallow: true }, authed: false }),
+            cloudRest('speedrunRuns', { query: { shallow: true }, authed: false })
         ]);
         const paths = [...Object.keys(lbTables || {}).map(t => `lb/${t}/${uid}`), ...Object.keys(goals || {}).map(g => `speedrun/${g}/${uid}`)];
         const exists = await Promise.all(paths.map(p => cloudRest(p, { query: { shallow: true }, authed: false }).catch(() => null)));
         const upd = {};
         paths.forEach((p, i) => { if (exists[i]) upd[`${p}/userName`] = newName; });
+        // Every past run (runs/ and speedrunRuns/) also carries the name; the leaderboard merges
+        // them with lb/, so a stale name there would still show the old name.
+        const mine = (p) => cloudRest(p, { query: { orderBy: '"userId"', equalTo: JSON.stringify(uid) }, authed: false }).catch(() => null);
+        const groups = [...Object.keys(runTables || {}).map(t => `runs/${t}`), ...Object.keys(spRunGoals || {}).map(g => `speedrunRuns/${g}`)];
+        const found = await Promise.all(groups.map(mine));
+        groups.forEach((g, i) => Object.keys(found[i] || {}).forEach(id => { upd[`${g}/${id}/userName`] = newName; }));
         if (money) upd[`money/${uid}/userName`] = newName;
         if (Object.keys(upd).length) enqueuePatch(uid, upd, 0);
     } catch (e) { console.warn('⚠️ [CLOUD] Rename failed:', e.code || e); }
