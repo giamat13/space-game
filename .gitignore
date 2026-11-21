@@ -108,3 +108,6 @@ ehthumbs.db
 # ── Misc ────────────────────────────────────────────────────────
 .eslintignore
 .prettierignore
+
+
+.playwright-mcp/
