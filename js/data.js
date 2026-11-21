@@ -137,6 +137,7 @@ export const SKINS = {
         color: '#ffaa33',
         unlockLevel: 25,        // the Baby Dragon boss appears at level 25 and wins the ship (js/bosses.js)
         unlockBoss: 'baby_dragon',
+        buyCost: 50000,         // after the boss falls, the ship must still be bought for this many coins
         get name() { return t('skinDragon'); },
         fireRate: 2.2,
         bulletSpeed: 1.8,
@@ -144,8 +145,38 @@ export const SKINS = {
         maxHP: 800,
         isFire: true,
         get description() { return t('skinDescDragon'); }
+    },
+    cube_king: {
+        get svg() { return SHIPS.cube_king; },
+        color: '#a23cf0',
+        unlockLevel: 50,        // the Cube King boss appears at level 50 and opens the ship for purchase (js/bosses.js)
+        unlockBoss: 'cubeking',
+        buyCost: 75000,
+        get name() { return t('skinCubeKing'); },
+        fireRate: 2.5,
+        bulletSpeed: 2.0,
+        bulletDamage: 6.0,
+        maxHP: 900,
+        get description() { return t('skinDescCubeKing'); }
     }
 };
+
+// Ships that cost coins after their boss is beaten. Beating the boss stores a 'won_<ship>' marker
+// (in the same list as the unlocked ships, so it syncs to the cloud); paying turns it into the ship.
+export const wonKey = (skinKey) => 'won_' + skinKey;
+export const isSkinWon = (skinKey) => unlockedSkins.includes(wonKey(skinKey));
+export async function buySkin(skinKey) {
+    const sk = SKINS[skinKey];
+    if (!sk || !sk.buyCost || isSkinUnlocked(skinKey) || !isSkinWon(skinKey)) return { ok: false, reason: 'unavailable' };
+    if (getCoins() < sk.buyCost) return { ok: false, reason: 'coins' };
+    addCoins(-sk.buyCost);
+    await unlockSkin(skinKey);
+    return { ok: true };
+}
+
+// A ship's level is the level of the boss that guards it. Against a boss of a LOWER level the ship's
+// special power becomes a one-hit kill; against the boss that guards the ship itself (or a higher one) it is unchanged.
+export const shipLevel = (skinKey) => SKINS[skinKey]?.unlockLevel || 0;
 
 // Ingredient types
 export const INGREDIENT_TYPES = [
@@ -541,7 +572,7 @@ export const UPGRADES = {
 
 // ===== ABILITY COOLDOWN (all ships) =====
 // Base cooldowns in ms. The Cooldown shop upgrade (General tab) divides every ship's cooldown.
-export const ABILITY_BASE_COOLDOWN = { special: 30000, phoenix: 15000, joker: 30000, dragon: 25000, ivory: 30000 };
+export const ABILITY_BASE_COOLDOWN = { special: 30000, phoenix: 15000, joker: 30000, dragon: 25000, ivory: 30000, cube: 30000 };
 
 // Cooldown level: one shop upgrade with levels, like the score boost.
 // Level n divides every ship's cooldown by COOLDOWN_MULTS[n - 1]. Selling the top level refunds 75%.
@@ -971,6 +1002,12 @@ export const state = {
         activeUntil: 0,   // the tooth stands until this time
         hitsLeft: 0       // hits the tooth can still absorb
     },
+    cubeAbility: {
+        ready: true,
+        cooldown: 30000,
+        lastUsed: 0,
+        shieldUntil: 0    // the Cube King's shield blocks all damage until this time
+    },
     isDebugGame: false,
     paused: false,
     startTime: 0,
@@ -1065,6 +1102,10 @@ export function resetState() {
     state.ivoryAbility.activeUntil = 0;
     state.ivoryAbility.hitsLeft = 0;
     state.ivoryAbility.cooldown = ABILITY_BASE_COOLDOWN.ivory / cdm;
+    state.cubeAbility.ready = true;
+    state.cubeAbility.lastUsed = 0;
+    state.cubeAbility.shieldUntil = 0;
+    state.cubeAbility.cooldown = ABILITY_BASE_COOLDOWN.cube / cdm;
     state.isDebugGame = false;
     state.paused = false;
     state.startTime = Date.now();

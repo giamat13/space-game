@@ -209,7 +209,7 @@ export function mergeCloudHistory(cloudEntries = []) {
 }
 
 // ===== PERSONAL BESTS — read from the local best tables =====
-const ALL_SKINS = ['classic','interceptor','tanker','phoenix','vortex','joker','ivory','baby_dragon'];
+const ALL_SKINS = ['classic','interceptor','tanker','phoenix','vortex','joker','ivory','baby_dragon','cube_king'];
 
 export function getPersonalBests(skinKey = 'overall', limit = 10) {
     if (skinKey === 'overall') {

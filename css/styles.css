@@ -456,6 +456,43 @@ body {
     font-weight: bold;
 }
 
+/* Boss beaten, ship not bought yet: the card is clickable and shows its price */
+.skin-option.locked.for-sale {
+    opacity: 1;
+    cursor: pointer;
+    filter: none;
+    border-color: #ffd700;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.45);
+}
+.skin-option.locked.for-sale .skin-lock { color: #ffd700; }
+.skin-option.locked.for-sale.too-poor .skin-lock { color: #ff6b35; }
+
+/* Cube King special ability: a shield around the ship and a laser straight up */
+#player.cube-shield::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 3px solid #d9a4ff;
+    background: radial-gradient(circle, rgba(162, 60, 240, 0.08), rgba(162, 60, 240, 0.35));
+    box-shadow: 0 0 18px #a23cf0, inset 0 0 14px #d9a4ff;
+    pointer-events: none;
+    animation: cubeShield 0.7s ease-in-out infinite alternate;
+}
+@keyframes cubeShield { from { opacity: 0.65; transform: scale(0.97); } to { opacity: 1; transform: scale(1.04); } }
+.cube-laser {
+    position: absolute;
+    bottom: 90px;
+    width: 56px;
+    margin-left: -28px;
+    pointer-events: none;
+    z-index: 40;
+    background: linear-gradient(90deg, transparent, rgba(217, 164, 255, 0.55) 20%, #fff 50%, rgba(217, 164, 255, 0.55) 80%, transparent);
+    box-shadow: 0 0 22px #a23cf0, 0 0 44px #a23cf0;
+    animation: cubeLaser 0.12s linear infinite alternate;
+}
+@keyframes cubeLaser { from { opacity: 0.8; } to { opacity: 1; } }
+
 .skin-desc {
     font-size: 0.55rem;
     color: rgba(255,255,255,0.7);

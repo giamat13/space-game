@@ -1,8 +1,8 @@
-import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, getCooldownLevel, getCooldownUpgradeCost, buyCooldownLevel, sellCooldownLevel, getDurationLevel, getDurationUpgradeCost, buyDurationLevel, sellDurationLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
+import { DOM, SKINS, state, resetState, difficultyForLevel, setCurrentSkin, currentSkinKey, loadUnlockedSkins, isSkinUnlocked, unlockSkin, isSkinWon, buySkin, shipLevel, refreshUnlockedSkins, saveMaxLevel, getMaxLevel, getLeaderboard, saveScore, keyBindings, loadKeyBindings, setKeyBinding, gameRules, loadGameRules, setGameRule, deviceMode, loadDeviceMode, setDeviceMode, addCoins, initCoinsUI, UPGRADES, getOwnedUpgrades, hasUpgrade, buyUpgrade, removeUpgrade, resetCoins, getCoins, getDisabledUpgrades, disableUpgrade, enableUpgrade, isUpgradeDisabled, isUpgradeActive, SPEEDRUN_GOALS, getCustomSpeedrunGoals, addCustomSpeedrunGoal, removeCustomSpeedrunGoal, getSpeedrunLeaderboard, getHPLevel, getHPBonus, getHPUpgradeCost, buyHPLevel, sellHPLevel, getScoreLevel, getScoreUpgradeCost, buyScoreLevel, sellScoreLevel, getCooldownLevel, getCooldownUpgradeCost, buyCooldownLevel, sellCooldownLevel, getDurationLevel, getDurationUpgradeCost, buyDurationLevel, sellDurationLevel, sendCoinsToFriend, claimPendingTransfers } from './data.js';
 import { SCORE_MULTS } from './score-upgrade.js';
 import { COOLDOWN_MULTS } from './cooldown-upgrade.js';
 import { DURATION_STEP_MS, DURATION_SHIPS, durationMaxLevel, ivoryHitsForLevel } from './duration-upgrade.js';
-import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, useIvoryTooth, rechargeAmmo } from './systems.js';
+import { updatePlayerPos, movePlayer, stepPlayer, tickPlayerControl, updateHPUI, updateAmmoUI, shoot, showFloatingMessage, useVortexLaser, usePhoenixFeathers, useJokerChaos, useDragonFire, useIvoryTooth, useCubeLaser, rechargeAmmo } from './systems.js';
 import { handleSpawning } from './systems.js';
 import { ART, enemyArt } from './art.js';
 import { updateBullets, updateEnemyBullets, updateBurgers, updateIngredients, updateAsteroids, updateEnemies, updateLightnings } from './updates.js';
@@ -67,6 +67,7 @@ window.addEventListener('langchange', () => {
     updateEduSettingsDisplay(); // re-render grade labels
     updateSettingsDisplay();    // re-render buttons
     renderLangList();           // update the active tick in the language tab
+    updateSkinOptions();        // ships for sale show their price in the new language
     // Re-render shop if open (tabs and items use t())
     if (document.getElementById('shop-container')?.style.display !== 'none') {
         renderShopTabs();
@@ -551,6 +552,7 @@ const LB_SKINS = [
     { key: 'joker',       get label() { return t('skinJoker'); } },
     { key: 'ivory',           get label() { return '🦷 ' + t('skinIvory'); } },
     { key: 'baby_dragon',      get label() { return '🐉 ' + t('skinDragon'); } },
+    { key: 'cube_king',       get label() { return '🔷 ' + t('skinCubeKing'); } },
 ];
 
 function _skinSubHtml(sel, onClickFn) {
@@ -696,6 +698,7 @@ const SHOP_TABS = [
     { key: 'joker',       labelKey: 'skinJoker',       icon: '🃏' },
     { key: 'ivory',           labelKey: 'skinIvory',       icon: '🦷' },
     { key: 'baby_dragon',      labelKey: 'skinDragon',      icon: '🐉' },
+    { key: 'cube_king',       labelKey: 'skinCubeKing',    icon: '🔷' },
     { key: 'global',      labelKey: 'shopTabGlobal',    icon: '⭐' },
     { key: 'send',        labelKey: 'shopTabSend',      icon: '💌' },
 ];
@@ -1789,12 +1792,25 @@ function updateSkinOptions() {
         
         if (isSkinUnlocked(skinKey)) {
             console.log(`✅ [SKINS] ${skinKey} is unlocked, making clickable`);
-            option.classList.remove('locked');
+            option.classList.remove('locked', 'for-sale', 'too-poor');
             option.onclick = () => {
                 console.log(`👆 [SKIN CLICK] User clicked skin: ${skinKey}`);
                 selectSkin(skinKey, option);
             };
+        } else if (SKINS[skinKey]?.buyCost && isSkinWon(skinKey)) {
+            // Boss beaten: the ship can be bought with coins
+            const cost = SKINS[skinKey].buyCost;
+            option.classList.add('locked', 'for-sale');
+            option.classList.toggle('too-poor', getCoins() < cost);
+            const lockEl = option.querySelector('.skin-lock');
+            if (lockEl) lockEl.textContent = tf('skinBuy', { cost: cost.toLocaleString() });
+            option.onclick = async () => {
+                const res = await buySkin(skinKey);
+                if (res.ok) { play('coin'); updateSkinOptions(); selectSkin(skinKey, option); }
+                else showFloatingMessage(t(res.reason === 'coins' ? 'skinBuyNoCoins' : 'skinBuyUnavailable'), 120, 120, '#ff6b35');
+            };
         } else {
+            option.classList.remove('for-sale', 'too-poor');
             console.log(`🔒 [SKINS] ${skinKey} is locked`);
             option.classList.add('locked');
             option.onclick = null;
@@ -1891,12 +1907,17 @@ async function initGame() {
         abilityBtn.classList.remove('cooldown');
         abilityBtn.querySelector('.ability-icon').innerHTML = icon('abIvory');
         abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+    } else if (currentSkinKey === 'cube_king') {
+        abilityBtn.style.display = 'flex';
+        abilityBtn.classList.remove('cooldown');
+        abilityBtn.querySelector('.ability-icon').innerHTML = icon('abCube');
+        abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
     } else {
         abilityBtn.style.display = 'none';
     }
 
     // Make sure invincibility and tooth visuals are cleared on a fresh game
-    DOM.player.classList.remove('dragon-invincible');
+    DOM.player.classList.remove('dragon-invincible', 'cube-shield');
     DOM.player.classList.remove('ivory-tooth');
     
     const elementsToRemove = document.querySelectorAll('.enemy-ship, .asteroid, .bullet, .enemy-bullet, .particle, .floating-msg, .burger, .ingredient, .laser-beam, .lightning-bolt');
@@ -2147,11 +2168,39 @@ function updateAbilityCooldown(now) {
                 abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
             }
         }
+    } else if (currentSkinKey === 'cube_king') {
+        if (state.cubeAbility.shieldUntil > 0 && now >= state.cubeAbility.shieldUntil) {
+            state.cubeAbility.shieldUntil = 0;
+            DOM.player.classList.remove('cube-shield');
+        }
+
+        if (!state.cubeAbility.ready) {
+            const elapsed = now - state.cubeAbility.lastUsed;
+            const remaining = state.cubeAbility.cooldown - elapsed;
+
+            if (remaining <= 0) {
+                state.cubeAbility.ready = true;
+                play('abilityReady');
+                abilityBtn.classList.remove('cooldown');
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', '0%');
+            } else {
+                const percent = (remaining / state.cubeAbility.cooldown) * 100;
+                abilityBtn.querySelector('.ability-cooldown').style.setProperty('--cooldown-percent', `${percent}%`);
+            }
+        }
     }
 }
 
+// Special power used against a boss of a lower level than the ship: it becomes a one-hit kill.
 function activateSpecialAbility() {
     if (!state.active) return;
+    const st = { vortex: state.specialAbility, phoenix: state.phoenixAbility, joker: state.jokerAbility, ivory: state.ivoryAbility, baby_dragon: state.dragonAbility, cube_king: state.cubeAbility }[currentSkinKey];
+    const wasReady = !!st?.ready;
+    runSpecialAbility();
+    if (wasReady && st && !st.ready && state.boss) window.__oneHitBoss?.();
+}
+
+function runSpecialAbility() {
 
     if (currentSkinKey === 'vortex') {
         if (!state.specialAbility.ready) { play('abilityWait'); return; }
@@ -2198,6 +2247,15 @@ function activateSpecialAbility() {
         document.getElementById('special-ability-btn').classList.add('cooldown');
         trackAbilityUsed('dragon_fire', state.level, state.playerHP);
         replayRecordEvent('ability', { ability: 'baby_dragon' });
+    } else if (currentSkinKey === 'cube_king') {
+        if (!state.cubeAbility.ready) { play('abilityWait'); return; }
+
+        useCubeLaser();
+        state.cubeAbility.ready = false;
+        state.cubeAbility.lastUsed = Date.now();
+        document.getElementById('special-ability-btn').classList.add('cooldown');
+        trackAbilityUsed('cube_laser', state.level, state.playerHP);
+        replayRecordEvent('ability', { ability: 'cube_king' });
     }
 }
 
@@ -3725,6 +3783,7 @@ const ABILITY_INFO = {
     joker:   { icon: '🃏', color: '#ff4500', get label() { return t('abilityJoker'); } },
     ivory:   { icon: '🦷', color: '#fff3c4', get label() { return t('abilityIvory'); } },
     baby_dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },
+    cube_king: { icon: '🔷', color: '#a23cf0', get label() { return t('abilityCubeKing'); } },
     dragon:  { icon: '🐉', color: '#ff2d2d', get label() { return t('abilityDragon'); } },   // replays saved before the rename
 };
 

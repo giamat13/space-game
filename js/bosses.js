@@ -10,7 +10,7 @@
 //   • Boss shots go through state.enemyBullets, so the normal bullet movement, player-damage
 //     and dragon-ricochet code handles them unchanged.
 //   • Fairness: every attack is either a slow visible projectile or has a warn phase.
-import { DOM, state, addScore, addCoins, SKINS, isSkinUnlocked, unlockSkin } from './data.js';
+import { DOM, state, addScore, addCoins, SKINS, isSkinUnlocked, unlockSkin, isSkinWon, wonKey, shipLevel, currentSkinKey } from './data.js';
 import { createExplosion, showFloatingMessage, damagePlayer, updateHPUI, updateAmmoUI, pushPlayer } from './systems.js';
 import { t, tf } from './i18n.js';
 import { showBanner, confettiBurst, shockwave, lightBeams, xpOrbs, trophy, celebrateSkinUnlock } from './fx.js';
@@ -512,6 +512,17 @@ function hitBoss(b, hit) {
 // Ship abilities (vortex laser, dragon fire, joker chaos) deal a fraction of the boss' max HP.
 window.__damageBoss = (fraction) => { if (state.boss) hitBoss(state.boss, { dmg: fraction, ability: true }); };
 
+// A ship against a boss of a lower level than the ship itself: its special power kills the boss in one hit.
+window.__oneHitBoss = () => {
+    const b = state.boss;
+    if (!b || b.enter || b.dying || b.enc.level >= shipLevel(currentSkinKey)) return false;
+    b.inv = false; K.shield(b, false);
+    b.hp = 0;
+    K.boom(b.x + b.w / 2, b.y + b.h / 2, '#ffd21a');
+    showBanner(t('bossOneHit'), { color: '#ffd21a', ms: 1800 });
+    return true;
+};
+
 // ---------- death ----------
 function startDeath(b) {
     b.dying = true;
@@ -594,7 +605,13 @@ function finishDeath(b) {
     if (first) setTimeout(() => showFloatingMessage(t('bossFirstKill'), K.W / 2 - 80, K.H / 2 - 34, '#ffe27a'), 250);
 
     // Some bosses leave a ship behind (Ashen Phoenix → Phoenix, Maelstrom → Vortex, Jester → Joker). Debug runs (startLvl) never unlock.
-    if (def.unlocksSkin && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && unlockSkin(def.unlocksSkin)) {
+    // Ships with a price (Baby Dragon, Cube King): the boss only opens the ship for purchase in the ship menu.
+    const priced = def.unlocksSkin && SKINS[def.unlocksSkin]?.buyCost;
+    if (priced && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && !isSkinWon(def.unlocksSkin) && unlockSkin(wonKey(def.unlocksSkin))) {
+        const sk = SKINS[def.unlocksSkin];
+        window.__updateSkinOptions?.();
+        setTimeout(() => showFloatingMessage(tf('bossShipForSale', { name: sk.name, cost: sk.buyCost.toLocaleString() }), K.W / 2 - 110, K.H / 2 + 60, '#ffd700'), 3200);
+    } else if (!priced && def.unlocksSkin && !state.isDebugGame && !isSkinUnlocked(def.unlocksSkin) && unlockSkin(def.unlocksSkin)) {
         const sk = SKINS[def.unlocksSkin];
         window.__updateSkinOptions?.();
         setTimeout(() => {
@@ -702,7 +719,17 @@ export function updateBoss(now) {
     if (!state.boss) {
         if (state.bossIndex == null) state.bossIndex = firstEncounterFrom(state.level);
         if (Date.now() < (window.__celebrateUntil || 0)) return;     // let a new-ship reveal (e.g. the Joker at level 10) finish first
-        if (state.level >= bossLevel(state.bossIndex)) { WR = DOM.wrapper.getBoundingClientRect(); spawn(encounter(state.bossIndex)); }
+        if (state.level >= bossLevel(state.bossIndex)) {
+            const enc = encounter(state.bossIndex);
+            // You are the boss's own ship (e.g. Ivory vs Twin Fangs): it simply does not come, and the run continues.
+            if (enc.def.unlocksSkin && enc.def.unlocksSkin === currentSkinKey) {
+                state.bossIndex = enc.n + 1;
+                showBanner(tf('bossSkipped', { name: SKINS[currentSkinKey].name }), { color: '#9fe8ff', ms: 2600 });
+                return;
+            }
+            WR = DOM.wrapper.getBoundingClientRect();
+            spawn(enc);
+        }
         return;
     }
     const b = state.boss, def = b.def;

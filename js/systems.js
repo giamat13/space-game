@@ -150,6 +150,12 @@ export function damagePlayer(amount, source = 'unknown') {
         return;
     }
 
+    // Cube King shield: blocks all damage while it is up
+    if (state.cubeAbility && Date.now() < state.cubeAbility.shieldUntil) {
+        play('blocked');
+        return;
+    }
+
     // Ivory tooth: the tooth in front of the ship takes the hit instead
     if (ivoryToothActive()) {
         state.ivoryAbility.hitsLeft--;
@@ -775,6 +781,64 @@ export function useIvoryTooth() {
     play('tooth');
     showFloatingMessage(t('msgToothOn'), state.playerX - 10, DOM.wrapper.clientHeight - 150, '#fff3c4');
 }
+// Cube King, special ability: the boss's own two tricks. A shield blocks all damage for 5 s, and a tracking laser
+// follows the ship for 1.5 s, destroying everything in its lane (a boss in the lane loses about 15% of its HP).
+export const CUBE_SHIELD_MS = 5000, CUBE_LASER_MS = 1500, CUBE_LASER_HALF = 28;
+let cubeLaserTimer = 0;
+export function useCubeLaser() {
+    play('vortex');
+    const until = Date.now() + CUBE_LASER_MS;
+    state.cubeAbility.shieldUntil = Date.now() + CUBE_SHIELD_MS;
+    DOM.player.classList.add('cube-shield');
+    showFloatingMessage(t('msgCubeShield'), state.playerX - 30, DOM.wrapper.clientHeight - 150, '#d9a4ff');
+
+    const beam = document.createElement('div');
+    beam.className = 'cube-laser';
+    DOM.wrapper.appendChild(beam);
+    clearInterval(cubeLaserTimer);
+    let ticks = 0;
+    const step = () => {
+        if (!state.active) { beam.remove(); clearInterval(cubeLaserTimer); return; }
+        if (state.paused) return;
+        const px = state.playerX + 25, py = DOM.wrapper.clientHeight - 90;
+        beam.style.left = px + 'px';
+        beam.style.height = py + 'px';
+        const inLane = (x, pad = 0) => Math.abs(x - px) <= CUBE_LASER_HALF + pad;
+        const wr = DOM.wrapper.getBoundingClientRect();
+
+        const bs = state.boss;
+        if (bs && !bs.enter && !bs.dying && inLane(bs.x + bs.w / 2, bs.w / 2)) window.__damageBoss?.(0.0065);
+
+        for (let i = state.enemies.length - 1; i >= 0; i--) {
+            const en = state.enemies[i], r = en.el.getBoundingClientRect();
+            if (!inLane(r.left - wr.left + r.width / 2, r.width / 2)) continue;
+            addScore(getEnemyPoints(en.type));
+            createExplosion(r.left + r.width / 2, r.top + r.height / 2, getEnemyColor(en.type));
+            en.el.remove();
+            state.enemies.splice(i, 1);
+            en.def?.die?.(en);
+        }
+        for (let i = state.asteroids.length - 1; i >= 0; i--) {
+            const ast = state.asteroids[i], r = ast.el.getBoundingClientRect();
+            if (!inLane(r.left - wr.left + r.width / 2, r.width / 2)) continue;
+            createExplosion(r.left + r.width / 2, r.top + r.height / 2, 'var(--stone)');
+            ast.el.remove();
+            state.asteroids.splice(i, 1);
+        }
+        for (let i = state.enemyBullets.length - 1; i >= 0; i--) {
+            const eb = state.enemyBullets[i];
+            if (eb.ricochet || !inLane(eb.x)) continue;
+            createExplosion(wr.left + eb.x, wr.top + eb.y, '#d9a4ff');
+            eb.el.remove();
+            state.enemyBullets.splice(i, 1);
+        }
+        DOM.scoreEl.innerText = state.score;
+        if (Date.now() >= until || ++ticks > 60) { beam.remove(); clearInterval(cubeLaserTimer); }
+    };
+    step();
+    cubeLaserTimer = setInterval(step, 60);
+}
+
 export function breakIvoryTooth() {
     state.ivoryAbility.hitsLeft = 0;
     state.ivoryAbility.activeUntil = 0;

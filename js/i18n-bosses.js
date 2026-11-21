@@ -145,6 +145,9 @@ export const BOSS_STRINGS = {
     kDrained: L('-3 תחמושת', '-3 AMMO', '-3 ذخيرة', '-3 ПАТРОНА', '-3 MUNITIONS', '-3 MUNICIÓN'),
     msgServants: L('המשרתים מגיעים!', 'THE SERVANTS ARRIVE!', 'الخدم يصلون!', 'СЛУГИ ПРИБЫЛИ!', 'LES SERVITEURS ARRIVENT !', '¡LLEGAN LOS SIRVIENTES!'),
     bossUnlockedShip: L('הבוס הוריש לך חללית חדשה!', 'THE BOSS LEFT YOU A NEW SHIP!', 'ترك لك الزعيم سفينة جديدة!', 'БОСС ОСТАВИЛ ВАМ НОВЫЙ КОРАБЛЬ!', 'LE BOSS VOUS LAISSE UN NOUVEAU VAISSEAU !', '¡EL JEFE TE DEJA UNA NAVE NUEVA!'),
+    bossSkipped: L('הבוס של {name} לא מגיע - ממשיכים!', 'The {name} boss stays away - keep flying!', 'زعيم {name} لن يأتي - واصل الطيران!', 'Босс {name} не прилетит - летим дальше!', 'Le boss de {name} ne vient pas - on continue !', '¡El jefe de {name} no viene - sigue volando!'),
+    bossOneHit: L('הכוח המיוחד חיסל את הבוס במכה אחת!', 'YOUR SPECIAL POWER KILLED THE BOSS IN ONE HIT!', 'قوتك الخاصة قتلت الزعيم بضربة واحدة!', 'СПЕЦСИЛА УБИЛА БОССА ОДНИМ УДАРОМ!', 'VOTRE POUVOIR SPÉCIAL TUE LE BOSS EN UN COUP !', '¡TU PODER ESPECIAL MATÓ AL JEFE DE UN GOLPE!'),
+    bossShipForSale: L('{name} זמינה לקנייה בתפריט ב-{cost} מטבעות!', '{name} can now be bought in the ship menu for {cost} coins!', 'يمكنك شراء {name} من قائمة السفن مقابل {cost} عملة!', '{name} теперь можно купить в меню кораблей за {cost} монет!', '{name} est en vente dans le menu des vaisseaux pour {cost} pièces !', '¡{name} se puede comprar en el menú de naves por {cost} monedas!'),
     goalBosses: L('{n} בוסים', '{n} bosses', '{n} زعماء', 'Боссов: {n}', '{n} boss', '{n} jefes'),
     bossCountTitle: L('בוסים שהובסו במשחק הזה', 'Bosses defeated in this run', 'الزعماء المهزومون في هذه الجولة', 'Боссов побеждено за забег', 'Boss vaincus dans cette partie', 'Jefes vencidos en esta partida'),
 };

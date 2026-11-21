@@ -375,7 +375,7 @@ export const ROSTER = [
     },
     // 3 — the original: shield, blink, and a tracking beam — each leaves it exposed afterwards.
     {
-        id: 'cubeking', color: '#a23cf0', size: 160, gap: 1400, art: ART.cubeking,
+        id: 'cubeking', unlocksSkin: 'cube_king', color: '#a23cf0', size: 160, gap: 1400, art: ART.cubeking,
         phases: [['fan', 'shield', 'fan', 'wall'], ['fan', 'beam', 'ring', 'shield', 'blink', 'spiral'], ['fan', 'beam', 'blink', 'ring', 'shield', 'spiral', 'slam']],
         cards: {
             fan(b, K) { K.fan(b, 1 + 2 * b.phase, 14 + 10 * b.phase, 3.9 + b.phase * 0.3); return 300; },

@@ -50,6 +50,12 @@ export const SHIPS = {
         p('M50 2 L56 14 L44 14 Z', '#ffffff', 'stroke="#05070f" stroke-width="1.4"') +
         glass('M50 22 L57 40 L50 50 L43 40 Z') + dot(a, 50, 62, 3) +
         mir(`<path d="M30 52 L40 56 L32 64 Z" fill="${a.e}" stroke="#05070f" stroke-width="1.8" ${a.F}/>`), '#ffd9f0'),
+    // Cube King: a purple faceted hull, a golden crown and a glowing laser core
+    cube_king: svg('ck', ['#d9a4ff', '#8a2be2', '#2e0a66', '#ffd21a'], (a) =>
+        mir(jet(a, 36, 92, 4) + p('M34 40 L10 34 L8 66 L32 72 Z', a.M) + dot(a, 14, 52, 2.6)) +
+        p('M50 8 L70 28 L70 64 L50 88 L30 64 L30 28 Z', a.H) + hi('M50 12 L66 28 L50 36 L34 28 Z') + sh('M32 60 L68 60 L50 86 Z', 0.3) +
+        p('M32 26 L36 8 L44 18 L50 4 L56 18 L64 8 L68 26 Z', '#ffd21a', 'stroke="#05070f" stroke-width="1.8" stroke-linejoin="round"') +
+        `<rect x="40" y="40" width="20" height="20" rx="3" fill="#05070f" ${OUT}/><rect x="44" y="44" width="12" height="12" rx="2" fill="${a.e}" ${a.F}/><rect x="46" y="46" width="4" height="4" fill="#fff"/>`),
 };
 
 const EN = { red: ['#ffc2c2', '#ff3b3b', '#6e0808', '#ffe45c'], orange: ['#ffe0b0', '#ffa31a', '#7a4200', '#fff07a'], green: ['#c8ffd9', '#25d96b', '#0b5a28', '#e4ff6a'], blue: ['#c2e0ff', '#3d9bff', '#0e3a80', '#7ff3ff'] };
