@@ -380,9 +380,9 @@ export function shoot(rateMultiplier = 1) {
     b.style.left = (state.playerX + 23) + 'px';
     b.style.bottom = '80px';
     
-    // Joker and Ivory have their own shot look (css/styles.css .bullet-joker / .bullet-ivory).
+    // Joker, Ivory and Cube King have their own shot look (css/styles.css .bullet-joker / .bullet-ivory / .bullet-cube_king).
     // Their CSS class must not be overridden by the fire styling below.
-    if (currentSkinKey === 'joker' || currentSkinKey === 'ivory') {
+    if (currentSkinKey === 'joker' || currentSkinKey === 'ivory' || currentSkinKey === 'cube_king') {
         b.classList.add('bullet-' + currentSkinKey);
         if (state.currentSkinStats.bulletDamage >= 3.0) b.dataset.isFire = 'true';
     } else if (state.currentSkinStats.bulletDamage >= 3.0) {
