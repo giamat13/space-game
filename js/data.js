@@ -940,7 +940,7 @@ export const state = {
     // ship-control modifiers bosses can apply (see systems.js)
     ctrl: { offset: 0, min: null, max: null, lag: 0, target: null, pointer: null, release: false },
     ammoRate: 1,
-    boss: null, bossIndex: null, bossesBeaten: 0, bossLog: [], runHpBonus: 0,
+    boss: null, bossIndex: null, bossesBeaten: 0, bossesFair: 0, bossLog: [], runHpBonus: 0,
     score: 0,
     level: 1,
     playerX: 0,

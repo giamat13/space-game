@@ -1494,7 +1494,7 @@ function checkSpeedrunMilestones() {
     let hitAny = false;
     for (const goal of allGoals) {
         if (state.speedrunHits[goal.key] != null) continue;
-        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossesBeaten || 0) : state.level;
+        const val = goal.type === 'score' ? state.score : goal.type === 'boss' ? (state.bossesFair || 0) : state.level;
         if (val >= goal.target) {
             const elapsed = Date.now() - state.startTime;
             state.speedrunHits[goal.key] = elapsed;

@@ -368,6 +368,7 @@ export function resetBoss() {
     state.boss = null;
     state.bossIndex = null;      // worked out from the level on the first tick of the run
     state.bossesBeaten = 0;
+    state.bossesFair = 0;
     state.bossLog = [];
     state.bossDone = false;
 }
@@ -518,6 +519,7 @@ window.__oneHitBoss = () => {
     if (!b || b.enter || b.dying || b.enc.level >= shipLevel(currentSkinKey)) return false;
     b.inv = false; K.shield(b, false);
     b.hp = 0;
+    b.oneHit = true;
     K.boom(b.x + b.w / 2, b.y + b.h / 2, '#ffd21a');
     showBanner(t('bossOneHit'), { color: '#ffd21a', ms: 1800 });
     return true;
@@ -625,6 +627,9 @@ function finishDeath(b) {
     state.boss = null;
     state.bossDone = true;
     state.bossesBeaten = (state.bossesBeaten || 0) + 1;
+    // Bosses killed by the one-hit special power do not count toward the speedrun "bosses" goals
+    if (!b.oneHit) state.bossesFair = (state.bossesFair || 0) + 1;
+    result.oneHit = !!b.oneHit;
     (state.bossLog = state.bossLog || []).push(result);
     state.bossIndex = enc.n + 1;
     window.__onBossEvent?.('kill', result);
